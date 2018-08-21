@@ -1,0 +1,103 @@
+#!/usr/bin/env node
+
+const which = require('which')
+const debug = require('debug')('dcdn:cli')
+const spawn = require('cross-spawn')
+const pify = require('pify')
+
+const { kOriginalProgramArguments } = require('../lib/constants')
+const { kFromDCDNParentFlag, createProgram } = require('../lib/program')
+const { fatal } = require('../lib/util')
+const { version } = require('../package')
+
+// yargs program command line interface instance
+const program = createProgram({
+  usage: `
+usage: dcdn: [-hDV] [--help] [--version]
+            [--debug] <command> [<args>]
+
+Below are some useful dcdn commands:
+
+  dcdn download        Initiate a download from peers
+  dcdn publish         Publish AFS
+`
+})
+
+const { argv } = program
+  .option('debug', {
+    alias: 'D',
+    describe: "Enable debug output (Sets 'DEBUG+=ara:dcdn:*')",
+  })
+
+// Emit program version
+if (0 == argv._.length && argv.version) {
+  debug(version)
+  process.exit(0)
+}
+
+// Emit program usage help
+if ((0 == argv._.length && argv.help) || 0 == kOriginalProgramArguments.length) {
+  program.showHelp()
+  process.exit(0)
+}
+
+// if debug given, but nothing else show help and bail
+if (true == argv.debug && 0 == argv._.length) {
+  program.showHelp()
+  process.exit(1)
+}
+
+void (async function main() {
+  // The program command name sits in head position with the rest of its
+  // arguments following after
+  const shortCommandName = argv._[0].split(' ')
+
+  if (null == shortCommandName) {
+    if ('-' == kOriginalProgramArguments[0][0]) {
+      debug('Unknown option: %s', kOriginalProgramArguments[0])
+    }
+
+    program.showHelp()
+    process.exit(1)
+  }
+
+  const canonicalCommandName = `dcdn-${shortCommandName[0]}`
+
+  // Determine if child canonical command program name is in
+  // user path (PATH or PATHEXT)
+  debug("Searching for command dcdn command '%s'", canonicalCommandName)
+
+  try { await pify(which)(canonicalCommandName) } catch (err) {
+    fatal(
+      "'%s' is not a dcdn command. See 'dcdn --help'.",
+      shortCommandName
+    )
+  }
+
+  // Spawn child program with command line arguments given inheriting
+  // this processes stdio (stdin, stdout, stderr)
+  const child = spawn(
+    canonicalCommandName,
+    // Flags to pass to child process
+    [ kFromDCDNParentFlag ].concat(shortCommandName.slice(1), kOriginalProgramArguments.slice(1)),
+    {
+      stdio: 'inherit',
+      env: Object.assign({}, process.env, {
+        DEBUG: String(process.env.DEBUG) + (argv.debug ? ',ara:dcdn*' : '')
+      }),
+    }
+  )
+
+  child.on('exit', (code, signal) => {
+    debug('%s exited with code %s and signal %s', code, signal)
+    process.nextTick(() => process.exit(code))
+  })
+
+  // Emit child program error and exit
+  child.on('error', () => {
+    fatal(
+      "An error occured when invoking '%s' command. See 'dcdn --help'.",
+      shortCommandName
+    )
+  })
+}())

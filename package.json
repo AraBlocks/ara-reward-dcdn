@@ -1,0 +1,64 @@
+{
+  "name": "ara-network-node-dcdn",
+  "version": "0.1.1",
+  "description": "An ARA Network node that runs DCDN",
+  "main": "index.js",
+  "bin": {
+    "dcdn": "bin/dcdn",
+    "dcdn-download": "bin/dcdn-download",
+    "dcdn-publish": "bin/dcdn-publish"
+  },
+  "scripts": {
+    "test": ":",
+    "lint": "eslint .",
+    "lint-fix": "eslint . --fix"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AraBlocks/ara-network-node-dcdn.git"
+  },
+  "keywords": [
+    "ara",
+    "network",
+    "node",
+    "dcdn",
+    "cdn"
+  ],
+  "contributors": [
+    "Vanessa Pyne <vip@littlstar.com>",
+    "Madeline Cameron <madeline@littlstar.com>"
+  ],
+  "license": "LGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/AraBlocks/ara-network-node-dcdn/issues"
+  },
+  "homepage": "https://github.com/AraBlocks/ara-network-node-dcdn#readme",
+  "dependencies": {
+    "ansi-diff-stream": "^1.2.1",
+    "ara-console": "github:arablocks/ara-console",
+    "ara-crypto": "github:arablocks/ara-crypto",
+    "ara-identity": "github:arablocks/ara-identity",
+    "ara-network": "github:arablocks/ara-network",
+    "ara-runtime-configuration": "github:arablocks/ara-runtime-configuration",
+    "ara-secret-storage": "github:arablocks/ara-secret-storage",
+    "bencode": "^2.0.0",
+    "debug": "^3.1.0",
+    "did-uri": "^0.2.5",
+    "ethereumjs-wallet": "^0.6.1",
+    "extend": "^3.0.1",
+    "hash-to-port": "^1.0.0",
+    "inquirer": "^6.1.0",
+    "multidrive": "^5.2.0",
+    "pify": "^3.0.0",
+    "pump": "^3.0.0",
+    "toiletdb": "^1.4.1",
+    "yargs": "^12.0.1"
+  },
+  "peerDependencies": {},
+  "optionalDependencies": {},
+  "devDependencies": {
+    "eslint": "^4.19.1",
+    "eslint-config-ara": "github:arablocks/eslint-config-ara",
+    "eslint-plugin-import": "^2.12.0"
+  }
+}

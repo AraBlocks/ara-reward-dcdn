@@ -1,0 +1,82 @@
+#!/usr/bin/env node
+
+const { start: startDCDN } = require('../')
+const { checkBlockchain } = require('../blockchain')
+const { createProgram } = require('../lib/program')
+const { fatal, error } = require('../lib/util')
+const { publishDID } = require('../subnet')
+const { resolve } = require('path')
+const debug = require('debug')('ara:dcdn:publish')
+
+const toLower = x => String(x).toLowerCase()
+
+// yargs program command line interface instance
+const program = createProgram({
+  usage: `
+usage: dcdn publish: [-h] [--help]
+                 [options]
+`,
+})
+
+const { argv } = program
+  .option('did', {
+    alias: 'd',
+    type: 'string',
+    describe: 'DID'
+  })
+  .option('identity', {
+    alias: 'i',
+    type: 'string',
+    describe: 'Identity'
+  })
+  .option('secret', {
+    alias: 's',
+    describe: 'Network key secret',
+    default: null
+  })
+  .option('name', {
+    alias: 'n',
+    describe: 'Network key name',
+    default: null
+  })
+  .option('keyring', {
+    alias: 'k',
+    describe: 'Path to keyring',
+    default: null
+  })
+
+// Emit program usage help
+if (0 == argv._.length && argv.help) {
+  program.showHelp()
+  process.exit(0)
+}
+
+// Main program entry
+module.exports = (async function main() {
+  debug(`checking blockchain for ${argv.did}`)
+
+  // Check if given DID is committed to blockchain
+  const exists = await checkBlockchain(argv.did)
+
+  if (exists) {
+    debug(`found ${argv.did} on blockchain, starting DCDN`)
+    startDCDN({
+      did: argv.did,
+      download: false,
+      upload: true,
+    })
+
+    debug(`contacting subnet to start distributing ${argv.did}`)
+    publishDID(argv.did, { 
+      // Identity of the user
+      identity: argv.identity,
+      // Secret phrase given when creating network key
+      secret: Buffer.from(argv.secret), 
+      name: argv.name,
+      // Path to public key of network key
+      keys: resolve(argv.keyring),
+    })
+  } else {
+    error(`${argv.did} doesn't seem to exist. Try running \`afs commit ${argv.did}`)
+  }
+}())
