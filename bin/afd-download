@@ -40,7 +40,7 @@ module.exports = (async function main() {
     type: 'input',
     name: 'maxCost',
     message:
-    '\nPlease enter the maximum price you are willingly to pay.\n' +
+    '\nPlease enter the maximum price you are willing to pay.\n' +
     'Price:'
   } ])
 
