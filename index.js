@@ -1,4 +1,3 @@
-const { listenForDIDs } = require('./subnet')
 const { resolve } = require('path')
 const { error } = require('ara-console')
 const extend = require('extend')
