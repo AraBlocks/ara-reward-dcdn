@@ -22,14 +22,13 @@ class DCDN extends EventEmitter {
    */
   constructor(opts = {}) {
     super()
+
     this[$driveCreator] = null
     this.afses = {}
     this.did = opts.did
     this.swarm = createSwarm({ stream: this.stream.bind(this) })
     this.shouldUpload = Boolean(opts.upload)
     this.shouldDownload = Boolean(opts.download)
-    this.user = opts.user
-
   }
 
   /**
@@ -45,27 +44,14 @@ class DCDN extends EventEmitter {
       DCDN._closeAFS
     )
 
+    this.swarm.on('connection', (_, peer) => {
+      info(`Connected to peer ${peer.host}:${peer.port}`)
+    })
+
     // If we are only advertising one DID, join it straight away
     if (this.did) {
-      if (this.user) {
-        const self = this
-        this.afses[this.did] = await pify(this[$driveCreator].create)(this.did)
-        this.swarm.on('connection', this.user.handleDCDNConnection)
-        this.user.on("match", onMatch)
-        this.user.broadcastService('afp:' + this.did)
-
-        async function onMatch(opts) {
-          info(`onMatch`)
-          await self.user.trackAFS[self.afses[self.did], opts]
-          self.join(self.did)
-        }
-      } else {
-        this.swarm.on('connection', (_, peer) => {
-          info(`Connected to peer ${peer.host}:${peer.port}`)
-        })
-        debug(`joining a static DID ${this.did}`)
-        this.join(this.did)
-      }
+      debug(`joining a static DID ${this.did}`)
+      this.join(this.did)
     }
   }
 
@@ -121,9 +107,8 @@ class DCDN extends EventEmitter {
    */
 
   async join(did) {
-    if (!this.didExists(did)) {
-      this.afses[did] = await pify(this[$driveCreator].create)(did)
-    }
+    this.afses[did] = await pify(this[$driveCreator].create)(did)
+
     this.swarm.join(did)
     info(`Joined ${did} channel`)
   }
