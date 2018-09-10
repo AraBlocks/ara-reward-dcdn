@@ -1,13 +1,11 @@
-const { decrypt, unpack } = require('ara-network/keys')
 const { createChannel } = require('ara-network/discovery')
-const { info, warn } = require('ara-console')
+const { info, error } = require('ara-console')
 const { Handshake } = require('ara-network/handshake')
 const { readFile } = require('fs')
 const { keyRing } = require('ara-network/keys')
 const { resolve } = require('path')
+const { unpack } = require('ara-network/keys')
 const inquirer = require('inquirer')
-const secrets = require('ara-network/secrets')
-const storage = require('ara-secret-storage')
 const { DID } = require('did-uri')
 const crypto = require('ara-crypto')
 const debug = require('debug')('ara:dcdn:subnet')
@@ -15,28 +13,47 @@ const pify = require('pify')
 const pump = require('pump')
 const net = require('net')
 const rc = require('ara-network/rc')()
+const ss = require('ara-secret-storage')
 
 require('ara-identity/rc')()
 
+/**
+ * Transmits DID's existance to other's holding specified network keys
+ *
+ * @param  {String} did DID to publish
+ * @param  {Object} opts Options used for the handshake
+ * @return {null}
+ */
 async function publishDID(did, opts) {
-  const writer = await _createSecureWriter(opts)
-
-  writer.write(Buffer.from(did, 'hex'))
-  writer.close()
+  try {
+    const writer = await _createSecureWriter(opts)
+    info(`Publishing ${did} is available for download`)
+    writer.write(Buffer.from(did, 'hex'))
+  } catch (e) {
+    error(`Error occurred while creating secure writer for ${did}`, e)
+    return process.exit(1)
+  }
 }
 
-async function listenForDIDs(conf, callback) {
+/**
+ * Listen for others to transmit new DIDs on network keys passed
+ *
+ * @param  {Object} opts Options used for the handshake
+ * @param  {Function} callback Function to pass found DID to
+ * @return {null}
+ */
+async function listenForDIDs(opts, callback) {
   const channel = createChannel()
 
-  debug('make identity from ', conf.identity)
-  const did = new DID(conf.identity)
+  debug('make identity from ', opts.identity)
+  const did = new DID(opts.identity)
   const publicKey = Buffer.from(did.identifier, 'hex')
 
   let { password } = await inquirer.prompt([ {
     type: 'password',
     name: 'password',
     message:
-    'Please enter the passphrase associated with the node identity.\n' +
+    'Please enter your identity\'s passphrase\n' +
     'Passphrase:'
   } ])
 
@@ -44,22 +61,32 @@ async function listenForDIDs(conf, callback) {
 
   const hash = crypto.blake2b(publicKey).toString('hex')
   const path = resolve(rc.network.identity.root, hash, 'keystore/ara')
-  const secret = Buffer.from(conf.secret)
+  const secret = Buffer.from(opts.secret)
+
   const keystore = JSON.parse(await pify(readFile)(path, 'utf8'))
 
   const secretKey = crypto.decrypt(keystore, { key: password.slice(0, 16) })
 
-  const contents = await pify(readFile)(conf.keys)
+  const keyring = keyRing(opts.keys, { secret })
 
-  const keyring = keyRing(conf.keys, { secret })
+  let buffer
+  try {
+    buffer = await keyring.get(opts.name)
+  } catch (e) {
+    error(`Error occurred while retrieving ${opts.name} from keyring ${opts.keys}`, e)
+    return process.exit(1)
+  }
 
-  const buffer = await keyring.get(conf.name)
   const unpacked = unpack({ buffer })
   const { discoveryKey } = unpacked
   const server = net.createServer(onconnection)
+    .on('error', (e) => {
+      error('Error inside of server listening for DID connections', e)
+      return process.exit(1)
+    })
 
-  console.log(`listening on port ${conf.port || 5000} for DID announcements`)
-  server.listen(conf.port || 5000, onlisten)
+  info(`Listening on port ${opts.port || 5000} for DID announcements`)
+  server.listen(opts.port || 5000, onlisten)
 
   function onlisten(err) {
     if (err) { throw err }
@@ -84,7 +111,8 @@ async function listenForDIDs(conf, callback) {
 
     pump(handshake, socket, handshake, (err) => {
       if (err) {
-        warn(err.message)
+        error(err)
+        return process.exit(1)
       } else {
         info('connection closed')
       }
@@ -101,75 +129,65 @@ async function listenForDIDs(conf, callback) {
 
       reader.resume()
       reader.on('data', (data) => {
-        const did = data.toString('hex')
-        return callback(did)
+        const newDid = data.toString('hex')
+        info(`Found published DID ${newDid}`)
+        return callback(newDid)
       })
     }
   }
 }
 
-async function _createSecureWriter(conf) {
+async function _createSecureWriter(opts) {
   return new Promise(async (_resolve, _reject) => {
-    const channel = createChannel()
+    try {
+      const channel = createChannel()
+      const parsedDID = new DID(opts.identity)
+      const publicKey = Buffer.from(parsedDID.identifier, 'hex')
 
-    let { password } = await inquirer.prompt([ {
-      type: 'password',
-      name: 'password',
-      message:
-      'Please enter the passphrase associated with the node identity.\n' +
-      'Passphrase:'
-    } ])
+      password = crypto.blake2b(Buffer.from(opts.password))
 
-    const did = new DID(conf.identity)
-    const publicKey = Buffer.from(did.identifier, 'hex')
+      const hash = crypto.blake2b(publicKey).toString('hex')
+      const path = resolve(rc.network.identity.root, hash, 'keystore/ara')
+      const secret = Buffer.from(opts.secret)
+      const keystore = JSON.parse(await pify(readFile)(path, 'utf8'))
+      const secretKey = ss.decrypt(keystore, { key: password.slice(0, 16) })
 
-    password = crypto.blake2b(Buffer.from(password))
+      const keyring = keyRing(opts.keys, { secret: secretKey })
+      const buffer = await keyring.get(opts.name)
+      const unpacked = unpack({ buffer })
+      const { discoveryKey } = unpacked
 
-    const hash = crypto.blake2b(publicKey).toString('hex')
-    console.log("HASH:", hash, rc.network.identity)
-    const path = resolve(rc.network.identity.root, hash, 'keystore/ara')
-    console.log("PATH:", path)
-    const secret = Buffer.from(conf.secret)
-    const keystore = JSON.parse(await pify(readFile)(path, 'utf8'))
+      channel.join(discoveryKey)
+      channel.on('peer', onpeer)
 
-    const secretKey = crypto.decrypt(keystore, { key: password.slice(0, 16) })
+      function onpeer(chan, peer) {
+        debug(`got peer: ${peer.host}:${peer.port}`)
+        const socket = net.connect(peer.port, peer.host)
+        const handshake = new Handshake({
+          publicKey,
+          secretKey,
+          secret,
+          remote: { publicKey: unpacked.publicKey },
+          domain: { publicKey: unpacked.domain.publicKey }
+        })
 
-    const contents = await pify(readFile)(conf.keys)
+        pump(handshake, socket, handshake)
 
-    const keyring = keyRing(conf.keys, { secret: secretKey })
+        handshake.on('hello', onhello)
+        handshake.on('okay', onokay)
 
-    const buffer = await keyring.get(conf.name)
-    const unpacked = unpack({ buffer })
-    const { discoveryKey } = unpacked
+        function onhello() {
+          debug('hello!')
+          handshake.hello()
+        }
 
-    channel.join(discoveryKey)
-    channel.on('peer', onpeer)
-
-    function onpeer(chan, peer) {
-      debug(`got peer: ${peer.host}:${peer.port}`)
-      const socket = net.connect(peer.port, peer.host)
-      const handshake = new Handshake({
-        publicKey,
-        secretKey,
-        secret,
-        remote: { publicKey: unpacked.publicKey },
-        domain: { publicKey: unpacked.domain.publicKey }
-      })
-
-      pump(handshake, socket, handshake)
-
-      handshake.on('hello', onhello)
-      handshake.on('okay', onokay)
-
-      function onhello() {
-        debug('hello!')
-        handshake.hello()
+        function onokay() {
+          debug('resolving writer')
+          return _resolve(handshake.createWriteStream())
+        }
       }
-
-      function onokay() {
-        debug('resolving writer')
-        return _resolve(handshake.createWriteStream())
-      }
+    } catch (e) {
+      return _reject(e)
     }
   })
 }

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: subnet.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: subnet.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const { createChannel } = require('ara-network/discovery')
+const { info, warn } = require('ara-console')
+const { Handshake } = require('ara-network/handshake')
+const { readFile } = require('fs')
+const { keyRing } = require('ara-network/keys')
+const { resolve } = require('path')
+const { unpack } = require('ara-network/keys')
+const inquirer = require('inquirer')
+const { DID } = require('did-uri')
+const crypto = require('ara-crypto')
+const debug = require('debug')('ara:dcdn:subnet')
+const pify = require('pify')
+const pump = require('pump')
+const net = require('net')
+const rc = require('ara-network/rc')()
+
+require('ara-identity/rc')()
+
+/**
+ * Transmits DID's existance to other's holding specified network keys
+ *
+ * @param  {String} did DID to publish
+ * @param  {Object} opts Options used for the handshake
+ * @return {null}
+ */
+async function publishDID(did, opts) {
+  const writer = await _createSecureWriter(opts)
+
+  info(`Publishing ${Buffer.from(did, 'hex')} is available for download`)
+  writer.write(Buffer.from(did, 'hex'))
+  writer.close()
+}
+
+/**
+ * Listen for others to transmit new DIDs on network keys passed
+ * 
+ * @param  {Object} opts Options used for the handshake
+ * @param  {Function} callback Function to pass found DID to
+ * @return {null}
+ */
+async function listenForDIDs(opts, callback) {
+  const channel = createChannel()
+
+  debug('make identity from ', opts.identity)
+  const did = new DID(opts.identity)
+  const publicKey = Buffer.from(did.identifier, 'hex')
+
+  let { password } = await inquirer.prompt([ {
+    type: 'password',
+    name: 'password',
+    message:
+    'Please enter your identity\'s passphrase\n' +
+    'Passphrase:'
+  } ])
+
+  password = crypto.blake2b(Buffer.from(password))
+
+  const hash = crypto.blake2b(publicKey).toString('hex')
+  const path = resolve(rc.network.identity.root, hash, 'keystore/ara')
+  const secret = Buffer.from(opts.secret)
+  const keystore = JSON.parse(await pify(readFile)(path, 'utf8'))
+
+  const secretKey = crypto.decrypt(keystore, { key: password.slice(0, 16) })
+
+  const keyring = keyRing(opts.keys, { secret })
+
+  const buffer = await keyring.get(opts.name)
+  const unpacked = unpack({ buffer })
+  const { discoveryKey } = unpacked
+  const server = net.createServer(onconnection)
+
+  info(`Listening on port ${opts.port || 5000} for DID announcements`)
+  server.listen(opts.port || 5000, onlisten)
+
+  function onlisten(err) {
+    if (err) { throw err }
+    const { port } = server.address()
+    channel.join(discoveryKey, port)
+  }
+
+  function onconnection(socket) {
+    debug('got a connection!')
+    const handshake = new Handshake({
+      publicKey,
+      secretKey,
+      secret,
+      remote: { publicKey: unpacked.publicKey },
+      domain: { publicKey: unpacked.domain.publicKey }
+    })
+
+    debug('saying hello')
+    handshake.hello()
+    handshake.on('hello', onhello)
+    handshake.on('okay', onokay)
+
+    pump(handshake, socket, handshake, (err) => {
+      if (err) {
+        warn(err.message)
+      } else {
+        info('connection closed')
+      }
+    })
+
+    function onhello() {
+      debug('hello!')
+      handshake.auth()
+    }
+
+    function onokay() {
+      debug('okay!')
+      const reader = handshake.createReadStream()
+
+      reader.resume()
+      reader.on('data', (data) => {
+        const newDid = data.toString('hex')
+        info(`Found published DID ${newDid}`)
+        return callback(newDid)
+      })
+    }
+  }
+}
+
+async function _createSecureWriter(opts) {
+  return new Promise(async (_resolve) => {
+    const channel = createChannel()
+
+    let { password } = await inquirer.prompt([ {
+      type: 'password',
+      name: 'password',
+      message:
+      'Please enter the passphrase associated with the node identity.\n' +
+      'Passphrase:'
+    } ])
+
+    const did = new DID(opts.identity)
+    const publicKey = Buffer.from(did.identifier, 'hex')
+
+    password = crypto.blake2b(Buffer.from(password))
+
+    const hash = crypto.blake2b(publicKey).toString('hex')
+    const path = resolve(rc.network.identity.root, hash, 'keystore/ara')
+    const secret = Buffer.from(opts.secret)
+    const keystore = JSON.parse(await pify(readFile)(path, 'utf8'))
+
+    const secretKey = crypto.decrypt(keystore, { key: password.slice(0, 16) })
+
+    const keyring = keyRing(opts.keys, { secret: secretKey })
+
+    const buffer = await keyring.get(opts.name)
+    const unpacked = unpack({ buffer })
+    const { discoveryKey } = unpacked
+
+    channel.join(discoveryKey)
+    channel.on('peer', onpeer)
+
+    function onpeer(chan, peer) {
+      debug(`got peer: ${peer.host}:${peer.port}`)
+      const socket = net.connect(peer.port, peer.host)
+      const handshake = new Handshake({
+        publicKey,
+        secretKey,
+        secret,
+        remote: { publicKey: unpacked.publicKey },
+        domain: { publicKey: unpacked.domain.publicKey }
+      })
+
+      pump(handshake, socket, handshake)
+
+      handshake.on('hello', onhello)
+      handshake.on('okay', onokay)
+
+      function onhello() {
+        debug('hello!')
+        handshake.hello()
+      }
+
+      function onokay() {
+        debug('resolving writer')
+        return _resolve(handshake.createWriteStream())
+      }
+    }
+  })
+}
+
+module.exports = {
+  publishDID,
+  listenForDIDs,
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="DCDN.html">DCDN</a></li></ul><h3>Global</h3><ul><li><a href="global.html#checkBlockchain">checkBlockchain</a></li><li><a href="global.html#configure">configure</a></li><li><a href="global.html#getInstance">getInstance</a></li><li><a href="global.html#listenForDIDs">listenForDIDs</a></li><li><a href="global.html#publishDID">publishDID</a></li><li><a href="global.html#start">start</a></li><li><a href="global.html#stop">stop</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a> on Thu Aug 23 2018 16:55:35 GMT-0400 (Eastern Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

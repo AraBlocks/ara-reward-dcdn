@@ -1,13 +1,13 @@
-const { secrets } = require('ara-network')
-const debug = require('debug')('ara:dcdn:blockchain')
-const pify = require('pify')
-const aid = require('ara-identity')
+/**
+ * Check the blockchain for the existance of DID
+ */
 
-async function checkBlockchain(did) {
+async function checkBlockchain() {
   // Handwaving as of 08/06/2018
 
   // maddie
-  //   Verifying that something has been committed is getting anything from the read method from the storage contract when you pass the relevant parameters? (edited)
+  //   Verifying that something has been committed is getting anything from the read method from
+  //   the storage contract when you pass the relevant parameters? (edited)
   // eric
   //   nope you’d query the `Registry` contract
   //   and check if `hash(contentDid)` has a non-zero address
@@ -16,7 +16,8 @@ async function checkBlockchain(did) {
   //   yeah i would be on eric’s current branch, not master
   // eric
   //   although this isn’t in the AFS repo
-  //   this is a relatively large refactor that isn’t done yet, so if you have any questions @maddie feel free to ask
+  //   this is a relatively large refactor that isn’t done yet, so if you have any questions
+  //   @maddie feel free to ask
   // maddie
   //   So this part is not yet in so I should just handwave it for now?
   // eric

@@ -1,17 +1,19 @@
 {
-  "name": "ara-network-node-dcdn",
-  "version": "0.1.1",
-  "description": "An ARA Network node that runs DCDN",
+  "name": "ara-network-node-dcdn-farm",
+  "version": "0.2.1",
+  "description": "An Ara Network node that runs DCDN",
   "main": "index.js",
   "bin": {
-    "dcdn": "bin/dcdn",
-    "dcdn-download": "bin/dcdn-download",
-    "dcdn-publish": "bin/dcdn-publish"
+    "afd": "bin/afd",
+    "afd-publish": "bin/afd-publish",
+    "afd-download": "bin/afd-download"
   },
   "scripts": {
-    "test": ":",
+    "test": "ava test",
     "lint": "eslint .",
-    "lint-fix": "eslint . --fix"
+    "lint-fix": "eslint . --fix",
+    "cli-readme": "./scripts/create-cli-readme DCDN > CLI.md",
+    "api-readme": "jsdoc *.js -d docs -R README.md"
   },
   "repository": {
     "type": "git",
@@ -35,30 +37,33 @@
   "homepage": "https://github.com/AraBlocks/ara-network-node-dcdn#readme",
   "dependencies": {
     "ansi-diff-stream": "^1.2.1",
-    "ara-console": "github:arablocks/ara-console",
-    "ara-crypto": "github:arablocks/ara-crypto",
-    "ara-identity": "github:arablocks/ara-identity",
-    "ara-network": "github:arablocks/ara-network",
-    "ara-runtime-configuration": "github:arablocks/ara-runtime-configuration",
-    "ara-secret-storage": "github:arablocks/ara-secret-storage",
+    "ara-console": "arablocks/ara-console#0.1.2",
+    "ara-crypto": "arablocks/ara-crypto#0.7.0",
+    "ara-identity": "arablocks/ara-identity#0.4.0",
+    "ara-network": "arablocks/ara-network#1.0.0-beta.2",
+    "ara-runtime-configuration": "arablocks/ara-runtime-configuration#0.4.0",
+    "ara-secret-storage": "arablocks/ara-secret-storage#0.1.1",
     "bencode": "^2.0.0",
     "debug": "^3.1.0",
     "did-uri": "^0.2.5",
     "ethereumjs-wallet": "^0.6.1",
-    "extend": "^3.0.1",
+    "extend": "^3.0.2",
     "hash-to-port": "^1.0.0",
     "inquirer": "^6.1.0",
     "multidrive": "^5.2.0",
     "pify": "^3.0.0",
     "pump": "^3.0.0",
+    "through": "^2.3.8",
     "toiletdb": "^1.4.1",
     "yargs": "^12.0.1"
   },
   "peerDependencies": {},
   "optionalDependencies": {},
   "devDependencies": {
+    "ava": "^0.25.0",
     "eslint": "^4.19.1",
-    "eslint-config-ara": "github:arablocks/eslint-config-ara",
-    "eslint-plugin-import": "^2.12.0"
+    "eslint-config-ara": "arablocks/eslint-config-ara#2.0.0",
+    "eslint-plugin-import": "^2.12.0",
+    "jsdoc": "^3.5.5"
   }
 }

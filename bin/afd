@@ -1,32 +1,32 @@
 #!/usr/bin/env node
 
 const which = require('which')
-const debug = require('debug')('dcdn:cli')
+const debug = require('debug')('afd:cli')
 const spawn = require('cross-spawn')
 const pify = require('pify')
 
 const { kOriginalProgramArguments } = require('../lib/constants')
 const { kFromDCDNParentFlag, createProgram } = require('../lib/program')
-const { fatal } = require('../lib/util')
+const { error } = require('ara-console')
 const { version } = require('../package')
 
 // yargs program command line interface instance
 const program = createProgram({
   usage: `
-usage: dcdn: [-hDV] [--help] [--version]
+usage: afd: [-hDV] [--help] [--version]
             [--debug] <command> [<args>]
 
-Below are some useful dcdn commands:
+Below are some useful afd commands:
 
-  dcdn download        Initiate a download from peers
-  dcdn publish         Publish AFS
+  afd download        Initiate a download from peers
+  afd publish         Publish AFS
 `
 })
 
 const { argv } = program
-  .option('debug', {
-    alias: 'D',
-    describe: "Enable debug output (Sets 'DEBUG+=ara:dcdn:*')",
+  .option('D', {
+    alias: 'debug',
+    describe: "Enable debug output (Sets 'DEBUG+=ara:afd:*')",
   })
 
 // Emit program version
@@ -61,15 +61,15 @@ void (async function main() {
     process.exit(1)
   }
 
-  const canonicalCommandName = `dcdn-${shortCommandName[0]}`
+  const canonicalCommandName = `afd-${shortCommandName[0]}`
 
   // Determine if child canonical command program name is in
   // user path (PATH or PATHEXT)
-  debug("Searching for command dcdn command '%s'", canonicalCommandName)
-
+  debug("Searching for command afd command '%s'", canonicalCommandName)
+  console.log((canonicalCommandName));
   try { await pify(which)(canonicalCommandName) } catch (err) {
-    fatal(
-      "'%s' is not a dcdn command. See 'dcdn --help'.",
+    error(
+      "'%s' is not a afd command. See 'afd --help'.",
       shortCommandName
     )
   }
@@ -83,7 +83,7 @@ void (async function main() {
     {
       stdio: 'inherit',
       env: Object.assign({}, process.env, {
-        DEBUG: String(process.env.DEBUG) + (argv.debug ? ',ara:dcdn*' : '')
+        DEBUG: String(process.env.DEBUG) + (argv.debug ? ',ara:afd*' : '')
       }),
     }
   )
@@ -95,8 +95,8 @@ void (async function main() {
 
   // Emit child program error and exit
   child.on('error', () => {
-    fatal(
-      "An error occured when invoking '%s' command. See 'dcdn --help'.",
+    error(
+      "An error occured when invoking '%s' command. See 'afd --help'.",
       shortCommandName
     )
   })
