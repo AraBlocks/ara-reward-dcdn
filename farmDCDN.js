@@ -49,25 +49,24 @@ class FarmDCDN extends DCDN {
    * @return {null}
    */
 
-  async join(did) {
-    if (this.user) {
-      const self = this
-      this.afses[this.did] = await pify(this[$driveCreator].create)(this.did)
-      this.swarm.on('connection', this.user.handleDCDNConnection)
-      this.user.on("match", onMatch)
-      this.user.broadcastService('afp:' + this.did)
+   async join(did) {
+     this.afses[did] = await pify(this[$driveCreator].create)(did)
+     if (this.user) {
+       const self = this
+       this.swarm.on('connection', this.user.handleDCDNConnection)
+       this.user.on("match", onMatch)
+       this.user.broadcastService('afp:' + did)
 
-      async function onMatch(opts) {
-        info(`onMatch`)
-        await self.user.trackAFS[self.afses[self.did], opts]
-        self.swarm.join(did)
-        info(`Joined ${did} channel`)
-      }
-    } else {
-      this.afses[did] = await pify(this[$driveCreator].create)(did)
-      this.swarm.join(did)
-    }
-  }
-}
+       async function onMatch(opts) {
+         info(`onMatch`)
+         await self.user.trackAFS[self.afses[did], opts]
+         self.swarm.join(did)
+         info(`Joined ${did} channel`)
+       }
+     } else {
+       this.swarm.join(did)
+     }
+   }
+ }
 
 module.exports = FarmDCDN
