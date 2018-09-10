@@ -34,29 +34,6 @@ const { argv } = program
     describe: 'DID',
     required: true
   })
-  .option('i', {
-    alias: 'identity',
-    type: 'string',
-    describe: 'Identity',
-    default: rc.network.identity.whoami,
-    required: true
-  })
-  .option('s', {
-    alias: 'secret',
-    describe: 'Network key secret',
-    required: true
-  })
-  .option('n', {
-    alias: 'name',
-    describe: 'Network key name',
-    required: true
-  })
-  .option('k', {
-    alias: 'keyring',
-    describe: 'Path to keyring',
-    default: rc.network.identity.keyring,
-    required: true
-  })
 
 // Emit program usage help
 if ('undefined' == argv._[0] && argv.help) {
@@ -92,7 +69,7 @@ module.exports = (async function main() {
 
     //TODO: uncomment the codes below for develop
     // const farmingPrice = 1
-    
+
     const farmerID = new messages.AraId()
     farmerID.setDid(argv.identity)
 
@@ -111,17 +88,6 @@ module.exports = (async function main() {
         user: farmer
       })
 
-      info(`Contacting subnet to start distributing ${argv.did}`)
-      await publishDID(argv.did, {
-        password: pass,
-        // Identity of the user
-        identity: argv.identity,
-        // Secret phrase given when creating network key
-        secret: Buffer.from(argv.secret),
-        name: argv.name,
-        // Path to public key of network key
-        keys: resolve(argv.keyring),
-      })
     } catch (e) {
       error(`Error occurred while publishing DID ${argv.did}`, e)
       return process.exit(1)
