@@ -1,17 +1,14 @@
 #!/usr/bin/env node
 
 const { start: startDCDN } = require('../')
-const { checkBlockchain } = require('../blockchain')
+const { checkBlockchain } = require('ara-network-node-dcdn/blockchain')
 const { createProgram } = require('../lib/program')
 const { error, info } = require('ara-console')
 const { resolve } = require('path')
 const debug = require('debug')('ara:dcdn:publish')
 const rc = require('ara-runtime-configuration')()
 const toLower = x => String(x).toLowerCase()
-const { Farmer } = require('../wip/farmer.js')
-const { contractAddress, walletAddresses} = require('../wip/constants.js')
-const ContractABI = require('../wip/farming_contract/contract-abi.js')
-const { messages, FarmerBase, util } = require('ara-farming-protocol')
+
 const inquirer = require('inquirer')
 
 // yargs program command line interface instance
@@ -31,6 +28,13 @@ const { argv } = program
     alias: 'did',
     type: 'string',
     describe: 'DID',
+    required: true
+  })
+  .option('i', {
+    alias: 'identity',
+    type: 'string',
+    describe: 'Identity',
+    default: rc.network.identity.whoami,
     required: true
   })
 
@@ -66,25 +70,13 @@ module.exports = (async function main() {
       'Price:'
     } ])
 
-    //TODO: uncomment the codes below for develop
-    // const farmingPrice = 1
-
-    const farmerID = new messages.AraId()
-    farmerID.setDid(argv.identity)
-
-    const farmerSig = new messages.Signature()
-    farmerSig.setAraId(farmerID)
-    farmerSig.setData('farmerSig')
-
-    const wallet = new ContractABI(contractAddress, walletAddresses[1])
-    const farmer = new Farmer(farmerID, farmerSig, farmingPrice, wallet)
-
     try {
       await startDCDN({
         did: argv.did,
         download: false,
         upload: true,
-        user: farmer
+        userID: argv.identity,
+        price: farmingPrice
       })
 
     } catch (e) {

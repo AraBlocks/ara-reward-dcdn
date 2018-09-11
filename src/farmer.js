@@ -29,8 +29,11 @@ class Farmer extends FarmerBase {
     this.wallet = wallet
   }
 
-  async broadcastService(did) {
+  async broadcastService(did, afs, contentSwarm) {
     info('Broadcasting: ', did)
+
+    this.afs = afs
+    this.contentSwarm = contentSwarm
 
     const swarm = createSwarm()
     swarm.on('connection', handleConnection)
@@ -83,7 +86,7 @@ class Farmer extends FarmerBase {
     agreement.setData(data)
 
     // Start work on port
-    // this.startWork(agreement, port)
+    this.startWork(agreement, port)
     return agreement
   }
 
@@ -106,15 +109,15 @@ class Farmer extends FarmerBase {
     info(`Uploaded ${bytesToGBs(this.deliveryMap.get(sowId))} Gbs for job ${sowId}`)
 
     const farmerDid = this.farmerId.getDid()
-    this.wallet
-      .claimReward(sowId, farmerDid)
-      .then(() => {
-        info(`Reward amount ${weiToEther(reward.getAmount())} withdrawn for SOW ${sowId}`)
-      })
-      .catch((err) => {
-        warn(`Failed to withdraw reward for SOW ${sowId}`)
-        debug(err)
-      })
+    // this.wallet
+    //   .claimReward(sowId, farmerDid)
+    //   .then(() => {
+    //     info(`Reward amount ${weiToEther(reward.getAmount())} withdrawn for SOW ${sowId}`)
+    //   })
+    //   .catch((err) => {
+    //     warn(`Failed to withdraw reward for SOW ${sowId}`)
+    //     debug(err)
+    //   })
   }
 
   /**
@@ -141,22 +144,23 @@ class Farmer extends FarmerBase {
     return receipt
   }
 
-  async onAgreement(agreement, connection) {
-    await super.onAgreement(agreement, connection)
+  async startWork(agreement, port) {
     const sow = agreement.getQuote().getSow()
+    info(`Listening for requester ${sow.getRequester().getDid()} on port ${port}`)
     const sowId = nonceString(sow)
-    this.emit("match", sowId)
-  }
+    const { content } = this.afs.partitions.resolve(this.afs.HOME)
 
-  async trackAFS(afs, sowId) {
-    const { content } = afs.partitions.resolve(afs.HOME)
+    const self = this
     content.on('upload', (index, data) => {
-      this.dataTransmitted(sowId, data.length)
+      self.dataTransmitted(sowId, data.length)
     })
-  }
 
-  handleDCDNConnection(_, peer) {
-    info(`Connected to peer ${peer.host}:${peer.port}`)
+    this.contentSwarm.listen(port)
+    this.contentSwarm.on('connection', handleConnection)
+
+    function handleConnection(_, peer) {
+      info(`Connected to peer ${idify(peer.host, peer.port)}`)
+    }
   }
 }
 

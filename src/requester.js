@@ -18,11 +18,12 @@ class Requester extends RequesterBase {
     this.deliveryMap = new Map()
     this.receipts = 0
     this.wallet = wallet
-    this.handleDCDNConnection = this.handleDCDNConnection.bind(this)
   }
 
-  async broadcastService(did) {
+  async broadcastService(did, afs, contentSwarm) {
     info('Requesting: ', did)
+
+    this.setupContentSwarm(afs, contentSwarm)
 
     const swarm = createSwarm()
     swarm.on('connection', handleConnection)
@@ -38,14 +39,14 @@ class Requester extends RequesterBase {
   // Submit the stake to the blockchain
   async submitStake(amount, onComplete) {
     const jobId = nonceString(this.sow)
-    this.wallet
-      .submitJob(jobId, amount)
-      .then(() => {
-        onComplete()
-      })
-      .catch((err) => {
-        onComplete(err)
-      })
+    // this.wallet
+    //   .submitJob(jobId, amount)
+    //   .then(() => {
+    //     onComplete()
+    //   })
+    //   .catch((err) => {
+    //     onComplete(err)
+    //   })
   }
 
   async validateQuote(quote) {
@@ -77,18 +78,21 @@ class Requester extends RequesterBase {
     const peerId = idify(peer.host, port)
     this.hiredFarmers.set(peerId, { connection, agreement })
 
-    this.emit("match", agreement)
+    // Start work
+    this.startWork(peer, port)
   }
 
-  handleDCDNConnection(connection, peer) {
-    info(`Connected to peer ${peer.host}:${peer.port}`)
-    const contentSwarmId = connection.remoteId.toString('hex')
-    const connectionId = idify(peer.host, peer.port)
-    this.swarmIdMap.set(contentSwarmId, connectionId)
-    info(`Content Swarm: Peer connected: ${connectionId}`)
+  // Handle when ready to start work
+  async startWork(peer, port) {
+    const connectionId = idify(peer.host, port)
+    debug(`Starting AFS Connection with ${connectionId}`)
+    this.contentSwarm.addPeer(connectionId, { host: peer.host, port })
   }
 
-  async trackAFS(afs, afsOpts) {
+  async setupContentSwarm(afs, swarm) {
+    this.contentSwarm = swarm
+    this.afs = afs
+
     const self = this
     let oldByteLength = 0
     const { content } = afs.partitions.resolve(afs.HOME)
@@ -103,6 +107,8 @@ class Requester extends RequesterBase {
         attachDownloadListener(afs.partitions.resolve(afs.HOME).content)
       })
     }
+
+    swarm.on('connection', handleConnection)
 
     // Handle when the content needs updated
     async function attachDownloadListener(feed) {
@@ -134,6 +140,14 @@ class Requester extends RequesterBase {
         info('Downloaded!')
         self.sendRewards(onComplete)
       })
+    }
+
+    async function handleConnection(connection, peer) {
+      info(`Connected to peer ${peer.host}:${peer.port}`)
+      const contentSwarmId = connection.remoteId.toString('hex')
+      const connectionId = idify(peer.host, peer.port)
+      this.swarmIdMap.set(contentSwarmId, connectionId)
+      info(`Content Swarm: Peer connected: ${connectionId}`)
     }
   }
 
@@ -210,15 +224,15 @@ class Requester extends RequesterBase {
     const amount = reward.getAmount()
     info(`Sending reward to farmer ${farmerId} for ${weiToEther(amount)} tokens`)
 
-    this.wallet
-      .submitReward(sowId, farmerId, amount)
-      .then(() => {
-        connection.sendReward(reward)
-      })
-      .catch((err) => {
-        warn(`Failed to submit the reward to farmer ${farmerId} for job ${sowId}`)
-        debug(err)
-      })
+    // this.wallet
+    //   .submitReward(sowId, farmerId, amount)
+    //   .then(() => {
+    //     connection.sendReward(reward)
+    //   })
+    //   .catch((err) => {
+    //     warn(`Failed to submit the reward to farmer ${farmerId} for job ${sowId}`)
+    //     debug(err)
+    //   })
   }
 }
 

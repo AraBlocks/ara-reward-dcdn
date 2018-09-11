@@ -1,7 +1,7 @@
 const { resolve } = require('path')
 const { error } = require('ara-console')
 const extend = require('extend')
-const FarmDCDN = require('./farmDCDN')
+const FarmDCDN = require('./src/farmDCDN')
 const rc = require('ara-runtime-configuration')()
 
 let afd
