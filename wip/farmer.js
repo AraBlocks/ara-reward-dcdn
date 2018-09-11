@@ -3,7 +3,7 @@ const { messages, FarmerBase, duplex, util } = require('ara-farming-protocol')
 const { createSwarm } = require('ara-network/discovery')
 const { info, warn } = require('ara-console')
 const crypto = require('ara-crypto')
-const debug = require('debug')('afp:duplex-example:farmer')
+const debug = require('debug')('afd:farmer')
 const pify = require('pify')
 const fp = require('find-free-port')
 const ip = require('ip')
@@ -30,9 +30,11 @@ class Farmer extends FarmerBase {
   }
 
   async broadcastService(did) {
+    info('Broadcasting: ', did)
+
     const swarm = createSwarm()
     swarm.on('connection', handleConnection)
-    swarm.join(did)
+    swarm.join(did, { announce: false })
     const self = this
 
     function handleConnection(connection, peer) {

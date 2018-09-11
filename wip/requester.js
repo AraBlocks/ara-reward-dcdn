@@ -3,7 +3,7 @@ const { messages, RequesterBase, duplex, util } = require('ara-farming-protocol'
 const { createSwarm } = require('ara-network/discovery')
 const { info, warn } = require('ara-console')
 const crypto = require('ara-crypto')
-const debug = require('debug')('afp:duplex-example:requester')
+const debug = require('debug')('afd:requester')
 const {
   idify, nonceString, bytesToGBs, weiToEther
 } = util
@@ -22,9 +22,11 @@ class Requester extends RequesterBase {
   }
 
   async broadcastService(did) {
+    info('Requesting: ', did)
+
     const swarm = createSwarm()
     swarm.on('connection', handleConnection)
-    swarm.join(did, { announce: false })
+    swarm.join(did)
     const self = this
     function handleConnection(connection, peer) {
       info(`SWARM: New peer: ${idify(peer.host, peer.port)}`)

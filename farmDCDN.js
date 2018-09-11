@@ -7,7 +7,7 @@ const through = require('through')
 const toilet = require('toiletdb')
 const debug = require('debug')('ara:afd:farmdcdn')
 const pify = require('pify')
-const DCDN = require('./dcdn')
+const DCDN = require('ara-network-node-dcdn/dcdn')
 const $driveCreator = Symbol('driveCreator')
 /**
  * @class Creates a DCDN node
