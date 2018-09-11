@@ -17,7 +17,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/AraBlocks/ara-network-node-dcdn.git"
+    "url": "git+https://github.com/littlstar/ara-network-node-dcdn-farm.git"
   },
   "keywords": [
     "ara",
@@ -27,14 +27,14 @@
     "cdn"
   ],
   "contributors": [
-    "Vanessa Pyne <vip@littlstar.com>",
-    "Madeline Cameron <madeline@littlstar.com>"
+    "Huy Dao <huy@littlstar.com>",
+    "Brandon Plaster <brandon@littlstar.com>"
   ],
   "license": "LGPL-3.0",
   "bugs": {
-    "url": "https://github.com/AraBlocks/ara-network-node-dcdn/issues"
+    "url": "https://github.com/littlstar/ara-network-node-dcdn-farm/issues"
   },
-  "homepage": "https://github.com/AraBlocks/ara-network-node-dcdn#readme",
+  "homepage": "https://github.com/littlstar/ara-network-node-dcdn-farm#readme",
   "dependencies": {
     "ansi-diff-stream": "^1.2.1",
     "ara-console": "arablocks/ara-console#0.1.2",
@@ -43,6 +43,8 @@
     "ara-network": "arablocks/ara-network#1.0.0-beta.2",
     "ara-runtime-configuration": "arablocks/ara-runtime-configuration#0.4.0",
     "ara-secret-storage": "arablocks/ara-secret-storage#0.1.1",
+    "ara-filesystem": "arablocks/ara-filesystem#develop",
+    "ara-farming-protocol": "littlstar/farming-protocol",
     "bencode": "^2.0.0",
     "debug": "^3.1.0",
     "did-uri": "^0.2.5",

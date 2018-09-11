@@ -96,8 +96,7 @@ class DCDN extends EventEmitter {
     debug(`initializing afs of ${did}`)
     let afs
     try {
-      const password = "t";
-      ({ afs } = await createAFS({ did, password }))
+      ({ afs } = await createAFS({ did }))
     } catch (e) {
       error(`Error occurred while creating AFS for ${did}`, e)
       return process.exit(1)
