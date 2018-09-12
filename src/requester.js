@@ -55,7 +55,7 @@ class Requester extends RequesterBase {
       })
     }
 
-    swarm.on('connection', handleConnection)
+    this.contentSwarm.on('connection', handleConnection)
 
     // Handle when the content needs updated
     async function attachDownloadListener(feed) {
@@ -90,10 +90,9 @@ class Requester extends RequesterBase {
     }
 
     async function handleConnection(connection, peer) {
-      info(`Connected to peer ${peer.host}:${peer.port}`)
       const contentSwarmId = connection.remoteId.toString('hex')
       const connectionId = idify(peer.host, peer.port)
-      this.swarmIdMap.set(contentSwarmId, connectionId)
+      self.swarmIdMap.set(contentSwarmId, connectionId)
       info(`Content Swarm: Peer connected: ${connectionId}`)
     }
   }
