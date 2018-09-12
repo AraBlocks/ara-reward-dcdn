@@ -97,12 +97,47 @@ class FarmDCDN extends DCDN {
    */
 
   async join(did) {
+    const self = this
+
     if (!this.user){
       throw new Error('FarmDCDN requires User Identity')
     }
 
-    this.afses[did] = await pify(this[$driveCreator].create)(did)
-    this.user.broadcastService(this.afses[did], this.swarm)
+    const afs = await pify(this[$driveCreator].create)(did)
+
+    this.afses[did] = afs
+    this.user.broadcastService(afs, this.swarm)
+
+    if (this.shouldDownload){
+      const { content } = afs.partitions.resolve(afs.HOME)
+      if (content) {
+        attachDownloadListener(content)
+      } else {
+        afs.once('content', () => {
+          attachDownloadListener(afs.partitions.resolve(afs.HOME).content)
+        })
+      }
+    }
+
+    // Emit download events
+    async function attachDownloadListener(feed) {
+      // Handle when download starts
+      feed.once('download', () => {
+        self.emit('start', feed.length)
+        info('Download started...')
+      })
+
+      // Record download data
+      feed.on('download', (index, data, from) => {
+        self.emit('progress', feed.downloaded())
+      })
+
+      // Handle when the content finishes downloading
+      feed.once('sync', async () => {
+        self.emit('complete')
+        info('Download Complete!')
+      })
+    }
   }
 }
 

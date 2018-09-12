@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { start: startDCDN } = require('../')
+const { start: startDCDN, getInstance } = require('../')
 const { createProgram } = require('../lib/program')
 const { checkBlockchain } = require('ara-network-node-dcdn/blockchain')
 const { info, error } = require('ara-console')
@@ -8,6 +8,7 @@ const rc = require('ara-runtime-configuration')()
 const debug = require('debug')('afd:download')
 const toLower = x => String(x).toLowerCase()
 const inquirer = require('inquirer')
+const clip = require('cli-progress')
 
 // yargs program command line interface instance
 const program = createProgram({
@@ -74,6 +75,9 @@ module.exports = (async function main() {
         price: maxCost,
         maxWorkers: maxWorkers
       })
+
+      attachDownloadVisualizer(getInstance())
+
     } catch (e) {
       error(`Error occurred while downloading ${argv.did}`, e)
       return process.exit(1)
@@ -83,4 +87,13 @@ module.exports = (async function main() {
     error(`${argv.did} doesn't exist on  blockchain.`)
     return process.exit(1)
   }
+
+  // Creates a progress visualizer bar in cli
+  function attachDownloadVisualizer(dcdn) {
+    const pBar = new clip.Bar({}, clip.Presets.shades_classic)
+    dcdn.once('start', total => pBar.start(total, 0))
+    dcdn.on('progress', value => pBar.update(value))
+    dcdn.once('complete', () => pBar.stop())
+  }
+
 }())

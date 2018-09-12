@@ -70,21 +70,17 @@ class Requester extends RequesterBase {
           if (err) onComplete(err)
           else stakeSubmitted = true
         })
-        self.emit('downloading', feed.length)
       })
 
       // Record download data
       feed.on('download', (index, data, from) => {
         const peerIdHex = from.remoteId.toString('hex')
         self.dataReceived(peerIdHex, data.length)
-        self.emit('progress', feed.downloaded())
       })
 
       // Handle when the content finishes downloading
       feed.once('sync', async () => {
-        self.emit('complete')
-        debug(await afs.readdir('.'))
-        info('Downloaded!')
+        debug("Files:", await afs.readdir('.'))
         self.sendRewards(onComplete)
       })
     }
