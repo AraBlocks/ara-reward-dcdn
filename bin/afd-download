@@ -76,7 +76,8 @@ module.exports = (async function main() {
         maxWorkers: maxWorkers
       })
 
-      attachDownloadVisualizer(getInstance())
+      const dcdn = await getInstance()
+      attachDownloadVisualizer(dcdn)
 
     } catch (e) {
       error(`Error occurred while downloading ${argv.did}`, e)
