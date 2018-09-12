@@ -28,7 +28,7 @@ const { argv } = program
     alias: 'identity',
     type: 'string',
     describe: 'Identity',
-    default: rc.network.identity.whoami,
+    // default: rc.network.identity.whoami,
     required: true
   })
 

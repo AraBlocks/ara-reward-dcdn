@@ -20,14 +20,14 @@ class Requester extends RequesterBase {
     this.wallet = wallet
   }
 
-  async broadcastService(did, afs, contentSwarm) {
-    info('Requesting: ', did)
+  async broadcastService(afs, contentSwarm) {
+    info('Requesting: ', afs.did)
 
     this.setupContentSwarm(afs, contentSwarm)
 
     this.peerSwarm = createSwarm()
     this.peerSwarm.on('connection', handleConnection)
-    this.peerSwarm.join(did)
+    this.peerSwarm.join(afs.did)
     const self = this
     function handleConnection(connection, peer) {
       info(`SWARM: New peer: ${idify(peer.host, peer.port)}`)
@@ -154,7 +154,7 @@ class Requester extends RequesterBase {
   async startWork(peer, port) {
     const connectionId = idify(peer.host, port)
     debug(`Starting AFS Connection with ${connectionId}`)
-    this.contentSwarm.addPeer(connectionId, { host: peer.host, port })
+    this.contentSwarm.addPeer(this.afs.did, { id: connectionId, host: peer.host, port })
   }
 
   async onReceipt(receipt, connection) {

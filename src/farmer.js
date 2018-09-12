@@ -29,15 +29,15 @@ class Farmer extends FarmerBase {
     this.wallet = wallet
   }
 
-  async broadcastService(did, afs, contentSwarm) {
-    info('Broadcasting: ', did)
+  async broadcastService(afs, contentSwarm) {
+    info('Broadcasting: ', afs.did)
 
     this.afs = afs
     this.contentSwarm = contentSwarm
 
     this.peerSwarm = createSwarm()
     this.peerSwarm.on('connection', handleConnection)
-    this.peerSwarm.join(did, { announce: false })
+    this.peerSwarm.join(afs.did, { announce: false })
     const self = this
 
     function handleConnection(connection, peer) {

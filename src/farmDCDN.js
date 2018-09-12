@@ -102,7 +102,7 @@ class FarmDCDN extends DCDN {
     }
 
     this.afses[did] = await pify(this[$driveCreator].create)(did)
-    this.user.broadcastService('afp:' + did, this.afses[did], this.swarm)
+    this.user.broadcastService(this.afses[did], this.swarm)
   }
 }
 
