@@ -25,68 +25,15 @@ class Requester extends RequesterBase {
 
     this.setupContentSwarm(afs, contentSwarm)
 
-    const swarm = createSwarm()
-    swarm.on('connection', handleConnection)
-    swarm.join(did)
+    this.peerSwarm = createSwarm()
+    this.peerSwarm.on('connection', handleConnection)
+    this.peerSwarm.join(did)
     const self = this
     function handleConnection(connection, peer) {
       info(`SWARM: New peer: ${idify(peer.host, peer.port)}`)
       const farmerConnection = new FarmerConnection(peer, connection, { timeout: 6000 })
       process.nextTick(() => self.addFarmer(farmerConnection))
     }
-  }
-
-  // Submit the stake to the blockchain
-  async submitStake(amount, onComplete) {
-    const jobId = nonceString(this.sow)
-    // this.wallet
-    //   .submitJob(jobId, amount)
-    //   .then(() => {
-    //     onComplete()
-    //   })
-    //   .catch((err) => {
-    //     onComplete(err)
-    //   })
-  }
-
-  async validateQuote(quote) {
-    if (quote) return true
-    return false
-  }
-
-  async generateAgreement(quote) {
-    const agreement = new messages.Agreement()
-    agreement.setNonce(crypto.randomBytes(32))
-    agreement.setQuote(quote)
-    agreement.setRequesterSignature(this.requesterSig)
-    return agreement
-  }
-
-  async validateAgreement(agreement) {
-    if (agreement) return true
-    return false
-  }
-
-  async onHireConfirmed(agreement, connection) {
-    const { peer } = connection
-
-    // Extract port
-    const data = Buffer.from(agreement.getData())
-    const port = data.readUInt32LE(0)
-
-    // Store hired farmer
-    const peerId = idify(peer.host, port)
-    this.hiredFarmers.set(peerId, { connection, agreement })
-
-    // Start work
-    this.startWork(peer, port)
-  }
-
-  // Handle when ready to start work
-  async startWork(peer, port) {
-    const connectionId = idify(peer.host, port)
-    debug(`Starting AFS Connection with ${connectionId}`)
-    this.contentSwarm.addPeer(connectionId, { host: peer.host, port })
   }
 
   async setupContentSwarm(afs, swarm) {
@@ -149,6 +96,65 @@ class Requester extends RequesterBase {
       this.swarmIdMap.set(contentSwarmId, connectionId)
       info(`Content Swarm: Peer connected: ${connectionId}`)
     }
+  }
+
+  async stopService(){
+    this.contentSwarm.destroy()
+    this.peerSwarm.destroy()
+    this.afs.close()
+  }
+
+  // Submit the stake to the blockchain
+  async submitStake(amount, onComplete) {
+    const jobId = nonceString(this.sow)
+    // this.wallet
+    //   .submitJob(jobId, amount)
+    //   .then(() => {
+    //     onComplete()
+    //   })
+    //   .catch((err) => {
+    //     onComplete(err)
+    //   })
+  }
+
+  async validateQuote(quote) {
+    if (quote) return true
+    return false
+  }
+
+  async generateAgreement(quote) {
+    const agreement = new messages.Agreement()
+    agreement.setNonce(crypto.randomBytes(32))
+    agreement.setQuote(quote)
+    agreement.setRequesterSignature(this.requesterSig)
+    return agreement
+  }
+
+  async validateAgreement(agreement) {
+    if (agreement) return true
+    return false
+  }
+
+  async onHireConfirmed(agreement, connection) {
+    const { peer } = connection
+
+    // Extract port
+    const data = Buffer.from(agreement.getData())
+    const port = data.readUInt32LE(0)
+
+    // Store hired farmer
+    const peerId = idify(peer.host, port)
+    this.hiredFarmers.set(peerId, { connection, agreement })
+
+    // Start work
+    this.startWork(peer, port)
+  }
+
+  // Handle when ready to start work
+  async startWork(peer, port) {
+    const connectionId = idify(peer.host, port)
+    debug(`Starting AFS Connection with ${connectionId}`)
+    this.contentSwarm.addPeer(connectionId, { host: peer.host, port })
   }
 
   async onReceipt(receipt, connection) {

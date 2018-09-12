@@ -5,7 +5,7 @@ const { checkBlockchain } = require('ara-network-node-dcdn/blockchain')
 const { createProgram } = require('../lib/program')
 const { error, info } = require('ara-console')
 const { resolve } = require('path')
-const debug = require('debug')('ara:dcdn:publish')
+const debug = require('debug')('afd:publish')
 const rc = require('ara-runtime-configuration')()
 const toLower = x => String(x).toLowerCase()
 

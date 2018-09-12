@@ -1,4 +1,3 @@
-const { create: createAFS } = require('ara-filesystem')
 const { info, error } = require('ara-console')
 const { createSwarm } = require('ara-network/discovery/swarm')
 const EventEmitter = require('events')
@@ -79,6 +78,15 @@ class FarmDCDN extends DCDN {
     this.join(this.did)
   }
 
+
+  /**
+   * Stop the DCDN node
+   * @public
+   * @return {null}
+   */
+  stop() {
+    this.user.stopService()
+  }
 
   /**
    * Join a discovery swarm described by the passed DID

@@ -35,9 +35,9 @@ class Farmer extends FarmerBase {
     this.afs = afs
     this.contentSwarm = contentSwarm
 
-    const swarm = createSwarm()
-    swarm.on('connection', handleConnection)
-    swarm.join(did, { announce: false })
+    this.peerSwarm = createSwarm()
+    this.peerSwarm.on('connection', handleConnection)
+    this.peerSwarm.join(did, { announce: false })
     const self = this
 
     function handleConnection(connection, peer) {
@@ -45,6 +45,12 @@ class Farmer extends FarmerBase {
       const requesterConnection = new RequesterConnection(peer, connection, { timeout: 6000 })
       self.addRequester(requesterConnection)
     }
+  }
+
+  async stopService(){
+    this.contentSwarm.destroy()
+    this.peerSwarm.destroy()
+    this.afs.close()
   }
 
   /**
