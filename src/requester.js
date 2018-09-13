@@ -30,7 +30,7 @@ class Requester extends RequesterBase {
     this.peerSwarm.join(afs.did)
     const self = this
     function handleConnection(connection, peer) {
-      info(`SWARM: New peer: ${idify(peer.host, peer.port)}`)
+      info(`Peer Swarm: Peer connected: ${idify(peer.host, peer.port)}`)
       const farmerConnection = new FarmerConnection(peer, connection, { timeout: 6000 })
       process.nextTick(() => self.addFarmer(farmerConnection))
     }
@@ -67,7 +67,7 @@ class Requester extends RequesterBase {
         const amount = self.matcher.maxCost * sizeDelta
         info(`Staking ${weiToEther(amount)} for a size delta of ${bytesToGBs(sizeDelta)} GBs`)
         self.submitStake(amount, (err) => {
-          if (err) stopService(err)
+          if (err) self.stopService(err)
           else stakeSubmitted = true
         })
       })
@@ -94,7 +94,7 @@ class Requester extends RequesterBase {
   }
 
   async stopService(err){
-    debug('Service Complete')
+    info('Service Complete')
     if (err) debug(`Completion Error: ${err}`)
     this.emit('complete', err)
     if (this.contentSwarm) this.contentSwarm.destroy()
@@ -152,7 +152,7 @@ class Requester extends RequesterBase {
   async startWork(peer, port) {
     const connectionId = idify(peer.host, port)
     debug(`Starting AFS Connection with ${connectionId}`)
-    this.contentSwarm.addPeer(this.afs.did, { id: connectionId, host: peer.host, port })
+    this.contentSwarm.addPeer(this.afs.did, { host: peer.host, port })
   }
 
   async onReceipt(receipt, connection) {
@@ -225,7 +225,9 @@ class Requester extends RequesterBase {
     const farmerId = quote.getFarmer().getDid()
     const amount = reward.getAmount()
     info(`Sending reward to farmer ${farmerId} for ${weiToEther(amount)} tokens`)
+    connection.sendReward(reward)
 
+    // TODO: submit rewards to contract
     // this.wallet
     //   .submitReward(sowId, farmerId, amount)
     //   .then(() => {
