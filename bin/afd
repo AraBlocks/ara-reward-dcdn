@@ -1,103 +1,200 @@
 #!/usr/bin/env node
 
-const which = require('which')
-const debug = require('debug')('afd:cli')
-const spawn = require('cross-spawn')
-const pify = require('pify')
+const { start: startDCDN, getInstance } = require('../')
+const { checkBlockchain } = require('ara-network-node-dcdn/blockchain')
+const { info, error } = require('ara-console')
+const { basename } = require('path')
+const inquirer = require('inquirer')
+const program = require('yargs')
+const debug = require('debug')('afd')
+const clip = require('cli-progress')
+const rc = require('ara-runtime-configuration')()
 
-const { kOriginalProgramArguments } = require('../lib/constants')
-const { kFromDCDNParentFlag, createProgram } = require('../lib/program')
-const { error } = require('ara-console')
-const { version } = require('../package')
+const $0 = basename(process.argv[1] || package.name)
 
-// yargs program command line interface instance
-const program = createProgram({
-  usage: `
-usage: afd: [-hDV] [--help] [--version]
-            [--debug] <command> [<args>]
+process.title = $0
+process.on('unhandledRejection', onfatal)
+process.on('uncaughtExeption', onfatal)
 
-Below are some useful afd commands:
+// program usage
+program
+  .usage('usage: $0 [-hDV] <command> [options]')
+  .wrap(null)
 
-  afd download        Initiate a download from peers
-  afd publish         Publish AFS
-`
-})
-
-const { argv } = program
-  .option('D', {
-    alias: 'debug',
-    describe: "Enable debug output (Sets 'DEBUG+=ara:afd:*')",
+// booleans
+program
+  .group([ 'help', 'version', 'debug' ], 'General Options:')
+  .option('debug', {
+    type: 'boolean',
+    alias: 'D',
+    describe: "Enable debug output"
+  })
+  .option('help', {
+    alias: 'h',
+    describe: "Show this help message"
+  })
+  .option('version', {
+    alias: 'V',
+    describe: "Show program version"
   })
 
-// Emit program version
-if (0 == argv._.length && argv.version) {
-  debug(version)
-  process.exit(0)
-}
+// parameters
+program
+  .group([ 'identity', 'did' ], 'Command Options:')
 
-// Emit program usage help
-if ((0 == argv._.length && argv.help) || 0 == kOriginalProgramArguments.length) {
-  program.showHelp()
-  process.exit(0)
-}
+program.option('identity', {
+  alias: 'i',
+  type: 'string',
+  required: true,
 
-// if debug given, but nothing else show help and bail
-if (true == argv.debug && 0 == argv._.length) {
+  describe:
+  `A valid, local, and resolvable Ara identity DID
+  URI of the owner of the AFS. You will be
+  prompted for the associated passphrase`,
+})
+
+program.option('did', {
+  alias: 'd',
+  type: 'string',
+  required: true,
+  describe:
+  `A valid and resolvable Ara identity DID URI 
+  of an AFS.`,
+})
+
+program.command(
+  'download',
+  'Download AFS from network',
+  // eslint-disable-next-line no-shadow
+  program => program
+    .usage('usage: $0 [-D] download [options]')
+  , ondownload
+)
+
+program.command(
+  'publish',
+  'Host AFS for network',
+  // eslint-disable-next-line no-shadow
+  program => program
+    .usage('usage: $0 [-D] publish [options]')
+  , onpublish
+)
+
+if (0 === program.argv._.length) {
   program.showHelp()
   process.exit(1)
 }
 
-void (async function main() {
-  // The program command name sits in head position with the rest of its
-  // arguments following after
-  const shortCommandName = argv._[0].split(' ')
+if (program.argv.debug) {
+  require('debug').enable('af*')
+}
 
-  if (null == shortCommandName) {
-    if ('-' == kOriginalProgramArguments[0][0]) {
-      debug('Unknown option: %s', kOriginalProgramArguments[0])
+async function ondownload(argv){
+  info(`starting DCDN to download ${argv.did}`)
+
+  info(`Checking blockchain for ${argv.did}`)
+  const exists = await checkBlockchain(argv.did)
+
+  if (exists) {
+    info(`Found ${argv.did} on blockchain, starting DCDN`)
+
+    //TODO: clarify price per unit
+    let { maxCost } = await inquirer.prompt([ {
+      type: 'input',
+      name: 'maxCost',
+      message:
+      '\nPlease enter your max cost per GB.\n' +
+      'Price:'
+    } ])
+
+    let { maxWorkers } = await inquirer.prompt([ {
+      type: 'input',
+      name: 'maxWorkers',
+      message:
+      '\nPlease enter the maximum number of publishers you want to hire.\n' +
+      'Price:'
+    } ])
+
+    try {
+      await startDCDN({
+        did: argv.did,
+        download: true,
+        upload: false,
+        userID: argv.identity,
+        price: maxCost,
+        maxWorkers: maxWorkers
+      })
+
+      const dcdn = await getInstance()
+      attachDownloadVisualizer(dcdn)
+
+    } catch (e) {
+      error(`Error occurred while downloading ${argv.did}`, e)
+      return process.exit(1)
     }
-
-    program.showHelp()
-    process.exit(1)
+  }
+  else {
+    error(`${argv.did} doesn't exist on  blockchain.`)
+    return process.exit(1)
   }
 
-  const canonicalCommandName = `afd-${shortCommandName[0]}`
-
-  // Determine if child canonical command program name is in
-  // user path (PATH or PATHEXT)
-  debug("Searching for command afd command '%s'", canonicalCommandName)
-  console.log((canonicalCommandName));
-  try { await pify(which)(canonicalCommandName) } catch (err) {
-    error(
-      "'%s' is not a afd command. See 'afd --help'.",
-      shortCommandName
-    )
+  // Creates a progress visualizer bar in cli
+  function attachDownloadVisualizer(dcdn) {
+    const pBar = new clip.Bar({}, clip.Presets.shades_classic)
+    dcdn.once('start', (did, total) => pBar.start(total, 0))
+    dcdn.on('progress', (did, value) => pBar.update(value))
+    dcdn.once('complete', (did) => pBar.stop())
   }
+}
 
-  // Spawn child program with command line arguments given inheriting
-  // this processes stdio (stdin, stdout, stderr)
-  const child = spawn(
-    canonicalCommandName,
-    // Flags to pass to child process
-    [ kFromDCDNParentFlag ].concat(shortCommandName.slice(1), kOriginalProgramArguments.slice(1)),
-    {
-      stdio: 'inherit',
-      env: Object.assign({}, process.env, {
-        DEBUG: String(process.env.DEBUG) + (argv.debug ? ',ara:afd*' : '')
-      }),
+async function onpublish(argv){
+  info(`starting DCDN to publish ${argv.did}`)
+
+  info(`Checking blockchain for ${argv.did}`)
+  const exists = await checkBlockchain(argv.did)
+
+  if (exists) {
+    info(`Found ${argv.did} on blockchain, starting DCDN`)
+
+    let { pass } = await inquirer.prompt([ {
+      type: 'password',
+      name: 'pass',
+      message:
+      'Please enter the passphrase associated with the node identity.\n' +
+      'Passphrase:'
+    } ])
+
+    let { farmingPrice } = await inquirer.prompt([ {
+      type: 'input',
+      name: 'farmingPrice',
+      message:
+      '\nPlease enter your price.\n' +
+      'Price:'
+    } ])
+
+    try {
+      await startDCDN({
+        did: argv.did,
+        download: false,
+        upload: true,
+        userID: argv.identity,
+        price: farmingPrice
+      })
+
+    } catch (e) {
+      error(`Error occurred while publishing DID ${argv.did}`, e)
+      return process.exit(1)
     }
-  )
+  } else {
+    error(`${argv.did} doesn't seem to exist. Try running \`afs commit ${argv.did}`)
+    return process.exit(1)
+  }
+}
 
-  child.on('exit', (code, signal) => {
-    debug('%s exited with code %s and signal %s', code, signal)
-    process.nextTick(() => process.exit(code))
-  })
-
-  // Emit child program error and exit
-  child.on('error', () => {
-    error(
-      "An error occured when invoking '%s' command. See 'afd --help'.",
-      shortCommandName
-    )
-  })
-}())
+function onfatal(err) {
+  if (err) {
+    debug(err)
+    error("fatal:", err.message)
+  }
+  process.exit(1)
+}

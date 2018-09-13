@@ -51,6 +51,9 @@ typings/
 # Output of 'npm pack'
 *.tgz
 
+# npm
+package-lock.json
+
 # Yarn Integrity file
 .yarn-integrity
 
@@ -61,3 +64,6 @@ typings/
 .next
 
 .DS_Store
+
+# ara 
+afses.json

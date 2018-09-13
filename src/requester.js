@@ -3,7 +3,7 @@ const { messages, RequesterBase, duplex, util } = require('ara-farming-protocol'
 const { createSwarm } = require('ara-network/discovery')
 const { info, warn } = require('ara-console')
 const crypto = require('ara-crypto')
-const debug = require('debug')('afp:duplex-example:requester')
+const debug = require('debug')('afd:requester')
 const {
   idify, nonceString, bytesToGBs, weiToEther
 } = util
@@ -18,32 +18,101 @@ class Requester extends RequesterBase {
     this.deliveryMap = new Map()
     this.receipts = 0
     this.wallet = wallet
-    this.handleDCDNConnection = this.handleDCDNConnection.bind(this)
   }
 
-  async broadcastService(did) {
-    const swarm = createSwarm()
-    swarm.on('connection', handleConnection)
-    swarm.join(did, { announce: false })
+  async broadcastService(afs, contentSwarm) {
+    info('Requesting: ', afs.did)
+
+    this.setupContentSwarm(afs, contentSwarm)
+
+    this.peerSwarm = createSwarm()
+    this.peerSwarm.on('connection', handleConnection)
+    this.peerSwarm.join(afs.did)
     const self = this
     function handleConnection(connection, peer) {
-      info(`SWARM: New peer: ${idify(peer.host, peer.port)}`)
+      info(`Peer Swarm: Peer connected: ${idify(peer.host, peer.port)}`)
       const farmerConnection = new FarmerConnection(peer, connection, { timeout: 6000 })
       process.nextTick(() => self.addFarmer(farmerConnection))
     }
   }
 
+  async setupContentSwarm(afs, swarm) {
+    this.contentSwarm = swarm
+    this.afs = afs
+
+    const self = this
+    let oldByteLength = 0
+    const { content } = afs.partitions.resolve(afs.HOME)
+    let stakeSubmitted = false
+
+    if (content) {
+      // TODO: calc current downloaded size in bytes
+      oldByteLength = 0
+      attachDownloadListener(content)
+    } else {
+      afs.once('content', () => {
+        attachDownloadListener(afs.partitions.resolve(afs.HOME).content)
+      })
+    }
+
+    this.contentSwarm.on('connection', handleConnection)
+
+    // Handle when the content needs updated
+    async function attachDownloadListener(feed) {
+      // Calculate and submit stake
+      // NOTE: this is a hack to get content size and should be done prior to download
+      feed.once('download', () => {
+        debug(`old size: ${oldByteLength}, new size: ${feed.byteLength}`)
+        const sizeDelta = feed.byteLength - oldByteLength
+        const amount = self.matcher.maxCost * sizeDelta
+        info(`Staking ${weiToEther(amount)} for a size delta of ${bytesToGBs(sizeDelta)} GBs`)
+        self.submitStake(amount, (err) => {
+          if (err) self.stopService(err)
+          else stakeSubmitted = true
+        })
+      })
+
+      // Record download data
+      feed.on('download', (index, data, from) => {
+        const peerIdHex = from.remoteId.toString('hex')
+        self.dataReceived(peerIdHex, data.length)
+      })
+
+      // Handle when the content finishes downloading
+      feed.once('sync', async () => {
+        debug("Files:", await afs.readdir('.'))
+        self.sendRewards()
+      })
+    }
+
+    async function handleConnection(connection, peer) {
+      const contentSwarmId = connection.remoteId.toString('hex')
+      const connectionId = idify(peer.host, peer.port)
+      self.swarmIdMap.set(contentSwarmId, connectionId)
+      info(`Content Swarm: Peer connected: ${connectionId}`)
+    }
+  }
+
+  async stopService(err){
+    info('Service Complete')
+    if (err) debug(`Completion Error: ${err}`)
+    this.emit('complete', err)
+    if (this.contentSwarm) this.contentSwarm.destroy()
+    if (this.peerSwarm) this.peerSwarm.destroy()
+    if (this.afs) this.afs.close()
+  }
+
   // Submit the stake to the blockchain
   async submitStake(amount, onComplete) {
     const jobId = nonceString(this.sow)
-    this.wallet
-      .submitJob(jobId, amount)
-      .then(() => {
-        onComplete()
-      })
-      .catch((err) => {
-        onComplete(err)
-      })
+    // this.wallet
+    //   .submitJob(jobId, amount)
+    //   .then(() => {
+    //     onComplete()
+    //   })
+    //   .catch((err) => {
+    //     onComplete(err)
+    //   })
   }
 
   async validateQuote(quote) {
@@ -75,64 +144,15 @@ class Requester extends RequesterBase {
     const peerId = idify(peer.host, port)
     this.hiredFarmers.set(peerId, { connection, agreement })
 
-    this.emit("match", agreement)
+    // Start work
+    this.startWork(peer, port)
   }
 
-  handleDCDNConnection(connection, peer) {
-    info(`Connected to peer ${peer.host}:${peer.port}`)
-    const contentSwarmId = connection.remoteId.toString('hex')
-    const connectionId = idify(peer.host, peer.port)
-    this.swarmIdMap.set(contentSwarmId, connectionId)
-    info(`Content Swarm: Peer connected: ${connectionId}`)
-  }
-
-  async trackAFS(afs, afsOpts) {
-    const self = this
-    let oldByteLength = 0
-    const { content } = afs.partitions.resolve(afs.HOME)
-    let stakeSubmitted = false
-
-    if (content) {
-      // TODO: calc current downloaded size in bytes
-      oldByteLength = 0
-      attachDownloadListener(content)
-    } else {
-      afs.once('content', () => {
-        attachDownloadListener(afs.partitions.resolve(afs.HOME).content)
-      })
-    }
-
-    // Handle when the content needs updated
-    async function attachDownloadListener(feed) {
-      // Calculate and submit stake
-      // NOTE: this is a hack to get content size and should be done prior to download
-      feed.once('download', () => {
-        debug(`old size: ${oldByteLength}, new size: ${feed.byteLength}`)
-        const sizeDelta = feed.byteLength - oldByteLength
-        const amount = self.matcher.maxCost * sizeDelta
-        info(`Staking ${weiToEther(amount)} for a size delta of ${bytesToGBs(sizeDelta)} GBs`)
-        self.submitStake(amount, (err) => {
-          if (err) onComplete(err)
-          else stakeSubmitted = true
-        })
-        self.emit('downloading', feed.length)
-      })
-
-      // Record download data
-      feed.on('download', (index, data, from) => {
-        const peerIdHex = from.remoteId.toString('hex')
-        self.dataReceived(peerIdHex, data.length)
-        self.emit('progress', feed.downloaded())
-      })
-
-      // Handle when the content finishes downloading
-      feed.once('sync', async () => {
-        self.emit('complete')
-        debug(await afs.readdir('.'))
-        info('Downloaded!')
-        self.sendRewards(onComplete)
-      })
-    }
+  // Handle when ready to start work
+  async startWork(peer, port) {
+    const connectionId = idify(peer.host, port)
+    debug(`Starting AFS Connection with ${connectionId}`)
+    this.contentSwarm.addPeer(this.afs.did, { host: peer.host, port })
   }
 
   async onReceipt(receipt, connection) {
@@ -151,8 +171,7 @@ class Requester extends RequesterBase {
     }
   }
 
-  sendRewards(callback) {
-    this.onComplete = callback
+  sendRewards() {
     this.deliveryMap.forEach((value, key) => {
       const peerId = this.swarmIdMap.get(key)
       const units = value
@@ -167,9 +186,8 @@ class Requester extends RequesterBase {
 
   incrementOnComplete() {
     this.receipts++
-    if (this.onComplete && this.receipts === this.deliveryMap.size) {
-      debug('Firing onComplete')
-      this.onComplete()
+    if (this.receipts === this.deliveryMap.size) {
+      this.stopService()
     }
   }
 
@@ -207,16 +225,18 @@ class Requester extends RequesterBase {
     const farmerId = quote.getFarmer().getDid()
     const amount = reward.getAmount()
     info(`Sending reward to farmer ${farmerId} for ${weiToEther(amount)} tokens`)
+    connection.sendReward(reward)
 
-    this.wallet
-      .submitReward(sowId, farmerId, amount)
-      .then(() => {
-        connection.sendReward(reward)
-      })
-      .catch((err) => {
-        warn(`Failed to submit the reward to farmer ${farmerId} for job ${sowId}`)
-        debug(err)
-      })
+    // TODO: submit rewards to contract
+    // this.wallet
+    //   .submitReward(sowId, farmerId, amount)
+    //   .then(() => {
+    //     connection.sendReward(reward)
+    //   })
+    //   .catch((err) => {
+    //     warn(`Failed to submit the reward to farmer ${farmerId} for job ${sowId}`)
+    //     debug(err)
+    //   })
   }
 }
 

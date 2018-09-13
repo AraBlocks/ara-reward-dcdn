@@ -3,7 +3,7 @@ const { messages, FarmerBase, duplex, util } = require('ara-farming-protocol')
 const { createSwarm } = require('ara-network/discovery')
 const { info, warn } = require('ara-console')
 const crypto = require('ara-crypto')
-const debug = require('debug')('afp:duplex-example:farmer')
+const debug = require('debug')('afd:farmer')
 const pify = require('pify')
 const fp = require('find-free-port')
 const ip = require('ip')
@@ -29,17 +29,26 @@ class Farmer extends FarmerBase {
     this.wallet = wallet
   }
 
-  async broadcastService(did) {
-    const swarm = createSwarm()
-    swarm.on('connection', handleConnection)
-    swarm.join(did)
+  async broadcastService(afs) {
+    info('Broadcasting: ', afs.did)
+
+    this.afs = afs
+
+    this.peerSwarm = createSwarm()
+    this.peerSwarm.on('connection', handleConnection)
+    this.peerSwarm.join(afs.did, { announce: false })
     const self = this
 
     function handleConnection(connection, peer) {
-      info(`SWARM: New peer: ${idify(peer.host, peer.port)}`)
+      info(`Peer Swarm: Peer Connected: ${idify(peer.host, peer.port)}`)
       const requesterConnection = new RequesterConnection(peer, connection, { timeout: 6000 })
       self.addRequester(requesterConnection)
     }
+  }
+
+  async stopService(){
+    this.peerSwarm.destroy()
+    this.afs.close()
   }
 
   /**
@@ -62,6 +71,7 @@ class Farmer extends FarmerBase {
    * @returns {boolean}
    */
   async validateAgreement(agreement) {
+    //TODO: check that data is signed by requester
     const quote = agreement.getQuote()
     return quote.getPerUnitCost() == this.price
   }
@@ -76,12 +86,13 @@ class Farmer extends FarmerBase {
 
     // Get free port and pass it as the agreement data
     const port = await pify(fp)(Math.floor(30000 * Math.random()), ip.address())
+
     const data = Buffer.alloc(4)
     data.writeInt32LE(port, 0)
     agreement.setData(data)
 
     // Start work on port
-    // this.startWork(agreement, port)
+    this.startWork(agreement, port)
     return agreement
   }
 
@@ -99,20 +110,19 @@ class Farmer extends FarmerBase {
     }
   }
 
+  // TODO: don't automatically withdraw reward
   async withdrawReward(reward) {
     const sowId = nonceString(reward.getAgreement().getQuote().getSow())
-    info(`Uploaded ${bytesToGBs(this.deliveryMap.get(sowId))} Gbs for job ${sowId}`)
-
     const farmerDid = this.farmerId.getDid()
-    this.wallet
-      .claimReward(sowId, farmerDid)
-      .then(() => {
-        info(`Reward amount ${weiToEther(reward.getAmount())} withdrawn for SOW ${sowId}`)
-      })
-      .catch((err) => {
-        warn(`Failed to withdraw reward for SOW ${sowId}`)
-        debug(err)
-      })
+    // this.wallet
+    //   .claimReward(sowId, farmerDid)
+    //   .then(() => {
+    //     info(`Reward amount ${weiToEther(reward.getAmount())} withdrawn for SOW ${sowId}`)
+    //   })
+    //   .catch((err) => {
+    //     warn(`Failed to withdraw reward for SOW ${sowId}`)
+    //     debug(err)
+    //   })
   }
 
   /**
@@ -131,7 +141,8 @@ class Farmer extends FarmerBase {
    * @returns {messages.Receipt}
    */
   async generateReceipt(reward) {
-    this.withdrawReward(reward)
+    const sowId = nonceString(reward.getAgreement().getQuote().getSow())
+    info(`Uploaded ${bytesToGBs(this.deliveryMap.get(sowId))} Gbs for job ${sowId}`)
     const receipt = new messages.Receipt()
     receipt.setNonce(crypto.randomBytes(32))
     receipt.setReward(reward)
@@ -139,22 +150,41 @@ class Farmer extends FarmerBase {
     return receipt
   }
 
-  async onAgreement(agreement, connection) {
-    await super.onAgreement(agreement, connection)
+  async startWork(agreement, port) {
     const sow = agreement.getQuote().getSow()
+    info(`Listening for requester ${sow.getRequester().getDid()} on port ${port}`)
     const sowId = nonceString(sow)
-    this.emit("match", sowId)
-  }
+    const { content } = this.afs.partitions.resolve(this.afs.HOME)
 
-  async trackAFS(afs, sowId) {
-    const { content } = afs.partitions.resolve(afs.HOME)
+    const self = this
     content.on('upload', (index, data) => {
-      this.dataTransmitted(sowId, data.length)
+      self.dataTransmitted(sowId, data.length)
     })
-  }
 
-  handleDCDNConnection(_, peer) {
-    info(`Connected to peer ${peer.host}:${peer.port}`)
+    const opts = {
+      stream
+    }
+    const swarm = createSwarm(opts)
+    swarm.on('connection', handleConnection)
+    swarm.listen(port)
+
+    function stream() {
+      const afsstream = self.afs.replicate({
+        upload: true,
+        download: false
+      })
+      afsstream.once('end', onend)
+
+      function onend() {
+        swarm.destroy()
+      }
+
+      return afsstream
+    }
+
+    function handleConnection(_, peer) {
+      info(`Content Swarm: Peer Connected: ${idify(peer.host, peer.port)}`)
+    }
   }
 }
 
