@@ -117,15 +117,15 @@ class Farmer extends FarmerBase {
     info(`Uploaded ${bytesToGBs(this.deliveryMap.get(sowId))} Gbs for job ${sowId}`)
 
     const farmerDid = this.farmerId.getDid()
-    // this.wallet
-    //   .claimReward(sowId, farmerDid)
-    //   .then(() => {
-    //     info(`Reward amount ${weiToEther(reward.getAmount())} withdrawn for SOW ${sowId}`)
-    //   })
-    //   .catch((err) => {
-    //     warn(`Failed to withdraw reward for SOW ${sowId}`)
-    //     debug(err)
-    //   })
+    this.wallet
+      .claimReward(this.afs.did)
+      .then(() => {
+        info(`Reward amount ${reward.getAmount()} withdrawn for SOW ${sowId}`)
+      })
+      .catch((err) => {
+        warn(`Failed to withdraw reward for SOW ${sowId}`)
+        debug(err)
+      })
   }
 
   /**
