@@ -58,8 +58,16 @@ program.option('did', {
   type: 'string',
   required: true,
   describe:
-  `A valid and resolvable Ara identity DID URI 
+  `A valid and resolvable Ara identity DID URI
   of an AFS.`,
+})
+
+program.option('password', {
+  alias: 's',
+  type: 'password',
+  required: true,
+  describe:
+  `The password of the user`,
 })
 
 program.command(
@@ -117,6 +125,7 @@ async function ondownload(argv){
 
     try {
       await startDCDN({
+        password: argv.password,
         did: argv.did,
         download: true,
         upload: false,

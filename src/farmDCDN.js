@@ -10,7 +10,7 @@ const { Requester } = require('./requester.js')
 const { messages, util, matchers} = require('ara-farming-protocol')
 const crypto = require('ara-crypto')
 const { Farmer } = require('./farmer.js')
-
+const Wallet = require('./contract-abi')
 const DCDN = require('ara-network-node-dcdn/dcdn')
 const $driveCreator = Symbol('driveCreator')
 /**
@@ -44,18 +44,16 @@ class FarmDCDN extends DCDN {
     userSig.setAraId(user)
     userSig.setData('userSig')
 
-    //TODO: incorporate ara-contracts
-    const wallet = null
-
+    const wallet = new Wallet(opts.userID, opts.password)
     if (opts.upload){
       this.user = new Farmer(user, userSig, opts.price, wallet)
-    } 
+    }
     else if (opts.download){
       const sow = new messages.SOW()
       sow.setNonce(crypto.randomBytes(32))
       sow.setWorkUnit('Byte')
       sow.setRequester(user)
-    
+
       const matcher = new matchers.MaxCostMatcher(opts.price, opts.maxWorkers)
       this.user = new Requester(sow, matcher, userSig, wallet)
     }
@@ -110,7 +108,7 @@ class FarmDCDN extends DCDN {
 
     /**
    * Attaches listeners to the afs content partition
-   * @param {AFS} afs 
+   * @param {AFS} afs
    */
   attachListeners(afs){
     const self = this

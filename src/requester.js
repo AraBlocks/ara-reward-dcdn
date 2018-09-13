@@ -65,8 +65,8 @@ class Requester extends RequesterBase {
         debug(`old size: ${oldByteLength}, new size: ${feed.byteLength}`)
         const sizeDelta = feed.byteLength - oldByteLength
         const amount = self.matcher.maxCost * sizeDelta
-        info(`Staking ${weiToEther(amount)} for a size delta of ${bytesToGBs(sizeDelta)} GBs`)
-        self.submitStake(amount, (err) => {
+        info(`Staking ${amount} for a size delta of ${bytesToGBs(sizeDelta)} GBs`)
+        self.submitStake(afs.did, amount, (err) => {
           if (err) stopService(err)
           else stakeSubmitted = true
         })
@@ -81,7 +81,7 @@ class Requester extends RequesterBase {
       // Handle when the content finishes downloading
       feed.once('sync', async () => {
         debug("Files:", await afs.readdir('.'))
-        self.sendRewards()
+        self.sendRewards(afs.did)
       })
     }
 
@@ -103,16 +103,16 @@ class Requester extends RequesterBase {
   }
 
   // Submit the stake to the blockchain
-  async submitStake(amount, onComplete) {
+  async submitStake(contentDid, amount, onComplete) {
     const jobId = nonceString(this.sow)
-    // this.wallet
-    //   .submitJob(jobId, amount)
-    //   .then(() => {
-    //     onComplete()
-    //   })
-    //   .catch((err) => {
-    //     onComplete(err)
-    //   })
+    this.wallet
+      .submitJob(contentDid, jobId, amount)
+      .then(() => {
+        onComplete()
+      })
+      .catch((err) => {
+        onComplete(err)
+      })
   }
 
   async validateQuote(quote) {
@@ -171,17 +171,38 @@ class Requester extends RequesterBase {
     }
   }
 
-  sendRewards() {
+  sendRewards(contentId) {
+    let farmers = []
+    let rewards = []
+    let rewardMap = new Map()
+    const jobId = nonceString(this.sow)
+
     this.deliveryMap.forEach((value, key) => {
       const peerId = this.swarmIdMap.get(key)
       const units = value
       if (units > 0 && this.hiredFarmers.has(peerId)) {
-        this.awardFarmer(peerId, units)
+        const {connection, reward, amount} = this.generateReward(peerId, units)
+        farmers.push(peerId)
+        rewards.push(reward.getAmount())
+        rewardMap.set(peerId, {connection, reward})
       } else {
         debug(`Farmer ${peerId} will not be rewarded.`)
         this.incrementOnComplete()
       }
     })
+
+    this.wallet
+      .submitReward(contentId, jobId, farmers, rewards)
+      .then(() => {
+        rewardMap.forEach((value, key) => {
+          value.connection.sendReward(connection.reward)
+        }
+      })
+      .catch((err) => {
+        warn(`Failed to submit the reward to for job ${jobId}`)
+        debug(err)
+      })
+
   }
 
   incrementOnComplete() {
@@ -191,14 +212,14 @@ class Requester extends RequesterBase {
     }
   }
 
-  /**
-   * Awards farmer for their work
-   */
-  awardFarmer(peerId, units) {
-    const { connection, agreement } = this.hiredFarmers.get(peerId)
-    const reward = this.generateReward(agreement, units)
-    this.sendReward(connection, reward)
-  }
+  // /**
+  //  * Awards farmer for their work
+  //  */
+  // awardFarmer(peerId, units) {
+  //   const { connection, agreement } = this.hiredFarmers.get(peerId)
+  //   const reward = this.generateReward(agreement, units)
+  //   return {connection, reward, amount}
+  // }
 
   /**
    * Calculates farmer reward
@@ -206,26 +227,26 @@ class Requester extends RequesterBase {
    * @param {messages.Agreement} agreement
    * @returns {messages.Reward}
    */
-  generateReward(agreement, units) {
+  generateReward(peerId, units) {
+    const { connection, agreement } = this.hiredFarmers.get(peerId)
     const quote = agreement.getQuote()
     const amount = quote.getPerUnitCost() * units
     const reward = new messages.Reward()
     reward.setNonce(crypto.randomBytes(32))
     reward.setAgreement(agreement)
     reward.setAmount(amount)
-    return reward
+    return {connection, reward}
   }
 
   /**
    * Submits a reward to the contract, and notifies the farmer that their reward is available for withdraw
    */
-  sendReward(connection, reward) {
-    const quote = reward.getAgreement().getQuote()
-    const sowId = nonceString(quote.getSow())
-    const farmerId = quote.getFarmer().getDid()
-    const amount = reward.getAmount()
-    info(`Sending reward to farmer ${farmerId} for ${weiToEther(amount)} tokens`)
-
+  // sendReward(connection, reward) {
+  //   const quote = reward.getAgreement().getQuote()
+  //   const sowId = nonceString(quote.getSow())
+  //   const farmerId = quote.getFarmer().getDid()
+  //   const amount = reward.getAmount()
+  //   info(`Sending reward to farmer ${farmerId} for ${amount} tokens`)
     // this.wallet
     //   .submitReward(sowId, farmerId, amount)
     //   .then(() => {
