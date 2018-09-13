@@ -67,7 +67,7 @@ class Requester extends RequesterBase {
         const amount = self.matcher.maxCost * sizeDelta
         info(`Staking ${weiToEther(amount)} for a size delta of ${bytesToGBs(sizeDelta)} GBs`)
         self.submitStake(amount, (err) => {
-          if (err) onComplete(err)
+          if (err) stopService(err)
           else stakeSubmitted = true
         })
       })
@@ -81,7 +81,7 @@ class Requester extends RequesterBase {
       // Handle when the content finishes downloading
       feed.once('sync', async () => {
         debug("Files:", await afs.readdir('.'))
-        self.sendRewards(onComplete)
+        self.sendRewards()
       })
     }
 
@@ -93,10 +93,13 @@ class Requester extends RequesterBase {
     }
   }
 
-  async stopService(){
-    this.contentSwarm.destroy()
-    this.peerSwarm.destroy()
-    this.afs.close()
+  async stopService(err){
+    debug('Service Complete')
+    if (err) debug(`Completion Error: ${err}`)
+    this.emit('complete', err)
+    if (this.contentSwarm) this.contentSwarm.destroy()
+    if (this.peerSwarm) this.peerSwarm.destroy()
+    if (this.afs) this.afs.close()
   }
 
   // Submit the stake to the blockchain
@@ -168,8 +171,7 @@ class Requester extends RequesterBase {
     }
   }
 
-  sendRewards(callback) {
-    this.onComplete = callback
+  sendRewards() {
     this.deliveryMap.forEach((value, key) => {
       const peerId = this.swarmIdMap.get(key)
       const units = value
@@ -184,9 +186,8 @@ class Requester extends RequesterBase {
 
   incrementOnComplete() {
     this.receipts++
-    if (this.onComplete && this.receipts === this.deliveryMap.size) {
-      debug('Firing onComplete')
-      this.onComplete()
+    if (this.receipts === this.deliveryMap.size) {
+      this.stopService()
     }
   }
 

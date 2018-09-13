@@ -111,6 +111,7 @@ class Farmer extends FarmerBase {
     }
   }
 
+  // TODO: don't automatically withdraw reward
   async withdrawReward(reward) {
     const sowId = nonceString(reward.getAgreement().getQuote().getSow())
     info(`Uploaded ${bytesToGBs(this.deliveryMap.get(sowId))} Gbs for job ${sowId}`)
