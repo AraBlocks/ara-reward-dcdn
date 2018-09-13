@@ -113,8 +113,6 @@ class Farmer extends FarmerBase {
   // TODO: don't automatically withdraw reward
   async withdrawReward(reward) {
     const sowId = nonceString(reward.getAgreement().getQuote().getSow())
-    info(`Uploaded ${bytesToGBs(this.deliveryMap.get(sowId))} Gbs for job ${sowId}`)
-
     const farmerDid = this.farmerId.getDid()
     // this.wallet
     //   .claimReward(sowId, farmerDid)
@@ -143,7 +141,8 @@ class Farmer extends FarmerBase {
    * @returns {messages.Receipt}
    */
   async generateReceipt(reward) {
-    this.withdrawReward(reward)
+    const sowId = nonceString(reward.getAgreement().getQuote().getSow())
+    info(`Uploaded ${bytesToGBs(this.deliveryMap.get(sowId))} Gbs for job ${sowId}`)
     const receipt = new messages.Receipt()
     receipt.setNonce(crypto.randomBytes(32))
     receipt.setReward(reward)
