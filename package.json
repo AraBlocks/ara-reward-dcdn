@@ -1,12 +1,10 @@
 {
   "name": "ara-network-node-dcdn-farm",
-  "version": "0.2.1",
-  "description": "An Ara Network node that runs DCDN",
+  "version": "0.0.1",
+  "description": "An Ara Network node that runs DCDN with Farming",
   "main": "index.js",
   "bin": {
-    "afd": "bin/afd",
-    "afd-publish": "bin/afd-publish",
-    "afd-download": "bin/afd-download"
+    "afd": "bin/afd"
   },
   "scripts": {
     "test": "ava test",
@@ -43,7 +41,7 @@
     "ara-network": "arablocks/ara-network#1.0.0-beta.2",
     "ara-runtime-configuration": "arablocks/ara-runtime-configuration",
     "ara-secret-storage": "arablocks/ara-secret-storage",
-    "ara-filesystem": "arablocks/ara-filesystem#develop",
+    "ara-filesystem": "arablocks/ara-filesystem",
     "ara-farming-protocol": "littlstar/farming-protocol",
     "ara-network-node-dcdn": "arablocks/ara-network-node-dcdn",
     "bencode": "^2.0.0",

@@ -73,6 +73,7 @@ class Farmer extends FarmerBase {
    * @returns {boolean}
    */
   async validateAgreement(agreement) {
+    //TODO: check that data is signed by requester
     const quote = agreement.getQuote()
     return quote.getPerUnitCost() == this.price
   }
