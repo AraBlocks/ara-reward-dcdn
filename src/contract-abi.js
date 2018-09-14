@@ -1,3 +1,5 @@
+const { purchase } = require('ara-contracts')
+const { submit, allocate, redeem } = require('ara-contracts/rewards')
 
 class Wallet {
   constructor(did, password) {
@@ -6,7 +8,7 @@ class Wallet {
   }
 
   submitJob(contentDid, jobId, budget) {
-    return rewards.submit({
+    return submit({
       requesterDid: this.userDiD,
       password: this.password,
       contentDid,
@@ -18,7 +20,7 @@ class Wallet {
   }
 
   submitRewards(contentDid, jobId, farmers, rewards) {
-    return rewards.allocate({
+    return allocate({
       requesterDid: this.userDiD,
       password: this.password,
       contentDid,
@@ -31,7 +33,7 @@ class Wallet {
   }
 
   claimReward(contentDid) {
-    return rewards.redeem({
+    return redeem({
       requesterDid: this.userDiD,
       password: this.password,
       contentDid
