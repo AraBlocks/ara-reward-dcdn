@@ -195,7 +195,7 @@ class Requester extends RequesterBase {
       .submitReward(contentId, jobId, farmers, rewards)
       .then(() => {
         rewardMap.forEach((value, key) => {
-          value.connection.sendReward(connection.reward)
+          value.connection.sendReward(value.reward)
         }
       })
       .catch((err) => {
@@ -212,15 +212,6 @@ class Requester extends RequesterBase {
     }
   }
 
-  // /**
-  //  * Awards farmer for their work
-  //  */
-  // awardFarmer(peerId, units) {
-  //   const { connection, agreement } = this.hiredFarmers.get(peerId)
-  //   const reward = this.generateReward(agreement, units)
-  //   return {connection, reward, amount}
-  // }
-
   /**
    * Calculates farmer reward
    * @param {messages.ARAid} farmer
@@ -236,26 +227,6 @@ class Requester extends RequesterBase {
     reward.setAgreement(agreement)
     reward.setAmount(amount)
     return {connection, reward}
-  }
-
-  /**
-   * Submits a reward to the contract, and notifies the farmer that their reward is available for withdraw
-   */
-  // sendReward(connection, reward) {
-  //   const quote = reward.getAgreement().getQuote()
-  //   const sowId = nonceString(quote.getSow())
-  //   const farmerId = quote.getFarmer().getDid()
-  //   const amount = reward.getAmount()
-  //   info(`Sending reward to farmer ${farmerId} for ${amount} tokens`)
-    // this.wallet
-    //   .submitReward(sowId, farmerId, amount)
-    //   .then(() => {
-    //     connection.sendReward(reward)
-    //   })
-    //   .catch((err) => {
-    //     warn(`Failed to submit the reward to farmer ${farmerId} for job ${sowId}`)
-    //     debug(err)
-    //   })
   }
 }
 
