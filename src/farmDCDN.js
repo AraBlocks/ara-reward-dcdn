@@ -10,7 +10,7 @@ const { Requester } = require('./requester.js')
 const { messages, util, matchers} = require('ara-farming-protocol')
 const crypto = require('ara-crypto')
 const { Farmer } = require('./farmer.js')
-const Wallet = require('./contract-abi')
+const { Wallet } = require('./contract-abi')
 const DCDN = require('ara-network-node-dcdn/dcdn')
 const $driveCreator = Symbol('driveCreator')
 /**
@@ -45,6 +45,7 @@ class FarmDCDN extends DCDN {
     userSig.setData('userSig')
 
     const wallet = new Wallet(opts.userID, opts.password)
+
     if (opts.upload){
       this.user = new Farmer(user, userSig, opts.price, wallet)
     }

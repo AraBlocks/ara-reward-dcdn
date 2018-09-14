@@ -45,4 +45,7 @@ function maskHex(hex) {
   return `0x${hex}`
 }
 
-module.exports = Wallet
+module.exports = { 
+  Wallet,
+  maskHex
+}

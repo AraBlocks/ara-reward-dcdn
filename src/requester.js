@@ -4,6 +4,8 @@ const { createSwarm } = require('ara-network/discovery')
 const { info, warn } = require('ara-console')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
+const { maskHex } = require('./contract-abi')
+
 const {
   idify, nonceString, bytesToGBs, weiToEther
 } = util
@@ -61,11 +63,12 @@ class Requester extends RequesterBase {
     async function attachDownloadListener(feed) {
       // Calculate and submit stake
       // NOTE: this is a hack to get content size and should be done prior to download
+      // TODO: use Ara rather than ether conversion
       feed.once('download', () => {
         debug(`old size: ${oldByteLength}, new size: ${feed.byteLength}`)
         const sizeDelta = feed.byteLength - oldByteLength
-        const amount = self.matcher.maxCost * sizeDelta
-        info(`Staking ${amount} for a size delta of ${bytesToGBs(sizeDelta)} GBs`)
+        const amount = weiToEther(self.matcher.maxCost * sizeDelta) / bytesToGBs(1)
+        info(`Staking ${amount} Ara for a size delta of ${bytesToGBs(sizeDelta)} GBs`)
         self.submitStake(afs.did, amount, (err) => {
           if (err) stopService(err)
           else stakeSubmitted = true
@@ -181,10 +184,13 @@ class Requester extends RequesterBase {
       const peerId = this.swarmIdMap.get(key)
       const units = value
       if (units > 0 && this.hiredFarmers.has(peerId)) {
-        const {connection, reward, amount} = this.generateReward(peerId, units)
-        farmers.push(peerId)
-        rewards.push(reward.getAmount())
-        rewardMap.set(peerId, {connection, reward})
+        const reward = this.generateReward(peerId, units)
+        const amount = weiToEther(reward.getAmount()) / bytesToGBs(1) // TODO: use Ara
+        const userId = reward.getAgreement().getQuote().getFarmer().getDid()
+        farmers.push(maskHex(userId))
+        rewards.push(amount)
+        rewardMap.set(peerId, reward)
+        debug(`Farmer ${userId} will be rewarded ${amount} Ara.`)
       } else {
         debug(`Farmer ${peerId} will not be rewarded.`)
         this.incrementOnComplete()
@@ -192,11 +198,12 @@ class Requester extends RequesterBase {
     })
 
     this.wallet
-      .submitReward(contentId, jobId, farmers, rewards)
+      .submitRewards(contentId, jobId, farmers, rewards)
       .then(() => {
         rewardMap.forEach((value, key) => {
-          value.connection.sendReward(value.reward)
-        }
+          const { connection } = this.hiredFarmers.get(key)
+          connection.sendReward(value)
+        })
       })
       .catch((err) => {
         warn(`Failed to submit the reward to for job ${jobId}`)
@@ -212,21 +219,15 @@ class Requester extends RequesterBase {
     }
   }
 
-  /**
-   * Calculates farmer reward
-   * @param {messages.ARAid} farmer
-   * @param {messages.Agreement} agreement
-   * @returns {messages.Reward}
-   */
   generateReward(peerId, units) {
-    const { connection, agreement } = this.hiredFarmers.get(peerId)
+    const { agreement } = this.hiredFarmers.get(peerId)
     const quote = agreement.getQuote()
     const amount = quote.getPerUnitCost() * units
     const reward = new messages.Reward()
     reward.setNonce(crypto.randomBytes(32))
     reward.setAgreement(agreement)
     reward.setAmount(amount)
-    return {connection, reward}
+    return reward
   }
 }
 
