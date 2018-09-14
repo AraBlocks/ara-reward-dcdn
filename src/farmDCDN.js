@@ -48,16 +48,16 @@ class FarmDCDN extends DCDN {
     const wallet = null
 
     if (opts.upload){
-      this.user = new Farmer(user, userSig, opts.price, wallet)
-    } 
+      this.user = new Farmer(user, userSig, opts.price, wallet, opts.handshake)
+    }
     else if (opts.download){
       const sow = new messages.SOW()
       sow.setNonce(crypto.randomBytes(32))
       sow.setWorkUnit('Byte')
       sow.setRequester(user)
-    
+
       const matcher = new matchers.MaxCostMatcher(opts.price, opts.maxWorkers)
-      this.user = new Requester(sow, matcher, userSig, wallet)
+      this.user = new Requester(sow, matcher, userSig, wallet, opts.handshake)
     }
   }
 
@@ -110,7 +110,7 @@ class FarmDCDN extends DCDN {
 
   /**
    * Attaches listeners to the afs content partition
-   * @param {AFS} afs 
+   * @param {AFS} afs
    */
   attachListeners(afs){
     const self = this

@@ -4,13 +4,15 @@ const { createSwarm } = require('ara-network/discovery')
 const { info, warn } = require('ara-console')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
+const duplexify = require('duplexify')
 const {
   idify, nonceString, bytesToGBs, weiToEther
 } = util
 const { FarmerConnection } = duplex
+const { configRequesterHandshake } = require('./handshake-utils')
 
 class Requester extends RequesterBase {
-  constructor(sow, matcher, requesterSig, wallet) {
+  constructor(sow, matcher, requesterSig, wallet, handshake) {
     super(sow, matcher)
     this.requesterSig = requesterSig
     this.hiredFarmers = new Map()
@@ -18,6 +20,7 @@ class Requester extends RequesterBase {
     this.deliveryMap = new Map()
     this.receipts = 0
     this.wallet = wallet
+    this.handshake = handshake
   }
 
   async broadcastService(afs, contentSwarm) {
@@ -25,12 +28,18 @@ class Requester extends RequesterBase {
 
     this.setupContentSwarm(afs, contentSwarm)
 
-    this.peerSwarm = createSwarm()
+    const stream = configRequesterHandshake(this.handshake)
+    this.peerSwarm = createSwarm({ stream })
     this.peerSwarm.on('connection', handleConnection)
     this.peerSwarm.join(afs.did)
     const self = this
     function handleConnection(connection, peer) {
       info(`Peer Swarm: Peer connected: ${idify(peer.host, peer.port)}`)
+      if (conf) {
+        const writer = connection.createWriteStream()
+        const reader = connection.createReadStream()
+        connection = duplexify(writer, reader)
+      }
       const farmerConnection = new FarmerConnection(peer, connection, { timeout: 6000 })
       process.nextTick(() => self.addFarmer(farmerConnection))
     }

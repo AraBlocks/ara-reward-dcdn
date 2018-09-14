@@ -9,6 +9,7 @@ const program = require('yargs')
 const debug = require('debug')('afd')
 const clip = require('cli-progress')
 const rc = require('ara-runtime-configuration')()
+const { getHandshake } = require('../../src/handshake-utils.js')
 
 const $0 = basename(process.argv[1] || package.name)
 
@@ -58,8 +59,26 @@ program.option('did', {
   type: 'string',
   required: true,
   describe:
-  `A valid and resolvable Ara identity DID URI 
+  `A valid and resolvable Ara identity DID URI
   of an AFS.`,
+})
+
+program.option('secret', {
+  alias: 's',
+  required: false,
+  describe: 'Shared secret key for the associated network keys.'
+})
+
+program.option('keypath', {
+  alias: 'k',
+  required: false,
+  describe: 'Path to Ara network keyring file',
+})
+
+program.option('keyname', {
+  alias: 'n',
+  required: false,
+  describe: 'Human readable network name for keys in keyring'
 })
 
 program.command(
@@ -115,14 +134,24 @@ async function ondownload(argv){
       'Price:'
     } ])
 
+    const userHandshake = await getHandshake({
+      identity: argv.identity,
+      passphrase: 't',
+      networkSecret: argv.secret,
+      networkKeyName: argv.keyname,
+      keypath: argv.keypath
+    })
+
     try {
       await startDCDN({
+        handshake: userHandshake,
         did: argv.did,
         download: true,
         upload: false,
         userID: argv.identity,
         price: maxCost,
-        maxWorkers: maxWorkers
+        maxWorkers: maxWorkers,
+
       })
 
       const dcdn = await getInstance()
@@ -172,13 +201,25 @@ async function onpublish(argv){
       'Price:'
     } ])
 
+    const userHandshake = await getHandshake({
+      identity: argv.identity,
+      passphrase: 't',
+      networkSecret: argv.secret,
+      networkKeyName: argv.keyname,
+      keypath: argv.keypath
+    })
+
     try {
       await startDCDN({
+        handshake: userHandshake,
         did: argv.did,
         download: false,
         upload: true,
         userID: argv.identity,
-        price: farmingPrice
+        price: farmingPrice,
+        secret: argv.secret,
+        keyring: argv.keyring,
+        network: argv.network,
       })
 
     } catch (e) {

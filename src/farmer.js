@@ -10,6 +10,7 @@ const ip = require('ip')
 const duplexify = require('duplexify')
 const { RequesterConnection } = duplex
 const { idify, nonceString, weiToEther, bytesToGBs } = util
+const { configFarmerHandshake } = require('./handshake-utils')
 
 class Farmer extends FarmerBase {
   /**
@@ -20,13 +21,14 @@ class Farmer extends FarmerBase {
    * @param {ContractABI} wallet Farmer's Wallet Contract ABI
    * @param {AFS} afs Instance of AFS
    */
-  constructor(id, signature, price, wallet) {
+  constructor(id, signature, price, wallet, handshake) {
     super()
     this.price = price
     this.farmerID = id
     this.farmerSig = signature
     this.deliveryMap = new Map()
     this.wallet = wallet
+    this.handshake = handshake
   }
 
   async broadcastService(afs) {
@@ -34,13 +36,19 @@ class Farmer extends FarmerBase {
 
     this.afs = afs
 
-    this.peerSwarm = createSwarm()
+    const stream = configFarmerHandshake(this.handshake)
+    this.peerSwarm = createSwarm({ stream })
     this.peerSwarm.on('connection', handleConnection)
     this.peerSwarm.join(afs.did, { announce: false })
     const self = this
 
     function handleConnection(connection, peer) {
       info(`Peer Swarm: Peer Connected: ${idify(peer.host, peer.port)}`)
+      if (conf) {
+        const writer = connection.createWriteStream()
+        const reader = connection.createReadStream()
+        connection = duplexify(writer, reader)
+      }
       const requesterConnection = new RequesterConnection(peer, connection, { timeout: 6000 })
       self.addRequester(requesterConnection)
     }
