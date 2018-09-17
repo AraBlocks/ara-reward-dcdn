@@ -20,6 +20,24 @@ class Requester extends RequesterBase {
     this.deliveryMap = new Map()
     this.receipts = 0
     this.wallet = wallet
+    this.autoQueue = []
+  }
+
+  async appendToAutoQueue(transaction){
+    const self = this
+    const onComplete = (err) => {
+      if (err) self.stopService(err)
+      else {
+        self.autoQueue.shift()
+        if (self.autoQueue.length > 0) self.autoQueue[0]()
+      }
+    }
+
+    this.autoQueue.push(() => {
+      transaction(onComplete)
+    })
+
+    if (this.autoQueue.length == 1) this.autoQueue[0]()
   }
 
   async broadcastService(afs, contentSwarm) {
@@ -41,11 +59,11 @@ class Requester extends RequesterBase {
   async setupContentSwarm(afs, swarm) {
     this.contentSwarm = swarm
     this.afs = afs
+    this.jobSubmitted = false
 
     const self = this
     let oldByteLength = 0
     const { content } = afs.partitions.resolve(afs.HOME)
-    let stakeSubmitted = false
 
     if (content) {
       // TODO: calc current downloaded size in bytes
@@ -61,7 +79,7 @@ class Requester extends RequesterBase {
 
     // Handle when the content needs updated
     async function attachDownloadListener(feed) {
-      // Calculate and submit stake
+      // Calculate and job budget
       // NOTE: this is a hack to get content size and should be done prior to download
       // TODO: use Ara rather than ether conversion
       feed.once('download', () => {
@@ -69,10 +87,7 @@ class Requester extends RequesterBase {
         const sizeDelta = feed.byteLength - oldByteLength
         const amount = weiToEther(self.matcher.maxCost * sizeDelta) / bytesToGBs(1)
         info(`Staking ${amount} Ara for a size delta of ${bytesToGBs(sizeDelta)} GBs`)
-        self.submitStake(afs.did, amount, (err) => {
-          if (err) stopService(err)
-          else stakeSubmitted = true
-        })
+        self.submitJob(afs.did, amount)
       })
 
       // Record download data
@@ -97,25 +112,33 @@ class Requester extends RequesterBase {
   }
 
   async stopService(err){
-    debug('Service Complete')
     if (err) debug(`Completion Error: ${err}`)
-    this.emit('complete', err)
     if (this.contentSwarm) this.contentSwarm.destroy()
     if (this.peerSwarm) this.peerSwarm.destroy()
     if (this.afs) this.afs.close()
+    debug('Service Stopped')
+    this.emit('complete', err)
   }
 
-  // Submit the stake to the blockchain
-  async submitStake(contentDid, amount, onComplete) {
-    const jobId = nonceString(this.sow)
-    this.wallet
-      .submitJob(contentDid, jobId, amount)
-      .then(() => {
-        onComplete()
-      })
-      .catch((err) => {
-        onComplete(err)
-      })
+  // Submit the job to the blockchain
+  async submitJob(contentDid, amount) {
+    const self = this
+
+    const transaction = (onComplete) => {
+      const jobId = nonceString(self.sow)
+
+      self.wallet
+        .submitJob(contentDid, jobId, amount)
+        .then(() => {
+          debug('Job submitted successfully')
+          onComplete()
+        })
+        .catch((err) => {
+          onComplete(err)
+        })
+    }
+
+    self.appendToAutoQueue(transaction)
   }
 
   async validateQuote(quote) {
@@ -175,11 +198,13 @@ class Requester extends RequesterBase {
   }
 
   sendRewards(contentId) {
+    const self = this
     let farmers = []
     let rewards = []
     let rewardMap = new Map()
     const jobId = nonceString(this.sow)
 
+    // Format rewards for contract
     this.deliveryMap.forEach((value, key) => {
       const peerId = this.swarmIdMap.get(key)
       const units = value
@@ -197,19 +222,24 @@ class Requester extends RequesterBase {
       }
     })
 
-    this.wallet
-      .submitRewards(contentId, jobId, farmers, rewards)
-      .then(() => {
-        rewardMap.forEach((value, key) => {
-          const { connection } = this.hiredFarmers.get(key)
-          connection.sendReward(value)
+    const transaction = (onComplete) => {
+      self.wallet
+        .submitRewards(contentId, jobId, farmers, rewards)
+        .then(() => {
+          rewardMap.forEach((value, key) => {
+            const { connection } = self.hiredFarmers.get(key)
+            connection.sendReward(value)
+          })
+          onComplete()
         })
-      })
-      .catch((err) => {
-        warn(`Failed to submit the reward to for job ${jobId}`)
-        debug(err)
-      })
+        .catch((err) => {
+          warn(`Failed to submit the reward for job ${jobId}`)
+          debug(err)
+          onComplete(err)
+        })
+    }
 
+    this.appendToAutoQueue(transaction)
   }
 
   incrementOnComplete() {

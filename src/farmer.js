@@ -116,7 +116,6 @@ class Farmer extends FarmerBase {
     const sowId = nonceString(reward.getAgreement().getQuote().getSow())
     info(`Uploaded ${bytesToGBs(this.deliveryMap.get(sowId))} Gbs for job ${sowId}`)
 
-    const farmerDid = this.farmerId.getDid()
     this.wallet
       .claimReward(this.afs.did)
       .then(() => {
