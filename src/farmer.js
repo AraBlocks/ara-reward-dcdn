@@ -8,6 +8,8 @@ const pify = require('pify')
 const fp = require('find-free-port')
 const ip = require('ip')
 const duplexify = require('duplexify')
+const { maskHex } = require('./contract-abi')
+
 const { RequesterConnection } = duplex
 const { idify, nonceString, weiToEther, bytesToGBs } = util
 
@@ -113,16 +115,16 @@ class Farmer extends FarmerBase {
 
   // TODO: don't automatically withdraw reward
   async withdrawReward(reward) {
-    const sowId = nonceString(reward.getAgreement().getQuote().getSow())
-    info(`Uploaded ${bytesToGBs(this.deliveryMap.get(sowId))} Gbs for job ${sowId}`)
+    const jobId = maskHex(nonceString(reward.getAgreement().getQuote().getSow()))
+    info(`Uploaded ${bytesToGBs(this.deliveryMap.get(jobId))} Gbs for job ${jobId}`)
 
     this.wallet
       .claimReward(this.afs.did)
       .then(() => {
-        info(`Reward amount ${reward.getAmount()} withdrawn for SOW ${sowId}`)
+        info(`Reward amount ${reward.getAmount()} withdrawn for SOW ${jobId}`)
       })
       .catch((err) => {
-        warn(`Failed to withdraw reward for SOW ${sowId}`)
+        warn(`Failed to withdraw reward for SOW ${jobId}`)
         debug(err)
       })
   }

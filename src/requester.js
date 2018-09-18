@@ -123,10 +123,9 @@ class Requester extends RequesterBase {
   // Submit the job to the blockchain
   async submitJob(contentDid, amount) {
     const self = this
+    const jobId = maskHex(nonceString(self.sow))
 
     const transaction = (onComplete) => {
-      const jobId = nonceString(self.sow)
-
       self.wallet
         .submitJob(contentDid, jobId, amount)
         .then(() => {
@@ -202,7 +201,7 @@ class Requester extends RequesterBase {
     let farmers = []
     let rewards = []
     let rewardMap = new Map()
-    const jobId = nonceString(this.sow)
+    const jobId = maskHex(nonceString(self.sow))
 
     // Format rewards for contract
     this.deliveryMap.forEach((value, key) => {
