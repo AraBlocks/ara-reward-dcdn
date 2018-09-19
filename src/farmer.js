@@ -100,6 +100,7 @@ class Farmer extends FarmerBase {
   }
 
   async validateSow(sow) {
+    //TODO: Validate DID
     if (sow) return true
     return false
   }

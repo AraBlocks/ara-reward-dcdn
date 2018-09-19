@@ -100,50 +100,10 @@ class FarmDCDN extends DCDN {
       throw new Error('FarmDCDN requires User Identity')
     }
 
-    const afs = await pify(this[$driveCreator].create)(did)
-    this.afses[did] = afs
-    this.attachListeners(afs)
+    this.afses[did] = await pify(this[$driveCreator].create)(did)
+    this._attachListeners(this.afses[did])
 
-    this.user.broadcastService(afs, this.swarm)
-  }
-
-    /**
-   * Attaches listeners to the afs content partition
-   * @param {AFS} afs
-   */
-  attachListeners(afs){
-    const self = this
-
-    if (this.shouldDownload){
-      const { content } = afs.partitions.resolve(afs.HOME)
-      if (content) {
-        attachDownloadListener(content)
-      } else {
-        afs.once('content', () => {
-          attachDownloadListener(afs.partitions.resolve(afs.HOME).content)
-        })
-      }
-    }
-
-    // Emit download events
-    async function attachDownloadListener(feed) {
-      // Handle when download starts
-      feed.once('download', () => {
-        info(`Download ${afs.did} started...`)
-        self.emit('start', afs.did, feed.length)
-      })
-
-      // Record download data
-      feed.on('download', (index, data, from) => {
-        self.emit('progress', afs.did, feed.downloaded())
-      })
-
-      // Handle when the content finishes downloading
-      feed.once('sync', async () => {
-        self.emit('complete', afs.did)
-        info(`Download ${afs.did} Complete!`)
-      })
-    }
+    this.user.broadcastService(this.afses[did], this.swarm)
   }
 }
 

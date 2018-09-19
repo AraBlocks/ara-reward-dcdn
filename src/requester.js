@@ -126,6 +126,7 @@ class Requester extends RequesterBase {
     const jobId = maskHex(nonceString(self.sow))
 
     const transaction = (onComplete) => {
+      debug(`Submitting job ${jobId} with budget ${amount} Ara.`)
       self.wallet
         .submitJob(contentDid, jobId, amount)
         .then(() => {
@@ -141,6 +142,7 @@ class Requester extends RequesterBase {
   }
 
   async validateQuote(quote) {
+    //TODO: Validate DID
     if (quote) return true
     return false
   }
@@ -207,21 +209,24 @@ class Requester extends RequesterBase {
     this.deliveryMap.forEach((value, key) => {
       const peerId = this.swarmIdMap.get(key)
       const units = value
-      if (units > 0 && this.hiredFarmers.has(peerId)) {
-        const reward = this.generateReward(peerId, units)
-        const amount = weiToEther(reward.getAmount()) / bytesToGBs(1) // TODO: use Ara
-        const userId = reward.getAgreement().getQuote().getFarmer().getDid()
-        farmers.push(maskHex(userId))
+      const reward = this.generateReward(peerId, units)
+      const userId = reward.getAgreement().getQuote().getFarmer().getDid()
+      const amount = weiToEther(reward.getAmount()) / bytesToGBs(1) // TODO: use Ara
+
+      if (amount > 0) {
+        farmers.push(userId)
         rewards.push(amount)
         rewardMap.set(peerId, reward)
         debug(`Farmer ${userId} will be rewarded ${amount} Ara.`)
-      } else {
-        debug(`Farmer ${peerId} will not be rewarded.`)
+      } 
+      else {
+        debug(`Farmer ${userId} will not be rewarded.`)
         this.incrementOnComplete()
       }
     })
 
     const transaction = (onComplete) => {
+      debug(`Submitting reward for job ${jobId}.`)
       self.wallet
         .submitRewards(contentId, jobId, farmers, rewards)
         .then(() => {
@@ -232,7 +237,7 @@ class Requester extends RequesterBase {
           onComplete()
         })
         .catch((err) => {
-          warn(`Failed to submit the reward for job ${jobId}`)
+          warn(`Failed to submit reward for job ${jobId}`)
           debug(err)
           onComplete(err)
         })
