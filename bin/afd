@@ -111,7 +111,7 @@ async function ondownload(argv){
       type: 'input',
       name: 'maxCost',
       message:
-      '\nPlease enter the maximum price you are willing to pay.\n' +
+      '\nPlease enter your max cost per GB.\n' +
       'Price:'
     } ])
 

@@ -67,7 +67,7 @@ class FarmDCDN extends DCDN {
    */
 
   async start() {
-    //TODO: add price and ability to update to store
+    //TODO: add price and ability to update in the store file
     const store = toilet('./afses.json')
     this[$driveCreator] = await pify(multidrive)(
       store,

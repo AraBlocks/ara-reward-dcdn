@@ -31,11 +31,10 @@ class Farmer extends FarmerBase {
     this.wallet = wallet
   }
 
-  async broadcastService(afs, contentSwarm) {
+  async broadcastService(afs) {
     info('Broadcasting: ', afs.did)
 
     this.afs = afs
-    this.contentSwarm = contentSwarm
 
     this.peerSwarm = createSwarm()
     this.peerSwarm.on('connection', handleConnection)
@@ -43,14 +42,13 @@ class Farmer extends FarmerBase {
     const self = this
 
     function handleConnection(connection, peer) {
-      info(`SWARM: New peer: ${idify(peer.host, peer.port)}`)
+      info(`Peer Swarm: Peer Connected: ${idify(peer.host, peer.port)}`)
       const requesterConnection = new RequesterConnection(peer, connection, { timeout: 6000 })
       self.addRequester(requesterConnection)
     }
   }
 
   async stopService(){
-    this.contentSwarm.destroy()
     this.peerSwarm.destroy()
     this.afs.close()
   }
@@ -90,6 +88,7 @@ class Farmer extends FarmerBase {
 
     // Get free port and pass it as the agreement data
     const port = await pify(fp)(Math.floor(30000 * Math.random()), ip.address())
+
     const data = Buffer.alloc(4)
     data.writeInt32LE(port, 0)
     agreement.setData(data)
@@ -146,7 +145,8 @@ class Farmer extends FarmerBase {
    * @returns {messages.Receipt}
    */
   async generateReceipt(reward) {
-    this.withdrawReward(reward)
+    const sowId = nonceString(reward.getAgreement().getQuote().getSow())
+    info(`Uploaded ${bytesToGBs(this.deliveryMap.get(sowId))} Gbs for job ${sowId}`)
     const receipt = new messages.Receipt()
     receipt.setNonce(crypto.randomBytes(32))
     receipt.setReward(reward)
@@ -165,11 +165,29 @@ class Farmer extends FarmerBase {
       self.dataTransmitted(sowId, data.length)
     })
 
-    this.contentSwarm.listen(port)
-    this.contentSwarm.on('connection', handleConnection)
+    const opts = {
+      stream
+    }
+    const swarm = createSwarm(opts)
+    swarm.on('connection', handleConnection)
+    swarm.listen(port)
+
+    function stream() {
+      const afsstream = self.afs.replicate({
+        upload: true,
+        download: false
+      })
+      afsstream.once('end', onend)
+
+      function onend() {
+        swarm.destroy()
+      }
+
+      return afsstream
+    }
 
     function handleConnection(_, peer) {
-      info(`Connected to peer ${idify(peer.host, peer.port)}`)
+      info(`Content Swarm: Peer Connected: ${idify(peer.host, peer.port)}`)
     }
   }
 }

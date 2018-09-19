@@ -50,7 +50,7 @@ class Requester extends RequesterBase {
     this.peerSwarm.join(afs.did)
     const self = this
     function handleConnection(connection, peer) {
-      info(`SWARM: New peer: ${idify(peer.host, peer.port)}`)
+      info(`Peer Swarm: Peer connected: ${idify(peer.host, peer.port)}`)
       const farmerConnection = new FarmerConnection(peer, connection, { timeout: 6000 })
       process.nextTick(() => self.addFarmer(farmerConnection))
     }
@@ -179,7 +179,7 @@ class Requester extends RequesterBase {
   async startWork(peer, port) {
     const connectionId = idify(peer.host, port)
     debug(`Starting AFS Connection with ${connectionId}`)
-    this.contentSwarm.addPeer(this.afs.did, { id: connectionId, host: peer.host, port })
+    this.contentSwarm.addPeer(this.afs.did, { host: peer.host, port })
   }
 
   async onReceipt(receipt, connection) {
