@@ -33,7 +33,7 @@ class Wallet {
 
   claimReward(contentDid) {
     return redeem({
-      requesterDid: this.userDid,
+      farmerDid: this.userDid,
       password: this.password,
       contentDid
     })
