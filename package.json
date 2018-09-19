@@ -38,7 +38,7 @@
     "ara-console": "arablocks/ara-console",
     "ara-crypto": "arablocks/ara-crypto",
     "ara-identity": "arablocks/ara-identity",
-    "ara-network": "arablocks/ara-network#1.0.0-beta.2",
+    "ara-network": "arablocks/ara-network",
     "ara-runtime-configuration": "arablocks/ara-runtime-configuration",
     "ara-secret-storage": "arablocks/ara-secret-storage",
     "ara-filesystem": "arablocks/ara-filesystem",

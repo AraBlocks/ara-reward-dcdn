@@ -4,6 +4,8 @@ const { createSwarm } = require('ara-network/discovery')
 const { info, warn } = require('ara-console')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
+const { maskHex } = require('./contract-abi')
+
 const {
   idify, nonceString, bytesToGBs, weiToEther
 } = util
@@ -18,6 +20,24 @@ class Requester extends RequesterBase {
     this.deliveryMap = new Map()
     this.receipts = 0
     this.wallet = wallet
+    this.autoQueue = []
+  }
+
+  async appendToAutoQueue(transaction){
+    const self = this
+    const onComplete = (err) => {
+      if (err) self.stopService(err)
+      else {
+        self.autoQueue.shift()
+        if (self.autoQueue.length > 0) self.autoQueue[0]()
+      }
+    }
+
+    this.autoQueue.push(() => {
+      transaction(onComplete)
+    })
+
+    if (this.autoQueue.length == 1) this.autoQueue[0]()
   }
 
   async broadcastService(afs, contentSwarm) {
@@ -39,11 +59,11 @@ class Requester extends RequesterBase {
   async setupContentSwarm(afs, swarm) {
     this.contentSwarm = swarm
     this.afs = afs
+    this.jobSubmitted = false
 
     const self = this
     let oldByteLength = 0
     const { content } = afs.partitions.resolve(afs.HOME)
-    let stakeSubmitted = false
 
     if (content) {
       // TODO: calc current downloaded size in bytes
@@ -59,17 +79,15 @@ class Requester extends RequesterBase {
 
     // Handle when the content needs updated
     async function attachDownloadListener(feed) {
-      // Calculate and submit stake
+      // Calculate and job budget
       // NOTE: this is a hack to get content size and should be done prior to download
+      // TODO: use Ara rather than ether conversion
       feed.once('download', () => {
         debug(`old size: ${oldByteLength}, new size: ${feed.byteLength}`)
         const sizeDelta = feed.byteLength - oldByteLength
-        const amount = self.matcher.maxCost * sizeDelta
-        info(`Staking ${weiToEther(amount)} for a size delta of ${bytesToGBs(sizeDelta)} GBs`)
-        self.submitStake(amount, (err) => {
-          if (err) self.stopService(err)
-          else stakeSubmitted = true
-        })
+        const amount = weiToEther(self.matcher.maxCost * sizeDelta) / bytesToGBs(1)
+        info(`Staking ${amount} Ara for a size delta of ${bytesToGBs(sizeDelta)} GBs`)
+        self.submitJob(afs.did, amount)
       })
 
       // Record download data
@@ -81,7 +99,7 @@ class Requester extends RequesterBase {
       // Handle when the content finishes downloading
       feed.once('sync', async () => {
         debug("Files:", await afs.readdir('.'))
-        self.sendRewards()
+        self.sendRewards(afs.did)
       })
     }
 
@@ -94,28 +112,37 @@ class Requester extends RequesterBase {
   }
 
   async stopService(err){
-    info('Service Complete')
     if (err) debug(`Completion Error: ${err}`)
-    this.emit('complete', err)
     if (this.contentSwarm) this.contentSwarm.destroy()
     if (this.peerSwarm) this.peerSwarm.destroy()
     if (this.afs) this.afs.close()
+    debug('Service Stopped')
+    this.emit('complete', err)
   }
 
-  // Submit the stake to the blockchain
-  async submitStake(amount, onComplete) {
-    const jobId = nonceString(this.sow)
-    // this.wallet
-    //   .submitJob(jobId, amount)
-    //   .then(() => {
-    //     onComplete()
-    //   })
-    //   .catch((err) => {
-    //     onComplete(err)
-    //   })
+  // Submit the job to the blockchain
+  async submitJob(contentDid, amount) {
+    const self = this
+    const jobId = maskHex(nonceString(self.sow))
+
+    const transaction = (onComplete) => {
+      debug(`Submitting job ${jobId} with budget ${amount} Ara.`)
+      self.wallet
+        .submitJob(contentDid, jobId, amount)
+        .then(() => {
+          debug('Job submitted successfully')
+          onComplete()
+        })
+        .catch((err) => {
+          onComplete(err)
+        })
+    }
+
+    self.appendToAutoQueue(transaction)
   }
 
   async validateQuote(quote) {
+    //TODO: Validate DID
     if (quote) return true
     return false
   }
@@ -171,17 +198,52 @@ class Requester extends RequesterBase {
     }
   }
 
-  sendRewards() {
+  sendRewards(contentId) {
+    const self = this
+    let farmers = []
+    let rewards = []
+    let rewardMap = new Map()
+    const jobId = maskHex(nonceString(self.sow))
+
+    // Format rewards for contract
     this.deliveryMap.forEach((value, key) => {
       const peerId = this.swarmIdMap.get(key)
       const units = value
-      if (units > 0 && this.hiredFarmers.has(peerId)) {
-        this.awardFarmer(peerId, units)
-      } else {
-        debug(`Farmer ${peerId} will not be rewarded.`)
+      const reward = this.generateReward(peerId, units)
+      const userId = reward.getAgreement().getQuote().getFarmer().getDid()
+      const amount = weiToEther(reward.getAmount()) / bytesToGBs(1) // TODO: use Ara
+
+      if (amount > 0) {
+        farmers.push(userId)
+        rewards.push(amount)
+        rewardMap.set(peerId, reward)
+        debug(`Farmer ${userId} will be rewarded ${amount} Ara.`)
+      } 
+      else {
+        debug(`Farmer ${userId} will not be rewarded.`)
         this.incrementOnComplete()
       }
     })
+
+    const transaction = (onComplete) => {
+      debug(`Submitting reward for job ${jobId}.`)
+      self.wallet
+        .submitRewards(contentId, jobId, farmers, rewards)
+        .then(() => {
+          rewardMap.forEach((value, key) => {
+            const { connection } = self.hiredFarmers.get(key)
+            connection.sendReward(value)
+          })
+          onComplete()
+        })
+        .catch((err) => {
+          warn(`Failed to submit reward for job ${jobId}`)
+          debug(err)
+          onComplete(err)
+        })
+    }
+
+    this.appendToAutoQueue(transaction)
   }
 
   incrementOnComplete() {
@@ -191,22 +253,8 @@ class Requester extends RequesterBase {
     }
   }
 
-  /**
-   * Awards farmer for their work
-   */
-  awardFarmer(peerId, units) {
-    const { connection, agreement } = this.hiredFarmers.get(peerId)
-    const reward = this.generateReward(agreement, units)
-    this.sendReward(connection, reward)
-  }
-
-  /**
-   * Calculates farmer reward
-   * @param {messages.ARAid} farmer
-   * @param {messages.Agreement} agreement
-   * @returns {messages.Reward}
-   */
-  generateReward(agreement, units) {
+  generateReward(peerId, units) {
+    const { agreement } = this.hiredFarmers.get(peerId)
     const quote = agreement.getQuote()
     const amount = quote.getPerUnitCost() * units
     const reward = new messages.Reward()
@@ -214,29 +262,6 @@ class Requester extends RequesterBase {
     reward.setAgreement(agreement)
     reward.setAmount(amount)
     return reward
-  }
-
-  /**
-   * Submits a reward to the contract, and notifies the farmer that their reward is available for withdraw
-   */
-  sendReward(connection, reward) {
-    const quote = reward.getAgreement().getQuote()
-    const sowId = nonceString(quote.getSow())
-    const farmerId = quote.getFarmer().getDid()
-    const amount = reward.getAmount()
-    info(`Sending reward to farmer ${farmerId} for ${weiToEther(amount)} tokens`)
-    connection.sendReward(reward)
-
-    // TODO: submit rewards to contract
-    // this.wallet
-    //   .submitReward(sowId, farmerId, amount)
-    //   .then(() => {
-    //     connection.sendReward(reward)
-    //   })
-    //   .catch((err) => {
-    //     warn(`Failed to submit the reward to farmer ${farmerId} for job ${sowId}`)
-    //     debug(err)
-    //   })
   }
 }
 
