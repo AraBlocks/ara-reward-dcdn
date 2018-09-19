@@ -37,7 +37,7 @@
     "ansi-diff-stream": "^1.2.1",
     "ara-console": "arablocks/ara-console",
     "ara-crypto": "arablocks/ara-crypto",
-    "ara-identity": "arablocks/ara-identity",
+    "ara-identity": "arablocks/ara-identity#0.15.1",
     "ara-network": "arablocks/ara-network",
     "ara-runtime-configuration": "arablocks/ara-runtime-configuration",
     "ara-secret-storage": "arablocks/ara-secret-storage",
