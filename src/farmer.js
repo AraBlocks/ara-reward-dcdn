@@ -1,7 +1,6 @@
 /* eslint class-methods-use-this: 1 */
 const { messages, FarmerBase, duplex, util } = require('ara-farming-protocol')
 const { createSwarm } = require('ara-network/discovery')
-const { info, warn } = require('ara-console')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:farmer')
 const pify = require('pify')
@@ -32,7 +31,7 @@ class Farmer extends FarmerBase {
   }
 
   async broadcastService(afs) {
-    info('Broadcasting: ', afs.did)
+    debug('Broadcasting: ', afs.did)
 
     this.afs = afs
 
@@ -42,7 +41,7 @@ class Farmer extends FarmerBase {
     const self = this
 
     function handleConnection(connection, peer) {
-      info(`Peer Swarm: Peer Connected: ${idify(peer.host, peer.port)}`)
+      debug(`Peer Swarm: Peer Connected: ${idify(peer.host, peer.port)}`)
       const requesterConnection = new RequesterConnection(peer, connection, { timeout: 6000 })
       self.addRequester(requesterConnection)
     }
@@ -113,18 +112,15 @@ class Farmer extends FarmerBase {
     }
   }
 
-  // TODO: don't automatically withdraw reward
-  async withdrawReward(reward) {
-    const jobId = maskHex(nonceString(reward.getAgreement().getQuote().getSow()))
-    info(`Uploaded ${bytesToGBs(this.deliveryMap.get(jobId))} Gbs for job ${jobId}`)
-
+  async withdrawReward(did) {
+    debug(`Withdrawing reward for afs: ${did}`)
     this.wallet
-      .claimReward(this.afs.did)
-      .then(() => {
-        info(`Reward amount ${reward.getAmount()} withdrawn for SOW ${jobId}`)
+      .claimReward(did)
+      .then((balance) => {
+        debug(`Withdrew ${balance} Ara for AFS: ${did}`)
       })
       .catch((err) => {
-        warn(`Failed to withdraw reward for SOW ${jobId}`)
+        debug(`Failed to withdraw reward for AFS: ${did}`)
         debug(err)
       })
   }
@@ -146,17 +142,19 @@ class Farmer extends FarmerBase {
    */
   async generateReceipt(reward) {
     const sowId = nonceString(reward.getAgreement().getQuote().getSow())
-    info(`Uploaded ${bytesToGBs(this.deliveryMap.get(sowId))} Gbs for job ${sowId}`)
+    debug(`Uploaded ${bytesToGBs(this.deliveryMap.get(sowId))} Gbs for job ${sowId}`)
     const receipt = new messages.Receipt()
     receipt.setNonce(crypto.randomBytes(32))
     receipt.setReward(reward)
     receipt.setFarmerSignature(this.farmerSig)
+    // TODO: don't automatically withdraw
+    this.withdrawReward(this.afs.did)
     return receipt
   }
 
   async startWork(agreement, port) {
     const sow = agreement.getQuote().getSow()
-    info(`Listening for requester ${sow.getRequester().getDid()} on port ${port}`)
+    debug(`Listening for requester ${sow.getRequester().getDid()} on port ${port}`)
     const sowId = nonceString(sow)
     const { content } = this.afs.partitions.resolve(this.afs.HOME)
 
@@ -187,7 +185,7 @@ class Farmer extends FarmerBase {
     }
 
     function handleConnection(_, peer) {
-      info(`Content Swarm: Peer Connected: ${idify(peer.host, peer.port)}`)
+      debug(`Content Swarm: Peer Connected: ${idify(peer.host, peer.port)}`)
     }
   }
 }

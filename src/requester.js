@@ -1,7 +1,6 @@
 /* eslint class-methods-use-this: 1 */
 const { messages, RequesterBase, duplex, util } = require('ara-farming-protocol')
 const { createSwarm } = require('ara-network/discovery')
-const { info, warn } = require('ara-console')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
 const { maskHex } = require('./contract-abi')
@@ -41,7 +40,7 @@ class Requester extends RequesterBase {
   }
 
   async broadcastService(afs, contentSwarm) {
-    info('Requesting: ', afs.did)
+    debug('Requesting: ', afs.did)
 
     this.setupContentSwarm(afs, contentSwarm)
 
@@ -50,7 +49,7 @@ class Requester extends RequesterBase {
     this.peerSwarm.join(afs.did)
     const self = this
     function handleConnection(connection, peer) {
-      info(`Peer Swarm: Peer connected: ${idify(peer.host, peer.port)}`)
+      debug(`Peer Swarm: Peer connected: ${idify(peer.host, peer.port)}`)
       const farmerConnection = new FarmerConnection(peer, connection, { timeout: 6000 })
       process.nextTick(() => self.addFarmer(farmerConnection))
     }
@@ -86,7 +85,7 @@ class Requester extends RequesterBase {
         debug(`old size: ${oldByteLength}, new size: ${feed.byteLength}`)
         const sizeDelta = feed.byteLength - oldByteLength
         const amount = weiToEther(self.matcher.maxCost * sizeDelta) / bytesToGBs(1)
-        info(`Staking ${amount} Ara for a size delta of ${bytesToGBs(sizeDelta)} GBs`)
+        debug(`Staking ${amount} Ara for a size delta of ${bytesToGBs(sizeDelta)} GBs`)
         self.submitJob(afs.did, amount)
       })
 
@@ -107,7 +106,7 @@ class Requester extends RequesterBase {
       const contentSwarmId = connection.remoteId.toString('hex')
       const connectionId = idify(peer.host, peer.port)
       self.swarmIdMap.set(contentSwarmId, connectionId)
-      info(`Content Swarm: Peer connected: ${connectionId}`)
+      debug(`Content Swarm: Peer connected: ${connectionId}`)
     }
   }
 
@@ -237,7 +236,7 @@ class Requester extends RequesterBase {
           onComplete()
         })
         .catch((err) => {
-          warn(`Failed to submit reward for job ${jobId}`)
+          debug(`Failed to submit reward for job ${jobId}`)
           debug(err)
           onComplete(err)
         })
