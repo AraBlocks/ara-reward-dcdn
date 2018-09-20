@@ -9,7 +9,7 @@ const program = require('yargs')
 const debug = require('debug')('afd')
 const clip = require('cli-progress')
 const rc = require('ara-runtime-configuration')()
-const { getHandshake } = require('../../src/handshake-utils.js')
+const { getHandshake } = require('../src/handshake-utils.js')
 
 const $0 = basename(process.argv[1] || package.name)
 
@@ -117,22 +117,33 @@ async function ondownload(argv){
   if (exists) {
     info(`Found ${argv.did} on blockchain, starting DCDN`)
 
-    //TODO: clarify price per unit
-    let { maxCost } = await inquirer.prompt([ {
-      type: 'input',
-      name: 'maxCost',
-      message:
-      '\nPlease enter your max cost per GB.\n' +
-      'Price:'
-    } ])
+    // let { pass } = await inquirer.prompt([ {
+    //   type: 'password',
+    //   name: 'pass',
+    //   message:
+    //   'Please enter the passphrase associated with the node identity.\n' +
+    //   'Passphrase:'
+    // } ])
 
-    let { maxWorkers } = await inquirer.prompt([ {
-      type: 'input',
-      name: 'maxWorkers',
-      message:
-      '\nPlease enter the maximum number of publishers you want to hire.\n' +
-      'Price:'
-    } ])
+    //TODO: clarify price per unit
+    // let { maxCost } = await inquirer.prompt([ {
+    //   type: 'input',
+    //   name: 'maxCost',
+    //   message:
+    //   '\nPlease enter your max cost per GB.\n' +
+    //   'Price:'
+    // } ])
+    //
+    // let { maxWorkers } = await inquirer.prompt([ {
+    //   type: 'input',
+    //   name: 'maxWorkers',
+    //   message:
+    //   '\nPlease enter the maximum number of publishers you want to hire.\n' +
+    //   'Price:'
+    // } ])
+
+    let maxCost = 100
+    let maxWorkers = 5
 
     const userHandshake = await getHandshake({
       identity: argv.identity,
@@ -151,7 +162,6 @@ async function ondownload(argv){
         userID: argv.identity,
         price: maxCost,
         maxWorkers: maxWorkers,
-
       })
 
       const dcdn = await getInstance()
@@ -185,21 +195,24 @@ async function onpublish(argv){
   if (exists) {
     info(`Found ${argv.did} on blockchain, starting DCDN`)
 
-    let { pass } = await inquirer.prompt([ {
-      type: 'password',
-      name: 'pass',
-      message:
-      'Please enter the passphrase associated with the node identity.\n' +
-      'Passphrase:'
-    } ])
+    // let { pass } = await inquirer.prompt([ {
+    //   type: 'password',
+    //   name: 'pass',
+    //   message:
+    //   'Please enter the passphrase associated with the node identity.\n' +
+    //   'Passphrase:'
+    // } ])
+    //
+    // let { farmingPrice } = await inquirer.prompt([ {
+    //   type: 'input',
+    //   name: 'farmingPrice',
+    //   message:
+    //   '\nPlease enter your price.\n' +
+    //   'Price:'
+    // } ])
 
-    let { farmingPrice } = await inquirer.prompt([ {
-      type: 'input',
-      name: 'farmingPrice',
-      message:
-      '\nPlease enter your price.\n' +
-      'Price:'
-    } ])
+    let pass = "t"
+    let farmingPrice = 10
 
     const userHandshake = await getHandshake({
       identity: argv.identity,

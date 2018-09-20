@@ -26,20 +26,16 @@ class Requester extends RequesterBase {
   async broadcastService(afs, contentSwarm) {
     info('Requesting: ', afs.did)
 
-    this.setupContentSwarm(afs, contentSwarm)
-
-    const stream = configRequesterHandshake(this.handshake)
+    const stream = () => configRequesterHandshake(this.handshake)
     this.peerSwarm = createSwarm({ stream })
     this.peerSwarm.on('connection', handleConnection)
-    this.peerSwarm.join(afs.did)
+    this.peerSwarm.join('test')
     const self = this
     function handleConnection(connection, peer) {
       info(`Peer Swarm: Peer connected: ${idify(peer.host, peer.port)}`)
-      if (conf) {
-        const writer = connection.createWriteStream()
-        const reader = connection.createReadStream()
-        connection = duplexify(writer, reader)
-      }
+      const writer = connection.createWriteStream()
+      const reader = connection.createReadStream()
+      connection = duplexify(writer, reader)
       const farmerConnection = new FarmerConnection(peer, connection, { timeout: 6000 })
       process.nextTick(() => self.addFarmer(farmerConnection))
     }
