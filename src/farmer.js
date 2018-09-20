@@ -39,7 +39,7 @@ class Farmer extends FarmerBase {
     let stream = () => configFarmerHandshake(this.handshake)
     this.peerSwarm = createSwarm({ stream })
     this.peerSwarm.on('connection', handleConnection)
-    this.peerSwarm.join('test', { announce: false })
+    this.peerSwarm.join(afs.did, { announce: false })
     const self = this
 
     function handleConnection(connection, peer) {

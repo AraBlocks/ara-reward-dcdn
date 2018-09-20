@@ -29,7 +29,7 @@ class Requester extends RequesterBase {
     const stream = () => configRequesterHandshake(this.handshake)
     this.peerSwarm = createSwarm({ stream })
     this.peerSwarm.on('connection', handleConnection)
-    this.peerSwarm.join('test')
+    this.peerSwarm.join(afs.did)
     const self = this
     function handleConnection(connection, peer) {
       info(`Peer Swarm: Peer connected: ${idify(peer.host, peer.port)}`)
