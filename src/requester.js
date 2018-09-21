@@ -12,7 +12,7 @@ const { FarmerConnection } = duplex
 const { configRequesterHandshake } = require('./handshake-utils')
 
 class Requester extends RequesterBase {
-  constructor(sow, matcher, requesterSig, wallet, handshake) {
+  constructor(sow, matcher, requesterSig, wallet, handshakeConfig) {
     super(sow, matcher)
     this.requesterSig = requesterSig
     this.hiredFarmers = new Map()
@@ -20,13 +20,14 @@ class Requester extends RequesterBase {
     this.deliveryMap = new Map()
     this.receipts = 0
     this.wallet = wallet
-    this.handshake = handshake
+    this.handshakeConfig = handshakeConfig
   }
+
 
   async broadcastService(afs, contentSwarm) {
     info('Requesting: ', afs.did)
 
-    const stream = () => configRequesterHandshake(this.handshake)
+    let stream = () => configRequesterHandshake(this.handshakeConfig)
     this.peerSwarm = createSwarm({ stream })
     this.peerSwarm.on('connection', handleConnection)
     this.peerSwarm.join(afs.did)

@@ -48,7 +48,7 @@ class FarmDCDN extends DCDN {
     const wallet = null
 
     if (opts.upload){
-      this.user = new Farmer(user, userSig, opts.price, wallet, opts.handshake)
+      this.user = new Farmer(user, userSig, opts.price, wallet, opts.handshakeConfig)
     }
     else if (opts.download){
       const sow = new messages.SOW()
@@ -57,7 +57,7 @@ class FarmDCDN extends DCDN {
       sow.setRequester(user)
 
       const matcher = new matchers.MaxCostMatcher(opts.price, opts.maxWorkers)
-      this.user = new Requester(sow, matcher, userSig, wallet, opts.handshake)
+      this.user = new Requester(sow, matcher, userSig, wallet, opts.handshakeConfig)
     }
   }
 

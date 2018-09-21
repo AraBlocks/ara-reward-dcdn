@@ -21,14 +21,14 @@ class Farmer extends FarmerBase {
    * @param {ContractABI} wallet Farmer's Wallet Contract ABI
    * @param {AFS} afs Instance of AFS
    */
-  constructor(id, signature, price, wallet, handshake) {
+  constructor(id, signature, price, wallet, handshakeConfig) {
     super()
     this.price = price
     this.farmerID = id
     this.farmerSig = signature
     this.deliveryMap = new Map()
     this.wallet = wallet
-    this.handshake = handshake
+    this.handshakeConfig = handshakeConfig
   }
 
   async broadcastService(afs) {
@@ -36,7 +36,7 @@ class Farmer extends FarmerBase {
 
     this.afs = afs
 
-    let stream = () => configFarmerHandshake(this.handshake)
+    let stream = () => configFarmerHandshake(this.handshakeConfig)
     this.peerSwarm = createSwarm({ stream })
     this.peerSwarm.on('connection', handleConnection)
     this.peerSwarm.join(afs.did, { announce: false })

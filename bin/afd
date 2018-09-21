@@ -9,7 +9,7 @@ const program = require('yargs')
 const debug = require('debug')('afd')
 const clip = require('cli-progress')
 const rc = require('ara-runtime-configuration')()
-const { getHandshake } = require('../src/handshake-utils.js')
+const { unpackKeys } = require('../src/handshake-utils.js')
 
 const $0 = basename(process.argv[1] || package.name)
 
@@ -145,7 +145,7 @@ async function ondownload(argv){
     let maxCost = 100
     let maxWorkers = 5
 
-    const userHandshake = await getHandshake({
+    const config = await unpackKeys({
       identity: argv.identity,
       passphrase: 't',
       networkSecret: argv.secret,
@@ -155,7 +155,7 @@ async function ondownload(argv){
 
     try {
       await startDCDN({
-        handshake: userHandshake,
+        handshakeConfig: config,
         did: argv.did,
         download: true,
         upload: false,
@@ -214,7 +214,7 @@ async function onpublish(argv){
     let pass = "t"
     let farmingPrice = 10
 
-    const userHandshake = await getHandshake({
+    const config = await unpackKeys({
       identity: argv.identity,
       passphrase: 't',
       networkSecret: argv.secret,
@@ -224,7 +224,7 @@ async function onpublish(argv){
 
     try {
       await startDCDN({
-        handshake: userHandshake,
+        handshakeConfig: config,
         did: argv.did,
         download: false,
         upload: true,

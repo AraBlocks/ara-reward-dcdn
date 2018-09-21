@@ -11,18 +11,8 @@ const ss = require('ara-secret-storage')
 const rc = require('ara-runtime-configuration')()
 
 
-function configFarmerHandshake(handshake) {
-  handshake.hello()
-  handshake.on('hello', onhello)
-
-  function onhello() {
-    info('got HELLO')
-    handshake.auth()
-  }
-  return handshake
-}
-
-function configRequesterHandshake(handshake) {
+function configFarmerHandshake(conf) {
+  const handshake = getHandshake(conf)
   handshake.on('hello', onhello)
 
   function onhello() {
@@ -33,9 +23,27 @@ function configRequesterHandshake(handshake) {
   return handshake
 }
 
-async function getHandshake(conf) {
-  const { secret, unpacked, kp
-  } = await unpackKeys(conf)
+function configRequesterHandshake(conf) {
+  const handshake = getHandshake(conf)
+  handshake.hello()
+
+  handshake.on('hello', onhello)
+
+  function onhello() {
+    info('got HELLO')
+    handshake.auth()
+
+  }
+
+  return handshake
+}
+
+function getHandshake(conf) {
+  const {
+    secretKey, secret, unpacked
+  } = conf
+
+  const kp = derive({ secretKey, name: networkKeyName })
   const handshake = new Handshake({
     publicKey: kp.publicKey,
     secretKey: kp.secretKey,
@@ -75,6 +83,7 @@ async function unpackKeys(conf) {
   if (conf.identity && 0 !== conf.identity.indexOf('did:ara:')) {
     id = `did:ara:${conf.identity}`
   }
+
   const did = new DID(id)
   const publicKey = Buffer.from(did.identifier, 'hex')
   const password = crypto.blake2b(Buffer.from(conf.passphrase))
@@ -84,22 +93,19 @@ async function unpackKeys(conf) {
   const keystore = JSON.parse(await pify(readFile)(path, 'utf8'))
   const secretKey = ss.decrypt(keystore, { key: password.slice(0, 16) })
   const keyring = keypath.indexOf('pub') < 0 ? keyRing(keypath, { secret: secretKey }) : keyRing(keypath, { secret })
-
   if (await keyring.has(networkKeyName)) {
     const buffer = await keyring.get(networkKeyName)
     const unpacked = unpack({ buffer })
-    const kp = derive({ secretKey, name: networkKeyName })
     return {
-      secret, unpacked, kp
+      publicKey, secretKey, secret, unpacked
     }
   }
   warn(`No key for network "${networkKeyName}". Data will be unencrypted.`)
-
   return null
 }
 
 module.exports = {
-  getHandshake,
+  unpackKeys,
   configFarmerHandshake,
   configRequesterHandshake
 }
