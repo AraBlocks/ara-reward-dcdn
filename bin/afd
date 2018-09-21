@@ -117,37 +117,34 @@ async function ondownload(argv){
   if (exists) {
     info(`Found ${argv.did} on blockchain, starting DCDN`)
 
-    // let { pass } = await inquirer.prompt([ {
-    //   type: 'password',
-    //   name: 'pass',
-    //   message:
-    //   'Please enter the passphrase associated with the node identity.\n' +
-    //   'Passphrase:'
-    // } ])
+    let { pass } = await inquirer.prompt([ {
+      type: 'password',
+      name: 'pass',
+      message:
+      'Please enter the passphrase associated with the node identity.\n' +
+      'Passphrase:'
+    } ])
 
     //TODO: clarify price per unit
-    // let { maxCost } = await inquirer.prompt([ {
-    //   type: 'input',
-    //   name: 'maxCost',
-    //   message:
-    //   '\nPlease enter your max cost per GB.\n' +
-    //   'Price:'
-    // } ])
-    //
-    // let { maxWorkers } = await inquirer.prompt([ {
-    //   type: 'input',
-    //   name: 'maxWorkers',
-    //   message:
-    //   '\nPlease enter the maximum number of publishers you want to hire.\n' +
-    //   'Price:'
-    // } ])
+    let { maxCost } = await inquirer.prompt([ {
+      type: 'input',
+      name: 'maxCost',
+      message:
+      '\nPlease enter your max cost per GB.\n' +
+      'Price:'
+    } ])
 
-    let maxCost = 100
-    let maxWorkers = 5
+    let { maxWorkers } = await inquirer.prompt([ {
+      type: 'input',
+      name: 'maxWorkers',
+      message:
+      '\nPlease enter the maximum number of publishers you want to hire.\n' +
+      'Price:'
+    } ])
 
     const config = await unpackKeys({
       identity: argv.identity,
-      passphrase: 't',
+      passphrase: pass,
       networkSecret: argv.secret,
       networkKeyName: argv.keyname,
       keypath: argv.keypath
@@ -195,28 +192,26 @@ async function onpublish(argv){
   if (exists) {
     info(`Found ${argv.did} on blockchain, starting DCDN`)
 
-    // let { pass } = await inquirer.prompt([ {
-    //   type: 'password',
-    //   name: 'pass',
-    //   message:
-    //   'Please enter the passphrase associated with the node identity.\n' +
-    //   'Passphrase:'
-    // } ])
-    //
-    // let { farmingPrice } = await inquirer.prompt([ {
-    //   type: 'input',
-    //   name: 'farmingPrice',
-    //   message:
-    //   '\nPlease enter your price.\n' +
-    //   'Price:'
-    // } ])
+    let { pass } = await inquirer.prompt([ {
+      type: 'password',
+      name: 'pass',
+      message:
+      'Please enter the passphrase associated with the node identity.\n' +
+      'Passphrase:'
+    } ])
 
-    let pass = "t"
-    let farmingPrice = 10
+    let { farmingPrice } = await inquirer.prompt([ {
+      type: 'input',
+      name: 'farmingPrice',
+      message:
+      '\nPlease enter your price.\n' +
+      'Price:'
+    } ])
+
 
     const config = await unpackKeys({
       identity: argv.identity,
-      passphrase: 't',
+      passphrase: pass,
       networkSecret: argv.secret,
       networkKeyName: argv.keyname,
       keypath: argv.keypath
@@ -230,9 +225,6 @@ async function onpublish(argv){
         upload: true,
         userID: argv.identity,
         price: farmingPrice,
-        secret: argv.secret,
-        keyring: argv.keyring,
-        network: argv.network,
       })
 
     } catch (e) {
