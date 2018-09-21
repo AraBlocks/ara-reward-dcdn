@@ -17,14 +17,9 @@ let afd
  */
 
 async function start(argv) {
-  if (!argv.upload && !argv.download) {
-    error('Please specify either `--upload` or `--download`')
-    return process.exit(1)
-  }
-
   afd = new FarmDCDN(argv)
 
-  afd.start()
+  await afd.start()
 
   // If we are downloading, we should set up a handshake so we can be reached from `afd publish`
   if (argv.download && argv.keyring) {

@@ -1,62 +1,40 @@
-const { createSwarm } = require('ara-network/discovery/swarm')
-const EventEmitter = require('events')
 const multidrive = require('multidrive')
-const through = require('through')
 const toilet = require('toiletdb')
 const debug = require('debug')('afd')
 const pify = require('pify')
 const { Requester } = require('./requester.js')
-const { messages, util, matchers} = require('ara-farming-protocol')
+const { messages, matchers} = require('ara-farming-protocol')
 const crypto = require('ara-crypto')
 const { Farmer } = require('./farmer.js')
 const { Wallet } = require('./contract-abi')
 const DCDN = require('ara-network-node-dcdn/dcdn')
+const { normalize, getIdentifier } = require('ara-identity/did')
+const { create: createAFS } = require('ara-filesystem')
+
 const $driveCreator = Symbol('driveCreator')
+
 /**
  * @class Creates a DCDN node
  */
 class FarmDCDN extends DCDN {
   /**
-   * @param {String} opts.did Static DID for syncing
-   * @param {Boolean} opts.upload Whether to upload files
-   * @param {Boolean} opts.download Whether to download files
-   * @param {String} opts.userID
-   * @param {int} opts.price
-   * @param {int} opts.maxWorkers
+   * @param {String} opts.config store.json path
+   * @param {String} opts.userID user DID
    * @return {Object}
    */
   constructor(opts = {}) {
     super(opts)
-    this.setupUser(opts)
-  }
 
-  setupUser(opts){
     if (!opts.userID){
       throw new Error('FarmDCDN requires User Identity')
     }
 
-    const user = new messages.AraId()
-    user.setDid(opts.userID)
+    this.userID = getIdentifier(opts.userID)
+    this.wallet = new Wallet(this.userID, opts.password)
+    this.services = {}
 
-    //TODO: this is where we'll use the password to get the private key in order to sign things
-    const userSig = new messages.Signature()
-    userSig.setAraId(user)
-    userSig.setData('userSig')
-
-    const wallet = new Wallet(opts.userID, opts.password)
-
-    if (opts.upload){
-      this.user = new Farmer(user, userSig, opts.price, wallet)
-    }
-    else if (opts.download){
-      const sow = new messages.SOW()
-      sow.setNonce(crypto.randomBytes(32))
-      sow.setWorkUnit('Byte')
-      sow.setRequester(user)
-
-      const matcher = new matchers.MaxCostMatcher(opts.price, opts.maxWorkers)
-      this.user = new Requester(sow, matcher, userSig, wallet)
-    }
+    // Preload afses from store
+    this.config = opts.config || './store.json' 
   }
 
   /**
@@ -64,16 +42,68 @@ class FarmDCDN extends DCDN {
    * @public
    * @return {null}
    */
-
   async start() {
-    //TODO: add price and ability to update in the store file
-    const store = toilet('./afses.json')
+    const self = this
+    const store = toilet(this.config)
+
     this[$driveCreator] = await pify(multidrive)(
       store,
-      DCDN._createAFS,
+      FarmDCDN._createAFS,
       DCDN._closeAFS
     )
-    this.join(this.did)
+
+    const archives = this[$driveCreator].list()
+    archives.forEach(function (archive) {
+      if (archive instanceof Error) {
+        debug('failed to initialize archive with %j: %s', archive.data, archive.message)
+      } else {
+        self._startService(archive)
+      }
+    })
+  }
+
+  async _startService(afs){
+    console.log("starting service for", afs.did)
+    console.log(afs)
+    if (!afs.dcdnOpts) throw new Error('afs missing dcdn options')
+
+    const {
+      upload,
+      download,
+      price,
+      maxPeers
+    } = afs.dcdnOpts
+
+    if (!upload && !download) throw new Error('upload or download must be true')
+
+    this._attachListeners(afs)
+    let service
+
+    if (download) {
+      const requester = new messages.AraId()
+      requester.setDid(this.userID)
+
+      const sow = new messages.SOW()
+      sow.setNonce(crypto.randomBytes(32))
+      sow.setWorkUnit('Byte')
+      // TODO sow.setCurrencyUnit('Ara^-18')
+      sow.setRequester(requester)
+
+      const matcher = new matchers.MaxCostMatcher(price, maxPeers)
+      service = new Requester(sow, matcher, this.wallet, afs)
+    } 
+    else if (upload) {
+      service = new Farmer(this.wallet, price, afs)
+    }
+
+    this.services[afs.did] = service
+    service.startBroadcast()
+  }
+
+  async _stopService(key){
+    this.services[key].stopBroadcast()
+    delete this.services[key]
+    await pify(this[$driveCreator].close)(key)
   }
 
 
@@ -83,26 +113,46 @@ class FarmDCDN extends DCDN {
    * @return {null}
    */
   stop() {
-    this.user.stopService()
+    const self = this
+    const archives = this[$driveCreator].list()
+    archives.forEach(function (archive) {
+      if (!(archive instanceof Error)) {
+        self._stopService(archive.key)
+      }
+    })
   }
 
   /**
-   * Join a discovery swarm described by the passed DID
+   * Join a discovery swarm described by the passed opts
    * @public
-   * @param  {String} did DID to join swarm of
+   * @param  {String} opts.key  DID of AFS
+   * @param  {float} opts.price Price to distribute AFS
+   * @param  {int} opts.maxPeers
    *
    * @return {null}
    */
 
-  async join(did) {
-    if (!this.user){
-      throw new Error('FarmDCDN requires User Identity')
+  async join(opts) {
+    if (this.services[opts.key]) await this._stopService(opts.key)
+    const afs = await pify(this[$driveCreator].create)(opts)
+    await this._startService(afs)
+  }
+
+
+  static async _createAFS(opts, done) {
+    const { key } = opts
+
+    debug(`initializing afs of did ${key}`)
+    let afs
+    let err = null
+    try {
+      ({ afs } = await createAFS({ did: key }))
+      afs.dcdnOpts = opts
+    } catch (e) {
+      err = e
     }
 
-    this.afses[did] = await pify(this[$driveCreator].create)(did)
-    this._attachListeners(this.afses[did])
-
-    this.user.broadcastService(this.afses[did], this.swarm)
+    done(err, afs)
   }
 }
 

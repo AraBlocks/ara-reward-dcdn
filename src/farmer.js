@@ -15,29 +15,32 @@ const { idify, nonceString, weiToEther, bytesToGBs } = util
 class Farmer extends FarmerBase {
   /**
    * Example Farmer replicates an AFS for a min price
-   * @param {*} farmerId
-   * @param {*} farmerSig
    * @param {int} price Desired price in wei/byte
    * @param {ContractABI} wallet Farmer's Wallet Contract ABI
    * @param {AFS} afs Instance of AFS
    */
-  constructor(id, signature, price, wallet) {
+  constructor(wallet, price, afs) {
     super()
     this.price = price
-    this.farmerID = id
-    this.farmerSig = signature
     this.deliveryMap = new Map()
     this.wallet = wallet
+    this.afs = afs
+
+    this.farmerID = new messages.AraId()
+    this.farmerID.setDid(wallet.userID)
+
+    // TODO: actually sign data
+    this.farmerSig = new messages.Signature()
+    this.farmerSig.setAraId(this.farmerID)
+    this.farmerSig.setData('avalidsignature')
   }
 
-  async broadcastService(afs) {
-    debug('Broadcasting: ', afs.did)
-
-    this.afs = afs
+  startBroadcast() {
+    debug('Broadcasting: ', this.afs.did)
 
     this.peerSwarm = createSwarm()
     this.peerSwarm.on('connection', handleConnection)
-    this.peerSwarm.join(afs.did, { announce: false })
+    this.peerSwarm.join(this.afs.did, { announce: false })
     const self = this
 
     function handleConnection(connection, peer) {
@@ -47,9 +50,8 @@ class Farmer extends FarmerBase {
     }
   }
 
-  async stopService(){
-    this.peerSwarm.destroy()
-    this.afs.close()
+  stopBroadcast(){
+    if (this.peerSwarm) this.peerSwarm.destroy()
   }
 
   /**
@@ -147,8 +149,6 @@ class Farmer extends FarmerBase {
     receipt.setNonce(crypto.randomBytes(32))
     receipt.setReward(reward)
     receipt.setFarmerSignature(this.farmerSig)
-    // TODO: don't automatically withdraw
-    this.withdrawReward(this.afs.did)
     return receipt
   }
 

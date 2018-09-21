@@ -115,9 +115,9 @@ async function ondownload(argv){
       'Price:'
     } ])
 
-    let { maxWorkers } = await inquirer.prompt([ {
+    let { maxPeers } = await inquirer.prompt([ {
       type: 'input',
-      name: 'maxWorkers',
+      name: 'maxPeers',
       message:
       '\nPlease enter the maximum number of publishers you want to hire.\n' +
       'Price:'
@@ -126,16 +126,20 @@ async function ondownload(argv){
     try {
       await startDCDN({
         password: password,
-        did: argv.did,
-        download: true,
-        upload: false,
         userID: argv.identity,
-        price: maxCost,
-        maxWorkers: maxWorkers
       })
 
       const dcdn = await getInstance()
-      attachDownloadVisualizer(dcdn)
+      // TODO normalize DID
+      attachDownloadVisualizer(argv.did, dcdn)
+      
+      dcdn.join({
+        key: argv.did,
+        download: true,
+        upload: false,
+        price: maxCost,
+        maxPeers: maxPeers
+      })
 
     } catch (e) {
       error(`Error occurred while downloading ${argv.did}`, e)
@@ -148,11 +152,17 @@ async function ondownload(argv){
   }
 
   // Creates a progress visualizer bar in cli
-  function attachDownloadVisualizer(dcdn) {
+  function attachDownloadVisualizer(id, dcdn) {
     const pBar = new clip.Bar({}, clip.Presets.shades_classic)
-    dcdn.once('start', (did, total) => pBar.start(total, 0))
-    dcdn.on('progress', (did, value) => pBar.update(value))
-    dcdn.once('complete', (did) => pBar.stop())
+    dcdn.once('start', (did, total) => {
+      if (id === did) pBar.start(total, 0)
+    })
+    dcdn.on('progress', (did, value) => {
+      if (id === did) pBar.update(value)
+    })
+    dcdn.once('complete', (did) => {
+      if (id === did) pBar.stop()
+    })
   }
 }
 
@@ -184,11 +194,16 @@ async function onpublish(argv){
     try {
       await startDCDN({
         password: password,
-        did: argv.did,
+        userID: argv.identity,
+      })
+
+      const dcdn = await getInstance()
+      
+      dcdn.join({
+        key: argv.did,
         download: false,
         upload: true,
-        userID: argv.identity,
-        price: farmingPrice
+        price: farmingPrice,
       })
 
     } catch (e) {

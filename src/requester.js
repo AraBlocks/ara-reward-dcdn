@@ -11,21 +11,30 @@ const {
 const { FarmerConnection } = duplex
 
 class Requester extends RequesterBase {
-  constructor(sow, matcher, requesterSig, wallet) {
+  constructor(sow, matcher, wallet, afs) {
     super(sow, matcher)
-    this.requesterSig = requesterSig
     this.hiredFarmers = new Map()
     this.swarmIdMap = new Map()
     this.deliveryMap = new Map()
     this.receipts = 0
     this.wallet = wallet
     this.autoQueue = []
+
+    this.userID = new messages.AraId()
+    this.userID.setDid(wallet.userID)
+
+    // TODO: actually sign data
+    this.requesterSig = new messages.Signature()
+    this.requesterSig.setAraId(this.userID)
+    this.requesterSig.setData('avalidsignature')
+
+    this.afs = afs
   }
 
-  async appendToAutoQueue(transaction){
+  async appendToAutoQueue(transaction) {
     const self = this
     const onComplete = (err) => {
-      if (err) self.stopService(err)
+      if (err) self.stopBroadcast(err)
       else {
         self.autoQueue.shift()
         if (self.autoQueue.length > 0) self.autoQueue[0]()
@@ -39,14 +48,14 @@ class Requester extends RequesterBase {
     if (this.autoQueue.length == 1) this.autoQueue[0]()
   }
 
-  async broadcastService(afs, contentSwarm) {
-    debug('Requesting: ', afs.did)
+  startBroadcast() {
+    debug('Requesting: ', this.afs.did)
 
-    this.setupContentSwarm(afs, contentSwarm)
+    this.setupContentSwarm()
 
     this.peerSwarm = createSwarm()
     this.peerSwarm.on('connection', handleConnection)
-    this.peerSwarm.join(afs.did)
+    this.peerSwarm.join(this.afs.did)
     const self = this
     function handleConnection(connection, peer) {
       debug(`Peer Swarm: Peer connected: ${idify(peer.host, peer.port)}`)
@@ -55,26 +64,24 @@ class Requester extends RequesterBase {
     }
   }
 
-  async setupContentSwarm(afs, swarm) {
-    this.contentSwarm = swarm
-    this.afs = afs
-    this.jobSubmitted = false
-
+  async setupContentSwarm() {
     const self = this
+    this.jobSubmitted = false
+    this.contentSwarm = createSwarm({ stream })
+    this.contentSwarm.on('connection', handleConnection)
+
     let oldByteLength = 0
-    const { content } = afs.partitions.resolve(afs.HOME)
+    const { content } = self.afs.partitions.resolve(self.afs.HOME)
 
     if (content) {
       // TODO: calc current downloaded size in bytes
       oldByteLength = 0
       attachDownloadListener(content)
     } else {
-      afs.once('content', () => {
-        attachDownloadListener(afs.partitions.resolve(afs.HOME).content)
+      self.afs.once('content', () => {
+        attachDownloadListener(self.afs.partitions.resolve(self.afs.HOME).content)
       })
     }
-
-    this.contentSwarm.on('connection', handleConnection)
 
     // Handle when the content needs updated
     async function attachDownloadListener(feed) {
@@ -86,7 +93,7 @@ class Requester extends RequesterBase {
         const sizeDelta = feed.byteLength - oldByteLength
         const amount = weiToEther(self.matcher.maxCost * sizeDelta) / bytesToGBs(1)
         debug(`Staking ${amount} Ara for a size delta of ${bytesToGBs(sizeDelta)} GBs`)
-        self.submitJob(afs.did, amount)
+        self.submitJob(self.afs.did, amount)
       })
 
       // Record download data
@@ -97,9 +104,17 @@ class Requester extends RequesterBase {
 
       // Handle when the content finishes downloading
       feed.once('sync', async () => {
-        debug("Files:", await afs.readdir('.'))
-        self.sendRewards(afs.did)
+        debug("Files:", await self.afs.readdir('.'))
+        self.sendRewards(self.afs.did)
       })
+    }
+
+    function stream() {
+      const afsstream = self.afs.replicate({
+        upload: false,
+        download: true
+      })
+      return afsstream
     }
 
     async function handleConnection(connection, peer) {
@@ -110,11 +125,10 @@ class Requester extends RequesterBase {
     }
   }
 
-  async stopService(err){
+  stopBroadcast(err){
     if (err) debug(`Completion Error: ${err}`)
     if (this.contentSwarm) this.contentSwarm.destroy()
     if (this.peerSwarm) this.peerSwarm.destroy()
-    if (this.afs) this.afs.close()
     debug('Service Stopped')
     this.emit('complete', err)
   }
@@ -248,7 +262,7 @@ class Requester extends RequesterBase {
   incrementOnComplete() {
     this.receipts++
     if (this.receipts === this.deliveryMap.size) {
-      this.stopService()
+      this.stopBroadcast()
     }
   }
 
