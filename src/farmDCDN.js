@@ -1,16 +1,15 @@
-const { info, error } = require('ara-console')
 const { createSwarm } = require('ara-network/discovery/swarm')
 const EventEmitter = require('events')
 const multidrive = require('multidrive')
 const through = require('through')
 const toilet = require('toiletdb')
-const debug = require('debug')('ara:afd:farmdcdn')
+const debug = require('debug')('afd')
 const pify = require('pify')
 const { Requester } = require('./requester.js')
 const { messages, util, matchers} = require('ara-farming-protocol')
 const crypto = require('ara-crypto')
 const { Farmer } = require('./farmer.js')
-
+const { Wallet } = require('./contract-abi')
 const DCDN = require('ara-network-node-dcdn/dcdn')
 const $driveCreator = Symbol('driveCreator')
 /**
@@ -44,18 +43,17 @@ class FarmDCDN extends DCDN {
     userSig.setAraId(user)
     userSig.setData('userSig')
 
-    //TODO: incorporate ara-contracts
-    const wallet = null
+    const wallet = new Wallet(opts.userID, opts.password)
 
     if (opts.upload){
       this.user = new Farmer(user, userSig, opts.price, wallet)
-    } 
+    }
     else if (opts.download){
       const sow = new messages.SOW()
       sow.setNonce(crypto.randomBytes(32))
       sow.setWorkUnit('Byte')
       sow.setRequester(user)
-    
+
       const matcher = new matchers.MaxCostMatcher(opts.price, opts.maxWorkers)
       this.user = new Requester(sow, matcher, userSig, wallet)
     }
@@ -101,50 +99,10 @@ class FarmDCDN extends DCDN {
       throw new Error('FarmDCDN requires User Identity')
     }
 
-    const afs = await pify(this[$driveCreator].create)(did)
-    this.afses[did] = afs
-    this.attachListeners(afs)
+    this.afses[did] = await pify(this[$driveCreator].create)(did)
+    this._attachListeners(this.afses[did])
 
-    this.user.broadcastService(afs, this.swarm)
-  }
-
-  /**
-   * Attaches listeners to the afs content partition
-   * @param {AFS} afs 
-   */
-  attachListeners(afs){
-    const self = this
-
-    if (this.shouldDownload){
-      const { content } = afs.partitions.resolve(afs.HOME)
-      if (content) {
-        attachDownloadListener(content)
-      } else {
-        afs.once('content', () => {
-          attachDownloadListener(afs.partitions.resolve(afs.HOME).content)
-        })
-      }
-    }
-
-    // Emit download events
-    async function attachDownloadListener(feed) {
-      // Handle when download starts
-      feed.once('download', () => {
-        info(`Download ${afs.did} started...`)
-        self.emit('start', afs.did, feed.length)
-      })
-
-      // Record download data
-      feed.on('download', (index, data, from) => {
-        self.emit('progress', afs.did, feed.downloaded())
-      })
-
-      // Handle when the content finishes downloading
-      feed.once('sync', async () => {
-        self.emit('complete', afs.did)
-        info(`Download ${afs.did} Complete!`)
-      })
-    }
+    this.user.broadcastService(this.afses[did], this.swarm)
   }
 }
 

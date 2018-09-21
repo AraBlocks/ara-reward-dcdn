@@ -58,7 +58,7 @@ program.option('did', {
   type: 'string',
   required: true,
   describe:
-  `A valid and resolvable Ara identity DID URI 
+  `A valid and resolvable Ara identity DID URI
   of an AFS.`,
 })
 
@@ -98,6 +98,14 @@ async function ondownload(argv){
   if (exists) {
     info(`Found ${argv.did} on blockchain, starting DCDN`)
 
+    let { password } = await inquirer.prompt([ {
+      type: 'password',
+      name: 'password',
+      message:
+      'Please enter the passphrase associated with the node identity.\n' +
+      'Passphrase:'
+    } ])
+
     //TODO: clarify price per unit
     let { maxCost } = await inquirer.prompt([ {
       type: 'input',
@@ -117,6 +125,7 @@ async function ondownload(argv){
 
     try {
       await startDCDN({
+        password: password,
         did: argv.did,
         download: true,
         upload: false,
@@ -156,9 +165,9 @@ async function onpublish(argv){
   if (exists) {
     info(`Found ${argv.did} on blockchain, starting DCDN`)
 
-    let { pass } = await inquirer.prompt([ {
+    let { password } = await inquirer.prompt([ {
       type: 'password',
-      name: 'pass',
+      name: 'password',
       message:
       'Please enter the passphrase associated with the node identity.\n' +
       'Passphrase:'
@@ -174,6 +183,7 @@ async function onpublish(argv){
 
     try {
       await startDCDN({
+        password: password,
         did: argv.did,
         download: false,
         upload: true,
