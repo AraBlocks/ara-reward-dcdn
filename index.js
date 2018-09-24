@@ -6,64 +6,44 @@ const rc = require('ara-runtime-configuration')()
 
 let afd
 
+function initialize(argv) {
+  if (afd) return false
+  afd = new FarmDCDN(argv)
+  return true
+}
+
 /**
- * Start an ara-network node for DCDN
- *
+ * Start broadcasting services for an ara-network node for DCDN
  * @public
- *
  * @param {Object} argv
- *
  * @return {Boolean}
  */
 
 async function start(argv) {
-  afd = new FarmDCDN(argv)
-
+  if (afd) return false
+  initialize(argv)
   await afd.start()
-
-  // If we are downloading, we should set up a handshake so we can be reached from `afd publish`
-  if (argv.download && argv.keyring) {
-    try {
-      await listenForDIDs({
-        // Identity of the user
-        identity: argv.identity,
-        // Secret phrase given when creating network key
-        secret: Buffer.from(argv.secret),
-        // Name of the key to be found
-        name: argv.name,
-        // Path to public key of network key
-        keys: resolve(argv.keyring),
-        // Port to advertise ourselves on
-        port: argv.port,
-      }, afd.join)
-    } catch (e) {
-      error('Error occurred while listening for DIDs', e)
-      return process.exit(1)
-    }
-  }
-
   return true
 }
 
 /**
  * Stop the ara-network node of DCDN
- *
  * @return {null}
  */
 async function stop() {
-  afd.stop()
+  if (!afd) return false 
+  await afd.stop()
+  afd = null
+  return true
 }
 
 /**
  * Configures the ara-network DCDN node
- *
  * @public
- *
  * @param {Object} opts
- *
  * @return Object
  */
-
+// TODO: Update configure for Farming
 async function configure(argv, program) {
   if (program) {
     const { argv: _argv } = program
@@ -130,7 +110,8 @@ async function getInstance() {
 
 module.exports = {
   getInstance,
+  initialize,
   configure,
   start,
-  stop,
+  stop
 }

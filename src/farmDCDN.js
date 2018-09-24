@@ -34,7 +34,20 @@ class FarmDCDN extends DCDN {
     this.services = {}
 
     // Preload afses from store
-    this.config = opts.config || './store.json' 
+    this.config = opts.config || './store.json'
+    this.configLoaded = false
+  }
+
+  async _loadDrive(){
+    if (!this[$driveCreator]){
+      const store = toilet(this.config)
+      this[$driveCreator] = await pify(multidrive)(
+        store,
+        FarmDCDN._createAFS,
+        DCDN._closeAFS
+      )
+    }
+    return this[$driveCreator].list()
   }
 
   /**
@@ -44,15 +57,7 @@ class FarmDCDN extends DCDN {
    */
   async start() {
     const self = this
-    const store = toilet(this.config)
-
-    this[$driveCreator] = await pify(multidrive)(
-      store,
-      FarmDCDN._createAFS,
-      DCDN._closeAFS
-    )
-
-    const archives = this[$driveCreator].list()
+    const archives = await this._loadDrive()
     archives.forEach(function (archive) {
       if (archive instanceof Error) {
         debug('failed to initialize archive with %j: %s', archive.data, archive.message)
@@ -63,8 +68,7 @@ class FarmDCDN extends DCDN {
   }
 
   async _startService(afs){
-    console.log("starting service for", afs.did)
-    console.log(afs)
+    debug("starting service for", afs.did)
     if (!afs.dcdnOpts) throw new Error('afs missing dcdn options')
 
     const {
@@ -86,7 +90,7 @@ class FarmDCDN extends DCDN {
       const sow = new messages.SOW()
       sow.setNonce(crypto.randomBytes(32))
       sow.setWorkUnit('Byte')
-      // TODO sow.setCurrencyUnit('Ara^-18')
+      sow.setCurrencyUnit('Ara^-18')
       sow.setRequester(requester)
 
       const matcher = new matchers.MaxCostMatcher(price, maxPeers)
@@ -100,44 +104,60 @@ class FarmDCDN extends DCDN {
     service.startBroadcast()
   }
 
-  async _stopService(key){
-    this.services[key].stopBroadcast()
-    delete this.services[key]
-    await pify(this[$driveCreator].close)(key)
+  _stopService(key){
+    debug("stopping service for", key)
+    if (key in this.services){
+      this.services[key].stopBroadcast()
+      delete this.services[key]
+    }
   }
-
 
   /**
    * Stop the DCDN node
    * @public
    * @return {null}
    */
-  stop() {
+  async stop() {
     const self = this
-    const archives = this[$driveCreator].list()
+    const archives = await this._loadDrive()
     archives.forEach(function (archive) {
       if (!(archive instanceof Error)) {
         self._stopService(archive.key)
       }
     })
+    await pify(this[$driveCreator].disconnect)()
   }
 
   /**
    * Join a discovery swarm described by the passed opts
    * @public
    * @param  {String} opts.key  DID of AFS
+   * @param  {boolean} opts.upload
+   * @param  {boolean} opts.download
    * @param  {float} opts.price Price to distribute AFS
    * @param  {int} opts.maxPeers
    *
    * @return {null}
    */
-
   async join(opts) {
-    if (this.services[opts.key]) await this._stopService(opts.key)
+    await this.unjoin(opts)
     const afs = await pify(this[$driveCreator].create)(opts)
     await this._startService(afs)
   }
 
+  /**
+   * Unjoin a discovery swarm described by the passed opts
+   * @public
+   * @param  {String} opts.key  DID of AFS
+   *
+   * @return {null}
+   */
+  async unjoin(opts) {
+    opts.key = getIdentifier(opts.key)
+    await this._loadDrive()
+    await this._stopService(opts.key)
+    await pify(this[$driveCreator].close)(opts.key)
+  }
 
   static async _createAFS(opts, done) {
     const { key } = opts
