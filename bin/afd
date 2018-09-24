@@ -117,9 +117,9 @@ async function ondownload(argv){
   if (exists) {
     info(`Found ${argv.did} on blockchain, starting DCDN`)
 
-    let { pass } = await inquirer.prompt([ {
+    let { password } = await inquirer.prompt([ {
       type: 'password',
-      name: 'pass',
+      name: 'password',
       message:
       'Please enter the passphrase associated with the node identity.\n' +
       'Passphrase:'
@@ -144,7 +144,7 @@ async function ondownload(argv){
 
     const config = await unpackKeys({
       identity: argv.identity,
-      passphrase: pass,
+      passphrase: password,
       networkSecret: argv.secret,
       networkKeyName: argv.keyname,
       keypath: argv.keypath
@@ -153,6 +153,7 @@ async function ondownload(argv){
     try {
       await startDCDN({
         handshakeConfig: config,
+        password: password,
         did: argv.did,
         download: true,
         upload: false,
@@ -192,9 +193,9 @@ async function onpublish(argv){
   if (exists) {
     info(`Found ${argv.did} on blockchain, starting DCDN`)
 
-    let { pass } = await inquirer.prompt([ {
+    let { password } = await inquirer.prompt([ {
       type: 'password',
-      name: 'pass',
+      name: 'password',
       message:
       'Please enter the passphrase associated with the node identity.\n' +
       'Passphrase:'
@@ -211,7 +212,7 @@ async function onpublish(argv){
 
     const config = await unpackKeys({
       identity: argv.identity,
-      passphrase: pass,
+      passphrase: password,
       networkSecret: argv.secret,
       networkKeyName: argv.keyname,
       keypath: argv.keypath
@@ -220,6 +221,7 @@ async function onpublish(argv){
     try {
       await startDCDN({
         handshakeConfig: config,
+        password: password,
         did: argv.did,
         download: false,
         upload: true,
