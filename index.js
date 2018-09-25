@@ -6,6 +6,12 @@ const rc = require('ara-runtime-configuration')()
 
 let afd
 
+/**
+ * Initialize an ara-network node for DCDN
+ * @public
+ * @param {Object} argv
+ * @return {Boolean}
+ */
 function initialize(argv) {
   if (afd) return false
   afd = new FarmDCDN(argv)
@@ -20,14 +26,14 @@ function initialize(argv) {
  */
 
 async function start(argv) {
-  if (afd) return false
-  initialize(argv)
+  if (!initialize(argv)) return false
   await afd.start()
   return true
 }
 
 /**
  * Stop the ara-network node of DCDN
+ * @public
  * @return {null}
  */
 async function stop() {

@@ -1,4 +1,5 @@
-const { submit, allocate, redeem } = require('ara-contracts/rewards')
+const { submit, allocate } = require('ara-contracts/rewards')
+const { ethify } = require('ara-util/web3')
 
 class Wallet {
   constructor(did, password) {
@@ -12,7 +13,7 @@ class Wallet {
       password: this.password,
       contentDid,
       job: {
-        jobId,
+        jobId: ethify(jobId),
         budget
       }
     })
@@ -24,27 +25,14 @@ class Wallet {
       password: this.password,
       contentDid,
       job: {
-        jobId,
+        jobId: ethify(jobId),
         farmers,
         rewards
       }
     })
   }
-
-  claimReward(contentDid) {
-    return redeem({
-      farmerDid: this.userDid,
-      password: this.password,
-      contentDid
-    })
-  }
-}
-
-function maskHex(hex) {
-  return `0x${hex}`
 }
 
 module.exports = { 
-  Wallet,
-  maskHex
+  Wallet
 }

@@ -3,7 +3,6 @@ const { messages, RequesterBase, duplex, util } = require('ara-farming-protocol'
 const { createSwarm } = require('ara-network/discovery')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
-const { maskHex } = require('./contract-abi')
 
 const {
   idify, nonceString, bytesToGBs, weiToEther
@@ -31,6 +30,7 @@ class Requester extends RequesterBase {
     this.afs = afs
   }
 
+  // TODO: make this a utility
   async appendToAutoQueue(transaction) {
     const self = this
     const onComplete = (err) => {
@@ -66,7 +66,6 @@ class Requester extends RequesterBase {
 
   async setupContentSwarm() {
     const self = this
-    this.jobSubmitted = false
     this.contentSwarm = createSwarm({ stream })
     this.contentSwarm.on('connection', handleConnection)
 
@@ -88,6 +87,7 @@ class Requester extends RequesterBase {
       // Calculate and job budget
       // NOTE: this is a hack to get content size and should be done prior to download
       // TODO: use Ara rather than ether conversion
+      // TODO: check if balance for job already
       feed.once('download', () => {
         debug(`old size: ${oldByteLength}, new size: ${feed.byteLength}`)
         const sizeDelta = feed.byteLength - oldByteLength
@@ -125,24 +125,24 @@ class Requester extends RequesterBase {
     }
   }
 
-  stopBroadcast(err){
-    if (err) debug(`Completion Error: ${err}`)
+  stopBroadcast(err){ 
+    if (err) debug(`Broadcast Error: ${err}`)
     if (this.contentSwarm) this.contentSwarm.destroy()
     if (this.peerSwarm) this.peerSwarm.destroy()
     debug('Service Stopped')
-    this.emit('complete', err)
   }
 
   // Submit the job to the blockchain
   async submitJob(contentDid, amount) {
     const self = this
-    const jobId = maskHex(nonceString(self.sow))
+    const jobId = nonceString(self.sow)
 
     const transaction = (onComplete) => {
       debug(`Submitting job ${jobId} with budget ${amount} Ara.`)
       self.wallet
         .submitJob(contentDid, jobId, amount)
         .then(() => {
+          self.emit('jobcreated', jobId, contentDid)
           debug('Job submitted successfully')
           onComplete()
         })
@@ -216,7 +216,7 @@ class Requester extends RequesterBase {
     let farmers = []
     let rewards = []
     let rewardMap = new Map()
-    const jobId = maskHex(nonceString(self.sow))
+    const jobId = nonceString(self.sow)
 
     // Format rewards for contract
     this.deliveryMap.forEach((value, key) => {
@@ -243,6 +243,7 @@ class Requester extends RequesterBase {
       self.wallet
         .submitRewards(contentId, jobId, farmers, rewards)
         .then(() => {
+          self.emit('jobcomplete', jobId)
           rewardMap.forEach((value, key) => {
             const { connection } = self.hiredFarmers.get(key)
             connection.sendReward(value)
@@ -259,6 +260,7 @@ class Requester extends RequesterBase {
     this.appendToAutoQueue(transaction)
   }
 
+  // TODO make this a utility function
   incrementOnComplete() {
     this.receipts++
     if (this.receipts === this.deliveryMap.size) {

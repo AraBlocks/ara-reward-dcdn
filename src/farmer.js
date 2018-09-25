@@ -7,7 +7,6 @@ const pify = require('pify')
 const fp = require('find-free-port')
 const ip = require('ip')
 const duplexify = require('duplexify')
-const { maskHex } = require('./contract-abi')
 
 const { RequesterConnection } = duplex
 const { idify, nonceString, weiToEther, bytesToGBs } = util
@@ -112,19 +111,6 @@ class Farmer extends FarmerBase {
     } else {
       this.deliveryMap.set(sowId, units)
     }
-  }
-
-  async withdrawReward(did) {
-    debug(`Withdrawing reward for afs: ${did}`)
-    this.wallet
-      .claimReward(did)
-      .then((balance) => {
-        debug(`Withdrew ${balance} Ara for AFS: ${did}`)
-      })
-      .catch((err) => {
-        debug(`Failed to withdraw reward for AFS: ${did}`)
-        debug(err)
-      })
   }
 
   /**
