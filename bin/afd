@@ -138,22 +138,19 @@ async function ondownload(argv){
   } ])
 
   try {
-    initialize({
+    await start({
       password: password,
       userID: argv.identity,
-    })
-
-    const dcdn = await getInstance()
-    attachDownloadVisualizer(did, dcdn)
-    
-    dcdn.join({
-      key: did,
+      did,
       download: true,
       upload: false,
       price: maxCost,
       maxPeers: maxPeers
     })
 
+    const dcdn = await getInstance()
+    attachDownloadVisualizer(did, dcdn)
+    
   } catch (e) {
     error(`Error occurred while downloading ${did}`, e)
     return process.exit(1)
@@ -190,20 +187,14 @@ async function onpublish(argv){
   } ])
 
   try {
-    initialize({
+    await start({
       password: password,
       userID: argv.identity,
-    })
-
-    const dcdn = await getInstance()
-    
-    dcdn.join({
-      key: did,
+      did,
       download: false,
       upload: true,
       price: farmingPrice,
     })
-
   } catch (e) {
     error(`Error occurred while publishing DID ${did}`, e)
     return process.exit(1)

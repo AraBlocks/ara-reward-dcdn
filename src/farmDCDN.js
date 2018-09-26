@@ -10,6 +10,10 @@ const toilet = require('toiletdb')
 const debug = require('debug')('afd')
 const pify = require('pify')
 const DCDN = require('ara-network-node-dcdn/dcdn')
+const {
+  DEFAULT_CONFIG_STORE,
+  DEFAULT_JOB_STORE
+} = require("../constants")
 
 const $driveCreator = Symbol('driveCreator')
 
@@ -34,7 +38,7 @@ class FarmDCDN extends DCDN {
     this.services = {}
 
     // Preload afses from store
-    this.config = opts.config || './store.json'
+    this.config = opts.config || DEFAULT_CONFIG_STORE
   }
 
   async _loadDrive(){
@@ -59,7 +63,7 @@ class FarmDCDN extends DCDN {
       this.running = true
       const self = this
 
-      this.jobsInProgress = toilet('./jobs.json')
+      this.jobsInProgress = toilet(DEFAULT_JOB_STORE)
       await pify(this.jobsInProgress.open)()
 
       const archives = await this._loadDrive()

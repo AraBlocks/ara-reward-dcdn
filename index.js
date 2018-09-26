@@ -4,19 +4,7 @@ const extend = require('extend')
 const FarmDCDN = require('./src/farmDCDN')
 const rc = require('ara-runtime-configuration')()
 
-let afd
-
-/**
- * Initialize an ara-network node for DCDN
- * @public
- * @param {Object} argv
- * @return {Boolean}
- */
-function initialize(argv) {
-  if (afd) return false
-  afd = new FarmDCDN(argv)
-  return true
-}
+let dcdn
 
 /**
  * Start broadcasting services for an ara-network node for DCDN
@@ -26,8 +14,21 @@ function initialize(argv) {
  */
 
 async function start(argv) {
-  if (!initialize(argv)) return false
-  await afd.start()
+  if (dcdn) return false
+  dcdn = new FarmDCDN(argv)
+  
+  if (argv.did) {
+    await dcdn.join({
+      did: argv.did,
+      download: argv.download,
+      upload: argv.upload,
+      price: argv.price,
+      maxPeers: argv.maxPeers,
+      jobId: argv.jobId
+    })
+  } else {
+    await dcdn.start()
+  }
   return true
 }
 
@@ -37,9 +38,9 @@ async function start(argv) {
  * @return {null}
  */
 async function stop() {
-  if (!afd) return false 
-  await afd.stop()
-  afd = null
+  if (!dcdn) return false 
+  await dcdn.stop()
+  dcdn = null
   return true
 }
 
@@ -111,12 +112,11 @@ async function configure(argv, program) {
  * @return {Object}
  */
 async function getInstance() {
-  return afd
+  return dcdn
 }
 
 module.exports = {
   getInstance,
-  initialize,
   configure,
   start,
   stop
