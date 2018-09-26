@@ -1,15 +1,18 @@
 /* eslint class-methods-use-this: 1 */
-const { messages, FarmerBase, duplex, util } = require('ara-farming-protocol')
+const {
+  messages, FarmerBase, duplex, util
+} = require('ara-farming-protocol')
 const { createSwarm } = require('ara-network/discovery')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:farmer')
 const pify = require('pify')
 const fp = require('find-free-port')
 const ip = require('ip')
-const duplexify = require('duplexify')
 
 const { RequesterConnection } = duplex
-const { idify, nonceString, weiToEther, bytesToGBs } = util
+const {
+  idify, nonceString, bytesToGBs
+} = util
 
 class Farmer extends FarmerBase {
   /**
@@ -49,7 +52,7 @@ class Farmer extends FarmerBase {
     }
   }
 
-  stopBroadcast(){
+  stopBroadcast() {
     if (this.peerSwarm) this.peerSwarm.destroy()
   }
 
@@ -73,7 +76,7 @@ class Farmer extends FarmerBase {
    * @returns {boolean}
    */
   async validateAgreement(agreement) {
-    //TODO: check that data is signed by requester
+    // TODO: check that data is signed by requester
     const quote = agreement.getQuote()
     return quote.getPerUnitCost() == this.price
   }
@@ -99,7 +102,7 @@ class Farmer extends FarmerBase {
   }
 
   async validateSow(sow) {
-    //TODO: Validate DID
+    // TODO: Validate DID
     if (sow) return true
     return false
   }

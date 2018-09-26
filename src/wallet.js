@@ -33,6 +33,6 @@ class Wallet {
   }
 }
 
-module.exports = { 
+module.exports = {
   Wallet
 }

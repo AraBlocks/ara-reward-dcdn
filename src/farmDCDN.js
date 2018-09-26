@@ -13,7 +13,7 @@ const DCDN = require('ara-network-node-dcdn/dcdn')
 const {
   DEFAULT_CONFIG_STORE,
   DEFAULT_JOB_STORE
-} = require("../constants")
+} = require('../constants')
 
 const $driveCreator = Symbol('driveCreator')
 
@@ -29,7 +29,7 @@ class FarmDCDN extends DCDN {
   constructor(opts = {}) {
     super(opts)
 
-    if (!opts.userID){
+    if (!opts.userID) {
       throw new Error('FarmDCDN requires User Identity')
     }
 
@@ -41,8 +41,8 @@ class FarmDCDN extends DCDN {
     this.config = opts.config || DEFAULT_CONFIG_STORE
   }
 
-  async _loadDrive(){
-    if (!this[$driveCreator]){
+  async _loadDrive() {
+    if (!this[$driveCreator]) {
       const store = toilet(this.config)
       this[$driveCreator] = await pify(multidrive)(
         store,
@@ -59,7 +59,7 @@ class FarmDCDN extends DCDN {
    * @return {null}
    */
   async start() {
-    if (!this.running){
+    if (!this.running) {
       this.running = true
       const self = this
 
@@ -67,7 +67,7 @@ class FarmDCDN extends DCDN {
       await pify(this.jobsInProgress.open)()
 
       const archives = await this._loadDrive()
-      archives.forEach(function (archive) {
+      archives.forEach((archive) => {
         if (archive instanceof Error) {
           debug('failed to initialize archive with %j: %s', archive.data, archive.message)
         } else {
@@ -77,17 +77,17 @@ class FarmDCDN extends DCDN {
     }
   }
 
-  async _getJobInProgress(did){
+  async _getJobInProgress(did) {
     const jobs = await pify(this.jobsInProgress.read)()
-    for (let job in jobs){
+    for (const job in jobs) {
       if (did === jobs[job]) return job
     }
     return null
   }
 
-  async _startService(afs){
+  async _startService(afs) {
     const self = this
-    debug("starting service for", afs.did)
+    debug('starting service for', afs.did)
     if (!afs.dcdnOpts) throw new Error('afs missing dcdn options')
 
     const {
@@ -124,13 +124,12 @@ class FarmDCDN extends DCDN {
       service.once('jobcomplete', async (job) => {
         await pify(self.jobsInProgress.delete)(job)
         await self.unjoin(afs.dcdnOpts)
-        
+
         /** This is to signify when all farmers have responded
-            with receipts and it's safe to publish the afs **/
+            with receipts and it's safe to publish the afs * */
         self.emit('requestcomplete', afs.did)
       })
-    } 
-    else if (upload) {
+    } else if (upload) {
       service = new Farmer(this.wallet, price, afs)
     }
 
@@ -138,9 +137,9 @@ class FarmDCDN extends DCDN {
     service.startBroadcast()
   }
 
-  _stopService(did){
-    debug("stopping service for", did)
-    if (did in this.services){
+  _stopService(did) {
+    debug('stopping service for', did)
+    if (did in this.services) {
       this.services[did].stopBroadcast()
       delete this.services[did]
     }
@@ -152,11 +151,11 @@ class FarmDCDN extends DCDN {
    * @return {null}
    */
   async stop() {
-    if (this.running){
+    if (this.running) {
       this.running = false
       const self = this
       const archives = await this._loadDrive()
-      archives.forEach(function (archive) {
+      archives.forEach((archive) => {
         if (!(archive instanceof Error)) {
           self._stopService(archive.did)
         }
@@ -173,11 +172,11 @@ class FarmDCDN extends DCDN {
    * @param  {boolean} opts.download
    * @param  {float} opts.price Price to distribute AFS
    * @param  {int} opts.maxPeers
-   * @param  {String} opts.jobId 
+   * @param  {String} opts.jobId
    * @return {null}
    */
   async join(opts) {
-    if (upload && download){
+    if (opts.upload && opts.download) {
       throw new Error('both upload and download cannot be true')
     }
 
@@ -208,7 +207,7 @@ class FarmDCDN extends DCDN {
     try {
       await this._stopService(opts.key)
       await pify(this[$driveCreator].close)(opts.key)
-    } catch (err){
+    } catch (err) {
       debug(err)
     }
   }

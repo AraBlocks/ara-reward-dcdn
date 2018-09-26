@@ -1,5 +1,3 @@
-const { resolve } = require('path')
-const { error } = require('ara-console')
 const extend = require('extend')
 const FarmDCDN = require('./src/farmDCDN')
 const rc = require('ara-runtime-configuration')()
@@ -16,7 +14,7 @@ let dcdn
 async function start(argv) {
   if (dcdn) return false
   dcdn = new FarmDCDN(argv)
-  
+
   if (argv.did) {
     await dcdn.join({
       did: argv.did,
@@ -38,7 +36,7 @@ async function start(argv) {
  * @return {null}
  */
 async function stop() {
-  if (!dcdn) return false 
+  if (!dcdn) return false
   await dcdn.stop()
   dcdn = null
   return true

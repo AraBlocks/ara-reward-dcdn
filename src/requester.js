@@ -1,9 +1,11 @@
 /* eslint class-methods-use-this: 1 */
-const { messages, RequesterBase, duplex, util } = require('ara-farming-protocol')
+const {
+  messages, RequesterBase, duplex, util
+} = require('ara-farming-protocol')
+const { AutoQueue, Countdown } = require('./util')
 const { createSwarm } = require('ara-network/discovery')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
-const { AutoQueue } = require('./util')
 
 const {
   idify, nonceString, bytesToGBs, weiToEther
@@ -16,7 +18,6 @@ class Requester extends RequesterBase {
     this.hiredFarmers = new Map()
     this.swarmIdMap = new Map()
     this.deliveryMap = new Map()
-    this.receipts = 0
     this.wallet = wallet
     this.autoQueue = new AutoQueue(this.stopBroadcast.bind(this))
 
@@ -88,7 +89,7 @@ class Requester extends RequesterBase {
 
       // Handle when the content finishes downloading
       feed.once('sync', async () => {
-        debug("Files:", await self.afs.readdir('.'))
+        debug('Files:', await self.afs.readdir('.'))
         self.sendRewards(self.afs.did)
       })
     }
@@ -109,7 +110,7 @@ class Requester extends RequesterBase {
     }
   }
 
-  stopBroadcast(err){ 
+  stopBroadcast(err) {
     if (err) debug(`Broadcast Error: ${err}`)
     if (this.contentSwarm) this.contentSwarm.destroy()
     if (this.peerSwarm) this.peerSwarm.destroy()
@@ -139,7 +140,7 @@ class Requester extends RequesterBase {
   }
 
   async validateQuote(quote) {
-    //TODO: Validate DID
+    // TODO: Validate DID
     if (quote) return true
     return false
   }
@@ -182,7 +183,7 @@ class Requester extends RequesterBase {
   async onReceipt(receipt, connection) {
     // Expects receipt from all rewarded farmers
     if (receipt && connection) {
-      this.incrementOnComplete()
+      if (this.receiptCountdown) this.receiptCountdown.decrement()
     }
   }
 
@@ -197,28 +198,29 @@ class Requester extends RequesterBase {
 
   sendRewards(contentId) {
     const self = this
-    let farmers = []
-    let rewards = []
-    let rewardMap = new Map()
+    const farmers = []
+    const rewards = []
+    const rewardMap = new Map()
     const jobId = nonceString(self.sow)
 
     // Format rewards for contract
+    this.receiptCountdown = new Countdown(this.deliveryMap.size, this.stopBroadcast.bind(this))
     this.deliveryMap.forEach((value, key) => {
       const peerId = this.swarmIdMap.get(key)
       const units = value
       const reward = this.generateReward(peerId, units)
       const userId = reward.getAgreement().getQuote().getFarmer().getDid()
-      const amount = weiToEther(reward.getAmount()) / bytesToGBs(1) // TODO: use Ara
+      // TODO: use Ara
+      const amount = weiToEther(reward.getAmount()) / bytesToGBs(1)
 
       if (amount > 0) {
         farmers.push(userId)
         rewards.push(amount)
         rewardMap.set(peerId, reward)
         debug(`Farmer ${userId} will be rewarded ${amount} Ara.`)
-      } 
-      else {
+      } else {
         debug(`Farmer ${userId} will not be rewarded.`)
-        this.incrementOnComplete()
+        this.receiptCountdown.decrement()
       }
     })
 
@@ -242,14 +244,6 @@ class Requester extends RequesterBase {
     }
 
     this.autoQueue.append(transaction)
-  }
-
-  // TODO make this a utility function
-  incrementOnComplete() {
-    this.receipts++
-    if (this.receipts === this.deliveryMap.size) {
-      this.stopBroadcast()
-    }
   }
 
   generateReward(peerId, units) {
