@@ -3,6 +3,7 @@ const { messages, RequesterBase, duplex, util } = require('ara-farming-protocol'
 const { createSwarm } = require('ara-network/discovery')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
+const { AutoQueue } = require('./util')
 
 const {
   idify, nonceString, bytesToGBs, weiToEther
@@ -17,7 +18,7 @@ class Requester extends RequesterBase {
     this.deliveryMap = new Map()
     this.receipts = 0
     this.wallet = wallet
-    this.autoQueue = []
+    this.autoQueue = new AutoQueue(this.stopBroadcast.bind(this))
 
     this.userID = new messages.AraId()
     this.userID.setDid(wallet.userID)
@@ -28,24 +29,6 @@ class Requester extends RequesterBase {
     this.requesterSig.setData('avalidsignature')
 
     this.afs = afs
-  }
-
-  // TODO: make this a utility
-  async appendToAutoQueue(transaction) {
-    const self = this
-    const onComplete = (err) => {
-      if (err) self.stopBroadcast(err)
-      else {
-        self.autoQueue.shift()
-        if (self.autoQueue.length > 0) self.autoQueue[0]()
-      }
-    }
-
-    this.autoQueue.push(() => {
-      transaction(onComplete)
-    })
-
-    if (this.autoQueue.length == 1) this.autoQueue[0]()
   }
 
   startBroadcast() {
@@ -88,6 +71,7 @@ class Requester extends RequesterBase {
       // NOTE: this is a hack to get content size and should be done prior to download
       // TODO: use Ara rather than ether conversion
       // TODO: check if balance for job already
+      // TODO: Only download if new data
       feed.once('download', () => {
         debug(`old size: ${oldByteLength}, new size: ${feed.byteLength}`)
         const sizeDelta = feed.byteLength - oldByteLength
@@ -151,7 +135,7 @@ class Requester extends RequesterBase {
         })
     }
 
-    self.appendToAutoQueue(transaction)
+    this.autoQueue.append(transaction)
   }
 
   async validateQuote(quote) {
@@ -257,7 +241,7 @@ class Requester extends RequesterBase {
         })
     }
 
-    this.appendToAutoQueue(transaction)
+    this.autoQueue.append(transaction)
   }
 
   // TODO make this a utility function
