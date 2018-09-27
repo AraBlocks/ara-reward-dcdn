@@ -125,7 +125,7 @@ async function ondownload(argv){
     type: 'input',
     name: 'maxCost',
     message:
-    '\nPlease enter your max cost in Ara per GB.\n' +
+    '\nPlease enter your max cost in Ara per download.\n' +
     'Price:'
   } ])
 
@@ -182,7 +182,7 @@ async function onpublish(argv){
     type: 'input',
     name: 'farmingPrice',
     message:
-    '\nPlease enter your price.\n' +
+    '\nPlease enter your price in Ara per upload.\n' +
     'Price:'
   } ])
 

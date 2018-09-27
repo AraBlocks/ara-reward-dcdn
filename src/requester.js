@@ -13,6 +13,11 @@ const {
 const { FarmerConnection } = duplex
 
 class Requester extends RequesterBase {
+  /**
+   * Requester replicates an AFS for a sow
+   * @param {Wallet} wallet Requester's Wallet
+   * @param {AFS} afs Instance of AFS
+   */
   constructor(sow, matcher, wallet, afs) {
     super(sow, matcher)
     this.hiredFarmers = new Map()
@@ -33,14 +38,26 @@ class Requester extends RequesterBase {
   }
 
   startBroadcast() {
-    debug('Requesting: ', this.afs.did)
-
-    this.setupContentSwarm()
-
-    this.peerSwarm = createSwarm()
-    this.peerSwarm.on('connection', handleConnection)
-    this.peerSwarm.join(this.afs.did)
     const self = this
+    debug('Requesting: ', self.afs.did)
+
+    // TODO: check if balance for job already
+    // TODO: Only download if new data
+    // TODO: use Ara rather than ether conversion
+    // Calculate and job budget
+    const amount = weiToEther(self.matcher.maxCost)
+    debug(`Staking ${amount} Ara for AFS ${self.afs.did}`)
+    self.submitJob(self.afs.did, amount, (err) => {
+      if (err) {
+        debug(`failed to start broadcast for ${self.afs.did}`, err)
+        return
+      }
+      self.setupContentSwarm()
+      self.peerSwarm = createSwarm()
+      self.peerSwarm.on('connection', handleConnection)
+      self.peerSwarm.join(self.afs.did)
+    })
+
     function handleConnection(connection, peer) {
       debug(`Peer Swarm: Peer connected: ${idify(peer.host, peer.port)}`)
       const farmerConnection = new FarmerConnection(peer, connection, { timeout: 6000 })
@@ -53,12 +70,9 @@ class Requester extends RequesterBase {
     this.contentSwarm = createSwarm({ stream })
     this.contentSwarm.on('connection', handleConnection)
 
-    let oldByteLength = 0
     const { content } = self.afs.partitions.resolve(self.afs.HOME)
 
     if (content) {
-      // TODO: calc current downloaded size in bytes
-      oldByteLength = 0
       attachDownloadListener(content)
     } else {
       self.afs.once('content', () => {
@@ -68,19 +82,6 @@ class Requester extends RequesterBase {
 
     // Handle when the content needs updated
     async function attachDownloadListener(feed) {
-      // Calculate and job budget
-      // NOTE: this is a hack to get content size and should be done prior to download
-      // TODO: use Ara rather than ether conversion
-      // TODO: check if balance for job already
-      // TODO: Only download if new data
-      feed.once('download', () => {
-        debug(`old size: ${oldByteLength}, new size: ${feed.byteLength}`)
-        const sizeDelta = feed.byteLength - oldByteLength
-        const amount = weiToEther(self.matcher.maxCost * sizeDelta) / bytesToGBs(1)
-        debug(`Staking ${amount} Ara for a size delta of ${bytesToGBs(sizeDelta)} GBs`)
-        self.submitJob(self.afs.did, amount)
-      })
-
       // Record download data
       feed.on('download', (index, data, from) => {
         const peerIdHex = from.remoteId.toString('hex')
@@ -118,7 +119,7 @@ class Requester extends RequesterBase {
   }
 
   // Submit the job to the blockchain
-  async submitJob(contentDid, amount) {
+  submitJob(contentDid, amount, onSubmit) {
     const self = this
     const jobId = nonceString(self.sow)
 
@@ -129,9 +130,11 @@ class Requester extends RequesterBase {
         .then(() => {
           self.emit('jobcreated', jobId, contentDid)
           debug('Job submitted successfully')
+          onSubmit()
           onComplete()
         })
         .catch((err) => {
+          onSubmit(err)
           onComplete(err)
         })
     }

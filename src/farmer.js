@@ -16,9 +16,9 @@ const {
 
 class Farmer extends FarmerBase {
   /**
-   * Example Farmer replicates an AFS for a min price
-   * @param {int} price Desired price in wei/byte
-   * @param {ContractABI} wallet Farmer's Wallet Contract ABI
+   * Farmer replicates an AFS for a min price
+   * @param {int} price Desired price in Ara^-18/upload
+   * @param {Wallet} wallet Farmer's Wallet
    * @param {AFS} afs Instance of AFS
    */
   constructor(wallet, price, afs) {
