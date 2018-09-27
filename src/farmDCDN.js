@@ -91,12 +91,14 @@ class FarmDCDN extends DCDN {
     if (!afs.dcdnOpts) throw new Error('afs missing dcdn options')
 
     const {
-      upload,
-      download,
-      price,
-      maxPeers,
-      jobId
-    } = afs.dcdnOpts
+      dcdnOpts: {
+        upload,
+        download,
+        price,
+        maxPeers,
+        jobId
+      }
+    } = afs
 
     if (!upload && !download) throw new Error('upload or download must be true')
 
@@ -167,7 +169,7 @@ class FarmDCDN extends DCDN {
   /**
    * Join a discovery swarm described by the passed opts
    * @public
-   * @param  {String} opts.key  DID of AFS
+   * @param  {String} opts.did
    * @param  {boolean} opts.upload
    * @param  {boolean} opts.download
    * @param  {float} opts.price Price to distribute AFS
@@ -179,6 +181,8 @@ class FarmDCDN extends DCDN {
     if (opts.upload && opts.download) {
       throw new Error('both upload and download cannot be true')
     }
+
+    opts.key = getIdentifier(opts.did)
 
     await this.unjoin(opts)
     const archive = await pify(this[$driveCreator].create)(opts)
@@ -197,23 +201,23 @@ class FarmDCDN extends DCDN {
   /**
    * Unjoin a discovery swarm described by the passed opts
    * @public
-   * @param  {String} opts.key  DID of AFS
+   * @param  {String} opts.did
    *
    * @return {null}
    */
   async unjoin(opts) {
-    opts.key = getIdentifier(opts.key)
+    const key = opts.key || getIdentifier(opts.did)
     await this._loadDrive()
     try {
-      await this._stopService(opts.key)
-      await pify(this[$driveCreator].close)(opts.key)
+      await this._stopService(key)
+      await pify(this[$driveCreator].close)(key)
     } catch (err) {
       debug(err)
     }
   }
 
   static async _createAFS(opts, done) {
-    const { key: did } = opts
+    const { did } = opts
 
     debug(`initializing afs of did ${did}`)
     let afs
