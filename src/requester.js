@@ -1,9 +1,11 @@
 /* eslint class-methods-use-this: 1 */
-const { messages, RequesterBase, duplex, util } = require('ara-farming-protocol')
+const {
+  messages, RequesterBase, duplex, util
+} = require('ara-farming-protocol')
+const { AutoQueue, Countdown } = require('./util')
 const { createSwarm } = require('ara-network/discovery')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
-const { maskHex } = require('./contract-abi')
 
 const {
   idify, nonceString, bytesToGBs, weiToEther
@@ -11,42 +13,33 @@ const {
 const { FarmerConnection } = duplex
 
 class Requester extends RequesterBase {
-  constructor(sow, matcher, requesterSig, wallet) {
+  constructor(sow, matcher, wallet, afs) {
     super(sow, matcher)
-    this.requesterSig = requesterSig
     this.hiredFarmers = new Map()
     this.swarmIdMap = new Map()
     this.deliveryMap = new Map()
-    this.receipts = 0
     this.wallet = wallet
-    this.autoQueue = []
+    this.autoQueue = new AutoQueue(this.stopBroadcast.bind(this))
+
+    this.userID = new messages.AraId()
+    this.userID.setDid(wallet.userID)
+
+    // TODO: actually sign data
+    this.requesterSig = new messages.Signature()
+    this.requesterSig.setAraId(this.userID)
+    this.requesterSig.setData('avalidsignature')
+
+    this.afs = afs
   }
 
-  async appendToAutoQueue(transaction){
-    const self = this
-    const onComplete = (err) => {
-      if (err) self.stopService(err)
-      else {
-        self.autoQueue.shift()
-        if (self.autoQueue.length > 0) self.autoQueue[0]()
-      }
-    }
+  startBroadcast() {
+    debug('Requesting: ', this.afs.did)
 
-    this.autoQueue.push(() => {
-      transaction(onComplete)
-    })
-
-    if (this.autoQueue.length == 1) this.autoQueue[0]()
-  }
-
-  async broadcastService(afs, contentSwarm) {
-    debug('Requesting: ', afs.did)
-
-    this.setupContentSwarm(afs, contentSwarm)
+    this.setupContentSwarm()
 
     this.peerSwarm = createSwarm()
     this.peerSwarm.on('connection', handleConnection)
-    this.peerSwarm.join(afs.did)
+    this.peerSwarm.join(this.afs.did)
     const self = this
     function handleConnection(connection, peer) {
       debug(`Peer Swarm: Peer connected: ${idify(peer.host, peer.port)}`)
@@ -55,38 +48,37 @@ class Requester extends RequesterBase {
     }
   }
 
-  async setupContentSwarm(afs, swarm) {
-    this.contentSwarm = swarm
-    this.afs = afs
-    this.jobSubmitted = false
-
+  async setupContentSwarm() {
     const self = this
+    this.contentSwarm = createSwarm({ stream })
+    this.contentSwarm.on('connection', handleConnection)
+
     let oldByteLength = 0
-    const { content } = afs.partitions.resolve(afs.HOME)
+    const { content } = self.afs.partitions.resolve(self.afs.HOME)
 
     if (content) {
       // TODO: calc current downloaded size in bytes
       oldByteLength = 0
       attachDownloadListener(content)
     } else {
-      afs.once('content', () => {
-        attachDownloadListener(afs.partitions.resolve(afs.HOME).content)
+      self.afs.once('content', () => {
+        attachDownloadListener(self.afs.partitions.resolve(self.afs.HOME).content)
       })
     }
-
-    this.contentSwarm.on('connection', handleConnection)
 
     // Handle when the content needs updated
     async function attachDownloadListener(feed) {
       // Calculate and job budget
       // NOTE: this is a hack to get content size and should be done prior to download
       // TODO: use Ara rather than ether conversion
+      // TODO: check if balance for job already
+      // TODO: Only download if new data
       feed.once('download', () => {
         debug(`old size: ${oldByteLength}, new size: ${feed.byteLength}`)
         const sizeDelta = feed.byteLength - oldByteLength
         const amount = weiToEther(self.matcher.maxCost * sizeDelta) / bytesToGBs(1)
         debug(`Staking ${amount} Ara for a size delta of ${bytesToGBs(sizeDelta)} GBs`)
-        self.submitJob(afs.did, amount)
+        self.submitJob(self.afs.did, amount)
       })
 
       // Record download data
@@ -97,9 +89,17 @@ class Requester extends RequesterBase {
 
       // Handle when the content finishes downloading
       feed.once('sync', async () => {
-        debug("Files:", await afs.readdir('.'))
-        self.sendRewards(afs.did)
+        debug('Files:', await self.afs.readdir('.'))
+        self.sendRewards(self.afs.did)
       })
+    }
+
+    function stream() {
+      const afsstream = self.afs.replicate({
+        upload: false,
+        download: true
+      })
+      return afsstream
     }
 
     async function handleConnection(connection, peer) {
@@ -110,25 +110,24 @@ class Requester extends RequesterBase {
     }
   }
 
-  async stopService(err){
-    if (err) debug(`Completion Error: ${err}`)
+  stopBroadcast(err) {
+    if (err) debug(`Broadcast Error: ${err}`)
     if (this.contentSwarm) this.contentSwarm.destroy()
     if (this.peerSwarm) this.peerSwarm.destroy()
-    if (this.afs) this.afs.close()
     debug('Service Stopped')
-    this.emit('complete', err)
   }
 
   // Submit the job to the blockchain
   async submitJob(contentDid, amount) {
     const self = this
-    const jobId = maskHex(nonceString(self.sow))
+    const jobId = nonceString(self.sow)
 
     const transaction = (onComplete) => {
       debug(`Submitting job ${jobId} with budget ${amount} Ara.`)
       self.wallet
         .submitJob(contentDid, jobId, amount)
         .then(() => {
+          self.emit('jobcreated', jobId, contentDid)
           debug('Job submitted successfully')
           onComplete()
         })
@@ -137,11 +136,11 @@ class Requester extends RequesterBase {
         })
     }
 
-    self.appendToAutoQueue(transaction)
+    this.autoQueue.append(transaction)
   }
 
   async validateQuote(quote) {
-    //TODO: Validate DID
+    // TODO: Validate DID
     if (quote) return true
     return false
   }
@@ -184,7 +183,7 @@ class Requester extends RequesterBase {
   async onReceipt(receipt, connection) {
     // Expects receipt from all rewarded farmers
     if (receipt && connection) {
-      this.incrementOnComplete()
+      if (this.receiptCountdown) this.receiptCountdown.decrement()
     }
   }
 
@@ -199,28 +198,29 @@ class Requester extends RequesterBase {
 
   sendRewards(contentId) {
     const self = this
-    let farmers = []
-    let rewards = []
-    let rewardMap = new Map()
-    const jobId = maskHex(nonceString(self.sow))
+    const farmers = []
+    const rewards = []
+    const rewardMap = new Map()
+    const jobId = nonceString(self.sow)
 
     // Format rewards for contract
+    this.receiptCountdown = new Countdown(this.deliveryMap.size, this.stopBroadcast.bind(this))
     this.deliveryMap.forEach((value, key) => {
       const peerId = this.swarmIdMap.get(key)
       const units = value
       const reward = this.generateReward(peerId, units)
       const userId = reward.getAgreement().getQuote().getFarmer().getDid()
-      const amount = weiToEther(reward.getAmount()) / bytesToGBs(1) // TODO: use Ara
+      // TODO: use Ara
+      const amount = weiToEther(reward.getAmount()) / bytesToGBs(1)
 
       if (amount > 0) {
         farmers.push(userId)
         rewards.push(amount)
         rewardMap.set(peerId, reward)
         debug(`Farmer ${userId} will be rewarded ${amount} Ara.`)
-      } 
-      else {
+      } else {
         debug(`Farmer ${userId} will not be rewarded.`)
-        this.incrementOnComplete()
+        this.receiptCountdown.decrement()
       }
     })
 
@@ -229,6 +229,7 @@ class Requester extends RequesterBase {
       self.wallet
         .submitRewards(contentId, jobId, farmers, rewards)
         .then(() => {
+          self.emit('jobcomplete', jobId)
           rewardMap.forEach((value, key) => {
             const { connection } = self.hiredFarmers.get(key)
             connection.sendReward(value)
@@ -242,14 +243,7 @@ class Requester extends RequesterBase {
         })
     }
 
-    this.appendToAutoQueue(transaction)
-  }
-
-  incrementOnComplete() {
-    this.receipts++
-    if (this.receipts === this.deliveryMap.size) {
-      this.stopService()
-    }
+    this.autoQueue.append(transaction)
   }
 
   generateReward(peerId, units) {

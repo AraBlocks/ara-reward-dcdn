@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const { start: startDCDN, getInstance } = require('../')
-const { checkBlockchain } = require('ara-network-node-dcdn/blockchain')
+const { initialize, start, getInstance } = require('../')
+const { getIdentifier } = require('ara-identity/did')
 const { info, error } = require('ara-console')
 const { basename } = require('path')
 const inquirer = require('inquirer')
@@ -56,7 +56,6 @@ program.option('identity', {
 program.option('did', {
   alias: 'd',
   type: 'string',
-  required: true,
   describe:
   `A valid and resolvable Ara identity DID URI
   of an AFS.`,
@@ -80,6 +79,15 @@ program.command(
   , onpublish
 )
 
+program.command(
+  'start',
+  'Start the DCDN Node with the most recent configuration',
+  // eslint-disable-next-line no-shadow
+  program => program
+    .usage('usage: $0 [-D] start [options]')
+  , onstart
+)
+
 if (0 === program.argv._.length) {
   program.showHelp()
   process.exit(1)
@@ -89,116 +97,130 @@ if (program.argv.debug) {
   require('debug').enable('af*')
 }
 
-async function ondownload(argv){
-  info(`starting DCDN to download ${argv.did}`)
+async function onstart(argv){
+  info(`starting DCDN node`)
 
-  info(`Checking blockchain for ${argv.did}`)
-  const exists = await checkBlockchain(argv.did)
+  let password = await getPassword()
 
-  if (exists) {
-    info(`Found ${argv.did} on blockchain, starting DCDN`)
-
-    let { password } = await inquirer.prompt([ {
-      type: 'password',
-      name: 'password',
-      message:
-      'Please enter the passphrase associated with the node identity.\n' +
-      'Passphrase:'
-    } ])
-
-    //TODO: clarify price per unit
-    let { maxCost } = await inquirer.prompt([ {
-      type: 'input',
-      name: 'maxCost',
-      message:
-      '\nPlease enter your max cost per GB.\n' +
-      'Price:'
-    } ])
-
-    let { maxWorkers } = await inquirer.prompt([ {
-      type: 'input',
-      name: 'maxWorkers',
-      message:
-      '\nPlease enter the maximum number of publishers you want to hire.\n' +
-      'Price:'
-    } ])
-
-    try {
-      await startDCDN({
-        password: password,
-        did: argv.did,
-        download: true,
-        upload: false,
-        userID: argv.identity,
-        price: maxCost,
-        maxWorkers: maxWorkers
-      })
-
-      const dcdn = await getInstance()
-      attachDownloadVisualizer(dcdn)
-
-    } catch (e) {
-      error(`Error occurred while downloading ${argv.did}`, e)
-      return process.exit(1)
-    }
+  try {
+    await start({
+      password: password,
+      userID: argv.identity,
+    })
+  } catch (e) {
+    error(`Error occurred with starting DCDN Node`, e)
+    return process.exit(1)
   }
-  else {
-    error(`${argv.did} doesn't exist on  blockchain.`)
+}
+
+async function ondownload(argv){
+
+  let did = getIdentifier(argv.did || await getDid()) 
+
+  info(`starting DCDN to download ${did}`)
+
+  let password = await getPassword()
+
+  let { maxCost } = await inquirer.prompt([ {
+    type: 'input',
+    name: 'maxCost',
+    message:
+    '\nPlease enter your max cost in Ara per GB.\n' +
+    'Price:'
+  } ])
+
+  let { maxPeers } = await inquirer.prompt([ {
+    type: 'input',
+    name: 'maxPeers',
+    message:
+    '\nPlease enter the maximum number of publishers you want to hire.\n' +
+    'Price:'
+  } ])
+
+  try {
+    await start({
+      password: password,
+      userID: argv.identity,
+      did,
+      download: true,
+      upload: false,
+      price: maxCost,
+      maxPeers: maxPeers
+    })
+
+    const dcdn = await getInstance()
+    attachDownloadVisualizer(did, dcdn)
+    
+  } catch (e) {
+    error(`Error occurred while downloading ${did}`, e)
     return process.exit(1)
   }
 
   // Creates a progress visualizer bar in cli
-  function attachDownloadVisualizer(dcdn) {
+  function attachDownloadVisualizer(id, dcdn) {
     const pBar = new clip.Bar({}, clip.Presets.shades_classic)
-    dcdn.once('start', (did, total) => pBar.start(total, 0))
-    dcdn.on('progress', (did, value) => pBar.update(value))
-    dcdn.once('complete', (did) => pBar.stop())
+    dcdn.once('start', (did, total) => {
+      if (id === did) pBar.start(total, 0)
+    })
+    dcdn.on('progress', (did, value) => {
+      if (id === did) pBar.update(value)
+    })
+    dcdn.once('complete', (did) => {
+      if (id === did) pBar.stop()
+    })
   }
 }
 
 async function onpublish(argv){
-  info(`starting DCDN to publish ${argv.did}`)
 
-  info(`Checking blockchain for ${argv.did}`)
-  const exists = await checkBlockchain(argv.did)
+  let did = getIdentifier(argv.did || await getDid()) 
+  info(`starting DCDN to publish ${did}`)
 
-  if (exists) {
-    info(`Found ${argv.did} on blockchain, starting DCDN`)
+  let password = await getPassword()
 
-    let { password } = await inquirer.prompt([ {
-      type: 'password',
-      name: 'password',
-      message:
-      'Please enter the passphrase associated with the node identity.\n' +
-      'Passphrase:'
-    } ])
+  let { farmingPrice } = await inquirer.prompt([ {
+    type: 'input',
+    name: 'farmingPrice',
+    message:
+    '\nPlease enter your price.\n' +
+    'Price:'
+  } ])
 
-    let { farmingPrice } = await inquirer.prompt([ {
-      type: 'input',
-      name: 'farmingPrice',
-      message:
-      '\nPlease enter your price.\n' +
-      'Price:'
-    } ])
-
-    try {
-      await startDCDN({
-        password: password,
-        did: argv.did,
-        download: false,
-        upload: true,
-        userID: argv.identity,
-        price: farmingPrice
-      })
-
-    } catch (e) {
-      error(`Error occurred while publishing DID ${argv.did}`, e)
-      return process.exit(1)
-    }
-  } else {
-    error(`${argv.did} doesn't seem to exist. Try running \`afs commit ${argv.did}`)
+  try {
+    await start({
+      password: password,
+      userID: argv.identity,
+      did,
+      download: false,
+      upload: true,
+      price: farmingPrice,
+    })
+  } catch (e) {
+    error(`Error occurred while publishing DID ${did}`, e)
     return process.exit(1)
   }
+}
+
+async function getPassword(){
+  let { password } = await inquirer.prompt([ {
+    type: 'password',
+    name: 'password',
+    message:
+    'Please enter the passphrase associated with the node identity.\n' +
+    'Passphrase:'
+  } ])
+  return password
+}
+
+async function getDid(){
+  let { did } = await inquirer.prompt([ {
+    type: 'string',
+    name: 'did',
+    message:
+    'Please enter the DID associated with the AFS.\n' +
+    'DID:'
+  } ])
+  return did
 }
 
 function onfatal(err) {

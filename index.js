@@ -1,74 +1,54 @@
-const { resolve } = require('path')
-const { error } = require('ara-console')
 const extend = require('extend')
 const FarmDCDN = require('./src/farmDCDN')
 const rc = require('ara-runtime-configuration')()
 
-let afd
+let dcdn
 
 /**
- * Start an ara-network node for DCDN
- *
+ * Start broadcasting services for an ara-network node for DCDN
  * @public
- *
  * @param {Object} argv
- *
  * @return {Boolean}
  */
 
 async function start(argv) {
-  if (!argv.upload && !argv.download) {
-    error('Please specify either `--upload` or `--download`')
-    return process.exit(1)
+  if (dcdn) return false
+  dcdn = new FarmDCDN(argv)
+
+  if (argv.did) {
+    await dcdn.join({
+      did: argv.did,
+      download: argv.download,
+      upload: argv.upload,
+      price: argv.price,
+      maxPeers: argv.maxPeers,
+      jobId: argv.jobId
+    })
+  } else {
+    await dcdn.start()
   }
-
-  afd = new FarmDCDN(argv)
-
-  afd.start()
-
-  // If we are downloading, we should set up a handshake so we can be reached from `afd publish`
-  if (argv.download && argv.keyring) {
-    try {
-      await listenForDIDs({
-        // Identity of the user
-        identity: argv.identity,
-        // Secret phrase given when creating network key
-        secret: Buffer.from(argv.secret),
-        // Name of the key to be found
-        name: argv.name,
-        // Path to public key of network key
-        keys: resolve(argv.keyring),
-        // Port to advertise ourselves on
-        port: argv.port,
-      }, afd.join)
-    } catch (e) {
-      error('Error occurred while listening for DIDs', e)
-      return process.exit(1)
-    }
-  }
-
   return true
 }
 
 /**
  * Stop the ara-network node of DCDN
- *
+ * @public
  * @return {null}
  */
 async function stop() {
-  afd.stop()
+  if (!dcdn) return false
+  await dcdn.stop()
+  dcdn = null
+  return true
 }
 
 /**
  * Configures the ara-network DCDN node
- *
  * @public
- *
  * @param {Object} opts
- *
  * @return Object
  */
-
+// TODO: Update configure for Farming
 async function configure(argv, program) {
   if (program) {
     const { argv: _argv } = program
@@ -130,12 +110,12 @@ async function configure(argv, program) {
  * @return {Object}
  */
 async function getInstance() {
-  return afd
+  return dcdn
 }
 
 module.exports = {
   getInstance,
   configure,
   start,
-  stop,
+  stop
 }

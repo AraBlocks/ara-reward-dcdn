@@ -10,8 +10,10 @@
     "test": "ava test",
     "lint": "eslint .",
     "lint-fix": "eslint . --fix",
-    "cli-readme": "./scripts/create-cli-readme DCDN > CLI.md",
-    "api-readme": "jsdoc *.js -d docs -R README.md"
+    "coverage": "npm run nyc",
+    "nyc": "nyc npm test",
+    "release-changelog": "conventional-changelog --same-file --preset angular --release-count 0 --infile CHANGELOG.md",
+    "cli-readme": "node ./scripts/generate-cli-readme AFD > CLI.md"
   },
   "repository": {
     "type": "git",
@@ -37,21 +39,26 @@
     "ansi-diff-stream": "^1.2.1",
     "ara-console": "arablocks/ara-console",
     "ara-crypto": "arablocks/ara-crypto",
-    "ara-identity": "arablocks/ara-identity#0.15.1",
+    "ara-identity": "arablocks/ara-identity#semver:^0.22.0",
     "ara-network": "arablocks/ara-network",
     "ara-runtime-configuration": "arablocks/ara-runtime-configuration",
     "ara-secret-storage": "arablocks/ara-secret-storage",
     "ara-filesystem": "arablocks/ara-filesystem",
+    "ara-contracts": "arablocks/ara-contracts",
     "ara-farming-protocol": "littlstar/farming-protocol",
     "ara-network-node-dcdn": "arablocks/ara-network-node-dcdn",
+    "ara-util": "arablocks/ara-util",
+    "farming-protocol-buffers": "arablocks/farming-protocol-buffers#semver:^0.1.0",
+    "find-free-port": "^2.0.0",
     "bencode": "^2.0.0",
     "debug": "^3.1.0",
+    "ip": "^1.1.5",
     "did-uri": "^0.2.5",
     "ethereumjs-wallet": "^0.6.1",
     "extend": "^3.0.2",
     "hash-to-port": "^1.0.0",
     "inquirer": "^6.1.0",
-    "multidrive": "^5.2.0",
+    "multidrive": "arablocks/multidrive",
     "pify": "^3.0.0",
     "pump": "^3.0.0",
     "through": "^2.3.8",
@@ -63,8 +70,10 @@
   "devDependencies": {
     "ava": "^0.25.0",
     "eslint": "^4.19.1",
+    "conventional-changelog-cli": "^2.0.5",
     "eslint-config-ara": "arablocks/eslint-config-ara",
     "eslint-plugin-import": "^2.12.0",
-    "jsdoc": "^3.5.5"
+    "jsdoc": "^3.5.5",
+    "sinon": "^6.0.1"
   }
 }

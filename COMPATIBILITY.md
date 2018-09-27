@@ -1,6 +1,0 @@
-ara-filesystem: 090d2f112cda41dc61ee324d2e3df9222b99b6db
-ara-identity: 823b0128f08dfd2d96270872d17615b7975abc53
-ara-network: 7028dc547f211e5a85f5a4ba130b1f75beed3a6f
-ara-util: 4edf9bc133566affeec9f46450552e40e7cdf92f
-ara-network-node-identity-archiver: 19aa43e665941a6fe61cd7664a082db1edf5bc7e
-ara-network-node-identity-resolver: 0346875767e7d6d524ec8a9ec796528823672c8b

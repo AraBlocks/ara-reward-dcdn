@@ -1,43 +1,48 @@
 /* eslint class-methods-use-this: 1 */
-const { messages, FarmerBase, duplex, util } = require('ara-farming-protocol')
+const {
+  messages, FarmerBase, duplex, util
+} = require('ara-farming-protocol')
 const { createSwarm } = require('ara-network/discovery')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:farmer')
 const pify = require('pify')
 const fp = require('find-free-port')
 const ip = require('ip')
-const duplexify = require('duplexify')
-const { maskHex } = require('./contract-abi')
 
 const { RequesterConnection } = duplex
-const { idify, nonceString, weiToEther, bytesToGBs } = util
+const {
+  idify, nonceString, bytesToGBs
+} = util
 
 class Farmer extends FarmerBase {
   /**
    * Example Farmer replicates an AFS for a min price
-   * @param {*} farmerId
-   * @param {*} farmerSig
    * @param {int} price Desired price in wei/byte
    * @param {ContractABI} wallet Farmer's Wallet Contract ABI
    * @param {AFS} afs Instance of AFS
    */
-  constructor(id, signature, price, wallet) {
+  constructor(wallet, price, afs) {
     super()
     this.price = price
-    this.farmerID = id
-    this.farmerSig = signature
     this.deliveryMap = new Map()
     this.wallet = wallet
+    this.afs = afs
+
+    this.farmerID = new messages.AraId()
+    this.farmerID.setDid(wallet.userID)
+
+    // TODO: actually sign data
+    this.farmerSig = new messages.Signature()
+    this.farmerSig.setAraId(this.farmerID)
+    this.farmerSig.setData('avalidsignature')
   }
 
-  async broadcastService(afs) {
-    debug('Broadcasting: ', afs.did)
-
-    this.afs = afs
+  startBroadcast() {
+    debug('Broadcasting: ', this.afs.did)
 
     this.peerSwarm = createSwarm()
     this.peerSwarm.on('connection', handleConnection)
-    this.peerSwarm.join(afs.did, { announce: false })
+    this.peerSwarm.join(this.afs.did, { announce: false })
     const self = this
 
     function handleConnection(connection, peer) {
@@ -47,9 +52,8 @@ class Farmer extends FarmerBase {
     }
   }
 
-  async stopService(){
-    this.peerSwarm.destroy()
-    this.afs.close()
+  stopBroadcast() {
+    if (this.peerSwarm) this.peerSwarm.destroy()
   }
 
   /**
@@ -72,7 +76,7 @@ class Farmer extends FarmerBase {
    * @returns {boolean}
    */
   async validateAgreement(agreement) {
-    //TODO: check that data is signed by requester
+    // TODO: check that data is signed by requester
     const quote = agreement.getQuote()
     return quote.getPerUnitCost() == this.price
   }
@@ -98,7 +102,7 @@ class Farmer extends FarmerBase {
   }
 
   async validateSow(sow) {
-    //TODO: Validate DID
+    // TODO: Validate DID
     if (sow) return true
     return false
   }
@@ -110,19 +114,6 @@ class Farmer extends FarmerBase {
     } else {
       this.deliveryMap.set(sowId, units)
     }
-  }
-
-  async withdrawReward(did) {
-    debug(`Withdrawing reward for afs: ${did}`)
-    this.wallet
-      .claimReward(did)
-      .then((balance) => {
-        debug(`Withdrew ${balance} Ara for AFS: ${did}`)
-      })
-      .catch((err) => {
-        debug(`Failed to withdraw reward for AFS: ${did}`)
-        debug(err)
-      })
   }
 
   /**
@@ -147,8 +138,6 @@ class Farmer extends FarmerBase {
     receipt.setNonce(crypto.randomBytes(32))
     receipt.setReward(reward)
     receipt.setFarmerSignature(this.farmerSig)
-    // TODO: don't automatically withdraw
-    this.withdrawReward(this.afs.did)
     return receipt
   }
 
