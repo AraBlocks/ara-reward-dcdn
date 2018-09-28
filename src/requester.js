@@ -22,7 +22,7 @@ class Requester extends RequesterBase {
     this.autoQueue = new AutoQueue(this.stopBroadcast.bind(this))
 
     this.userID = new messages.AraId()
-    this.userID.setDid(wallet.userID)
+    this.userID.setDid(wallet.userDid)
 
     // TODO: actually sign data
     this.requesterSig = new messages.Signature()

@@ -29,7 +29,7 @@ class Farmer extends FarmerBase {
     this.afs = afs
 
     this.farmerID = new messages.AraId()
-    this.farmerID.setDid(wallet.userID)
+    this.farmerID.setDid(wallet.userDid)
 
     // TODO: actually sign data
     this.farmerSig = new messages.Signature()
