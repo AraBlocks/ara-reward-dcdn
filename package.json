@@ -44,7 +44,7 @@
     "ara-runtime-configuration": "arablocks/ara-runtime-configuration",
     "ara-secret-storage": "arablocks/ara-secret-storage",
     "ara-filesystem": "arablocks/ara-filesystem",
-    "ara-contracts": "arablocks/ara-contracts",
+    "ara-contracts": "arablocks/ara-contracts#semver:^0.2.5",
     "ara-farming-protocol": "littlstar/farming-protocol",
     "ara-network-node-dcdn": "arablocks/ara-network-node-dcdn",
     "ara-util": "arablocks/ara-util",

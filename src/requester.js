@@ -208,9 +208,17 @@ class Requester extends RequesterBase {
 
     // Format rewards for contract
     this.receiptCountdown = new Countdown(this.deliveryMap.size, this.stopBroadcast.bind(this))
+    let total = 0
+    this.deliveryMap.forEach((value) => { total += value })
+
+    if (0 === total){
+      debug('No bytes received. Not sending rewards.')
+      return
+    }
+
     this.deliveryMap.forEach((value, key) => {
       const peerId = this.swarmIdMap.get(key)
-      const units = value
+      const units = value / total
       const reward = this.generateReward(peerId, units)
       const userId = reward.getAgreement().getQuote().getFarmer().getDid()
       // TODO: use Ara
@@ -252,7 +260,7 @@ class Requester extends RequesterBase {
   generateReward(peerId, units) {
     const { agreement } = this.hiredFarmers.get(peerId)
     const quote = agreement.getQuote()
-    const amount = quote.getPerUnitCost() * units
+    const amount = Math.floor(quote.getPerUnitCost() * units)
     const reward = new messages.Reward()
     reward.setNonce(crypto.randomBytes(32))
     reward.setAgreement(agreement)
