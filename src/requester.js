@@ -222,7 +222,7 @@ class Requester extends RequesterBase {
       const reward = this.generateReward(peerId, units)
       const userId = reward.getAgreement().getQuote().getFarmer().getDid()
       // TODO: use Ara
-      const amount = weiToEther(reward.getAmount()) / bytesToGBs(1)
+      const amount = weiToEther(reward.getAmount())
 
       if (amount > 0) {
         farmers.push(userId)
