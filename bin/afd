@@ -159,13 +159,13 @@ async function ondownload(argv){
   // Creates a progress visualizer bar in cli
   function attachDownloadVisualizer(id, dcdn) {
     const pBar = new clip.Bar({}, clip.Presets.shades_classic)
-    dcdn.once('start', (did, total) => {
+    dcdn.on('start', (did, total) => {
       if (id === did) pBar.start(total, 0)
     })
     dcdn.on('progress', (did, value) => {
       if (id === did) pBar.update(value)
     })
-    dcdn.once('complete', (did) => {
+    dcdn.on('complete', (did) => {
       if (id === did) pBar.stop()
     })
   }
