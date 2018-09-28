@@ -41,13 +41,12 @@ class Requester extends RequesterBase {
     const self = this
     debug('Requesting: ', self.afs.did)
 
-    // TODO: check if balance for job already
     // TODO: Only download if new data
     // TODO: use Ara rather than ether conversion
     // Calculate and job budget
     const amount = weiToEther(self.matcher.maxCost)
     debug(`Staking ${amount} Ara for AFS ${self.afs.did}`)
-    self.submitJob(self.afs.did, amount, (err) => {
+    self.prepareJob(self.afs.did, amount, (err) => {
       if (err) {
         debug(`failed to start broadcast for ${self.afs.did}`, err)
         return
@@ -118,28 +117,39 @@ class Requester extends RequesterBase {
     debug('Service Stopped')
   }
 
-  // Submit the job to the blockchain
-  submitJob(contentDid, amount, onSubmit) {
+  // Retrieve or Submit the job to the blockchain
+  prepareJob(contentDid, amount, onReady) {
     const self = this
     const jobId = nonceString(self.sow)
-
-    const transaction = (onComplete) => {
-      debug(`Submitting job ${jobId} with budget ${amount} Ara.`)
-      self.wallet
-        .submitJob(contentDid, jobId, amount)
-        .then(() => {
-          self.emit('jobcreated', jobId, contentDid)
-          debug('Job submitted successfully')
-          onSubmit()
-          onComplete()
-        })
-        .catch((err) => {
-          onSubmit(err)
-          onComplete(err)
-        })
+    let currentBudget = 0
+    try {
+      currentBudget = await this.wallet.getBudget(contentDid, jobId)
+    } catch (err){
+      currentBudget = 0
     }
 
-    this.autoQueue.append(transaction)
+    // TODO refactor to use await
+    if (currentBudget < amount){
+      const transaction = (onComplete) => {
+        debug(`Submitting job ${jobId} with budget ${amount} Ara.`)
+        self.wallet
+          .submitJob(contentDid, jobId, amount)
+          .then(() => {
+            self.emit('jobcreated', jobId, contentDid)
+            debug('Job submitted successfully')
+            onReady()
+            onComplete()
+          })
+          .catch((err) => {
+            onReady(err)
+            onComplete(err)
+          })
+      }
+
+      this.autoQueue.append(transaction)
+    } else {
+      onReady()
+    }
   }
 
   async validateQuote(quote) {
