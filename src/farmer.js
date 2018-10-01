@@ -37,7 +37,7 @@ class Farmer extends FarmerBase {
     this.farmerSig.setData('avalidsignature')
   }
 
-  startBroadcast() {
+  async startBroadcast() {
     debug('Broadcasting: ', this.afs.did)
 
     this.peerSwarm = createSwarm()

@@ -37,7 +37,7 @@ class Requester extends RequesterBase {
     this.afs = afs
   }
 
-  startBroadcast() {
+  async startBroadcast() {
     const self = this
     debug('Requesting: ', self.afs.did)
 
@@ -46,7 +46,7 @@ class Requester extends RequesterBase {
     // Calculate and job budget
     const amount = weiToEther(self.matcher.maxCost)
     debug(`Staking ${amount} Ara for AFS ${self.afs.did}`)
-    self.prepareJob(self.afs.did, amount, (err) => {
+    await self.prepareJob(self.afs.did, amount, (err) => {
       if (err) {
         debug(`failed to start broadcast for ${self.afs.did}`, err)
         return
@@ -118,7 +118,7 @@ class Requester extends RequesterBase {
   }
 
   // Retrieve or Submit the job to the blockchain
-  prepareJob(contentDid, amount, onReady) {
+  async prepareJob(contentDid, amount, onReady) {
     const self = this
     const jobId = nonceString(self.sow)
     let currentBudget = 0
