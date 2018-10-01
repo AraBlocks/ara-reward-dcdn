@@ -181,7 +181,7 @@ class FarmDCDN extends DCDN {
     }
 
     this.services[afs.did] = service
-    service.startBroadcast()
+    await service.startBroadcast()
   }
 
   _stopService(did) {
