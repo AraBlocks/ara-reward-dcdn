@@ -85,6 +85,48 @@ class FarmDCDN extends DCDN {
     return null
   }
 
+   _attachListeners(afs) {
+    const self = this
+    
+    const {
+      dcdnOpts: {
+        upload,
+        download
+      }
+    } = afs
+
+    if (download) {
+      const { content } = afs.partitions.resolve(afs.HOME)
+      if (content) {
+        attachDownloadListener(content)
+      } else {
+        afs.once('content', () => {
+          attachDownloadListener(afs.partitions.resolve(afs.HOME).content)
+        })
+      }
+    }
+
+    // Emit download events
+    function attachDownloadListener(feed) {
+      // Handle when download starts
+      feed.once('download', () => {
+        debug(`Download ${afs.did} started...`)
+        self.emit('start', afs.did, feed.length)
+      })
+
+      // Handle when download progress
+      feed.on('download', (index, data, from) => {
+        self.emit('progress', afs.did, feed.downloaded())
+      })
+
+      // Handle when the content finishes downloading
+      feed.once('sync', () => {
+        self.emit('complete', afs.did)
+        debug(`Download ${afs.did} Complete!`)
+      })
+    }
+  }
+
   async _startService(afs) {
     const self = this
     debug('starting service for', afs.did)
