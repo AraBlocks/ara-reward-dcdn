@@ -33,10 +33,10 @@ class Wallet {
     })
   }
 
-  getBudget(contentId, jobId) {
+  getBudget(contentDid, jobId) {
     return getBudget({
-      contentId,
-      jobId
+      contentDid,
+      jobId: ethify(jobId)
     })
   }
 }

@@ -124,8 +124,10 @@ class Requester extends RequesterBase {
     let currentBudget = 0
     try {
       currentBudget = await this.wallet.getBudget(contentDid, jobId)
+      debug(`prepareJob currentBudget is: ${currentBudget}`)
     } catch (err){
       currentBudget = 0
+      debug('prepareJob:', err)
     }
 
     // TODO refactor to use await
