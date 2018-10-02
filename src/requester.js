@@ -11,7 +11,8 @@ const {
     weiToEther
   }
 } = require('ara-farming-protocol')
-const { createSwarm } = require('ara-network/discovery')
+const { createSwarm, createHyperswarm } = require('ara-network/discovery')
+//const createHyperswarm = require('@hyperswarm/network')
 const { submit, allocate, getBudget } = require('ara-contracts/rewards')
 const { Countdown } = require('./util')
 const { ethify } = require('ara-util/web3')
@@ -59,11 +60,12 @@ class Requester extends RequesterBase {
     }
 
     self.setupContentSwarm()
-    self.peerSwarm = createSwarm()
+    self.peerSwarm = createHyperswarm()
     self.peerSwarm.on('connection', handleConnection)
-    self.peerSwarm.join(Buffer.from(self.afs.did, 'hex'), { announce: true })
+    self.peerSwarm.join(Buffer.from(self.afs.did, 'hex'), { lookup: true, announce: false })
 
     function handleConnection(socket, peer) {
+      if (!details.peer) return
       debug(`Peer Swarm: Peer connected: ${idify(peer.host, peer.port)}`)
       const farmerConnection = new FarmerConnection(peer, socket, { timeout: 6000 })
       process.nextTick(() => self.addFarmer(farmerConnection))

@@ -11,12 +11,14 @@ const {
     bytesToGBs
   }
 } = require('ara-farming-protocol')
-const { createSwarm } = require('ara-network/discovery')
+const { createSwarm, createHyperswarm } = require('ara-network/discovery')
+//const createHyperswarm = require('@hyperswarm/network')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:farmer')
 const pify = require('pify')
 const fp = require('find-free-port')
 const ip = require('ip')
+const pump = require('pump')
 
 class Farmer extends FarmerBase {
   /**
@@ -45,13 +47,14 @@ class Farmer extends FarmerBase {
   async startBroadcast() {
     debug('Broadcasting: ', this.afs.did)
 
-    this.peerSwarm = createSwarm()
+    this.peerSwarm = createHyperswarm()
     this.peerSwarm.on('connection', handleConnection)
 
-    this.peerSwarm.join(Buffer.from(this.afs.did, 'hex'), { announce: false })
+    this.peerSwarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: true, announce: true })
     const self = this
 
-    function handleConnection(socket, peer) {
+    function handleConnection(socket, details) {
+      const peer = details.peer || {}
       debug(`Peer Swarm: Peer Connected: ${idify(peer.host, peer.port)}`)
       const requesterConnection = new RequesterConnection(peer, socket, { timeout: 6000 })
       self.addRequester(requesterConnection)
@@ -158,28 +161,25 @@ class Farmer extends FarmerBase {
       self.dataTransmitted(sowId, data.length)
     })
 
-    const opts = {
-      stream
-    }
-    const swarm = createSwarm(opts)
+    const swarm = createSwarm()
     swarm.on('connection', handleConnection)
     swarm.listen(port)
 
     function stream() {
-      const afsstream = self.afs.replicate({
+      const stream = self.afs.replicate({
         upload: true,
         download: false
       })
-      afsstream.once('end', onend)
+      stream.once('end', onend)
 
       function onend() {
         swarm.destroy()
       }
 
-      return afsstream
+      return stream
     }
 
-    function handleConnection(_, peer) {
+    function handleConnection(socket, peer) {
       debug(`Content Swarm: Peer Connected: ${idify(peer.host, peer.port)}`)
     }
   }

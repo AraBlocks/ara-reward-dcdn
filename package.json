@@ -37,6 +37,8 @@
   },
   "homepage": "https://github.com/littlstar/ara-network-node-dcdn-farm#readme",
   "dependencies": {
+    "@hyperswarm/discovery": "^1.0.1",
+    "@hyperswarm/network": "0.0.2",
     "ansi-diff-stream": "^1.2.1",
     "ara-console": "arablocks/ara-console#semver:^0.2.1",
     "ara-crypto": "arablocks/ara-crypto#semver:^0.7.0",
