@@ -134,7 +134,7 @@ async function ondownload(argv){
     name: 'maxPeers',
     message:
     '\nPlease enter the maximum number of publishers you want to hire.\n' +
-    'Price:'
+    'Peers:'
   } ])
 
   try {

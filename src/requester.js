@@ -1,33 +1,39 @@
 /* eslint class-methods-use-this: 1 */
 const {
-  messages, RequesterBase, duplex, util
+  messages,
+  RequesterBase,
+  duplex: {
+    FarmerConnection
+  },
+  util: {
+    idify,
+    nonceString,
+    weiToEther
+  }
 } = require('ara-farming-protocol')
-const { AutoQueue, Countdown } = require('./util')
 const { createSwarm } = require('ara-network/discovery')
+const { submit, allocate, getBudget } = require('ara-contracts/rewards')
+const { Countdown } = require('./util')
+const { ethify } = require('ara-util/web3')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
-
-const {
-  idify, nonceString, bytesToGBs, weiToEther
-} = util
-const { FarmerConnection } = duplex
 
 class Requester extends RequesterBase {
   /**
    * Requester replicates an AFS for a sow
-   * @param {Wallet} wallet Requester's Wallet
+   * @param {String} user.did did of the requester
+   * @param {String} user.password password of the requester's did
    * @param {AFS} afs Instance of AFS
    */
-  constructor(sow, matcher, wallet, afs) {
+  constructor(sow, matcher, user, afs) {
     super(sow, matcher)
     this.hiredFarmers = new Map()
     this.swarmIdMap = new Map()
     this.deliveryMap = new Map()
-    this.wallet = wallet
-    this.autoQueue = new AutoQueue(this.stopBroadcast.bind(this))
+    this.user = user
 
     this.userID = new messages.AraId()
-    this.userID.setDid(wallet.userDid)
+    this.userID.setDid(user.did)
 
     // TODO: actually sign data
     this.requesterSig = new messages.Signature()
@@ -43,23 +49,23 @@ class Requester extends RequesterBase {
 
     // TODO: Only download if new data
     // TODO: use Ara rather than ether conversion
-    // Calculate and job budget
-    const amount = weiToEther(self.matcher.maxCost)
-    debug(`Staking ${amount} Ara for AFS ${self.afs.did}`)
-    await self.prepareJob(self.afs.did, amount, (err) => {
-      if (err) {
-        debug(`failed to start broadcast for ${self.afs.did}`, err)
-        return
-      }
-      self.setupContentSwarm()
-      self.peerSwarm = createSwarm()
-      self.peerSwarm.on('connection', handleConnection)
-      self.peerSwarm.join(self.afs.did)
-    })
+    // Calculate and submit job budget
+    try {
+      const amount = weiToEther(self.matcher.maxCost)
+      await self.prepareJob(self.afs.did, amount)
+    } catch (err) {
+      debug(`failed to start broadcast for ${self.afs.did}`, err)
+      return
+    }
 
-    function handleConnection(connection, peer) {
-      debug(`Peer Swarm: Peer connected: ${idify(peer.host, peer.port)}`)
-      const farmerConnection = new FarmerConnection(peer, connection, { timeout: 6000 })
+    self.setupContentSwarm()
+    self.peerSwarm = createSwarm()
+    self.peerSwarm.on('connection', handleConnection)
+    self.peerSwarm.join(Buffer.from(self.afs.did, 'hex'), { announce: true })
+
+    function handleConnection(socket, details) {
+      debug(`Peer Swarm: Peer connected: ${idify(details.peer.host, details.peer.port)}`)
+      const farmerConnection = new FarmerConnection(details.peer, socket, { timeout: 6000 })
       process.nextTick(() => self.addFarmer(farmerConnection))
     }
   }
@@ -118,39 +124,33 @@ class Requester extends RequesterBase {
   }
 
   // Retrieve or Submit the job to the blockchain
-  async prepareJob(contentDid, amount, onReady) {
+  async prepareJob(contentDid, budget) {
+    debug(`Budgetting ${budget} Ara for AFS ${contentDid}`)
     const self = this
-    const jobId = nonceString(self.sow)
+    const jobId = ethify(nonceString(self.sow))
     let currentBudget = 0
     try {
-      currentBudget = await this.wallet.getBudget(contentDid, jobId)
-      debug(`prepareJob currentBudget is: ${currentBudget}`)
-    } catch (err){
-      currentBudget = 0
+      currentBudget = await getBudget({ contentDid, jobId })
+    } catch (err) {
       debug('prepareJob:', err)
+      currentBudget = 0
     }
+    debug(`Current budget for job ${jobId} is: ${currentBudget}`)
+    const diff = budget - currentBudget
 
-    // TODO refactor to use await
-    if (currentBudget < amount){
-      const transaction = (onComplete) => {
-        debug(`Submitting job ${jobId} with budget ${amount} Ara.`)
-        self.wallet
-          .submitJob(contentDid, jobId, amount)
-          .then(() => {
-            self.emit('jobcreated', jobId, contentDid)
-            debug('Job submitted successfully')
-            onReady()
-            onComplete()
-          })
-          .catch((err) => {
-            onReady(err)
-            onComplete(err)
-          })
-      }
-
-      this.autoQueue.append(transaction)
-    } else {
-      onReady()
+    if (diff > 0) {
+      debug(`Submitting additional budget: ${diff} Ara.`)
+      await submit({
+        requesterDid: self.user.did,
+        password: self.user.password,
+        contentDid,
+        job: {
+          jobId,
+          budget: diff
+        }
+      })
+      debug('Job submitted successfully')
+      self.emit('jobcreated', jobId, contentDid)
     }
   }
 
@@ -211,19 +211,19 @@ class Requester extends RequesterBase {
     }
   }
 
-  sendRewards(contentId) {
+  async sendRewards(contentDid) {
     const self = this
     const farmers = []
     const rewards = []
     const rewardMap = new Map()
-    const jobId = nonceString(self.sow)
+    const jobId = ethify(nonceString(self.sow))
 
     // Format rewards for contract
     this.receiptCountdown = new Countdown(this.deliveryMap.size, this.stopBroadcast.bind(this))
     let total = 0
     this.deliveryMap.forEach((value) => { total += value })
 
-    if (0 === total){
+    if (0 === total) {
       debug('No bytes received. Not sending rewards.')
       return
     }
@@ -247,26 +247,29 @@ class Requester extends RequesterBase {
       }
     })
 
-    const transaction = (onComplete) => {
-      debug(`Submitting reward for job ${jobId}.`)
-      self.wallet
-        .submitRewards(contentId, jobId, farmers, rewards)
-        .then(() => {
-          self.emit('jobcomplete', jobId)
-          rewardMap.forEach((value, key) => {
-            const { connection } = self.hiredFarmers.get(key)
-            connection.sendReward(value)
-          })
-          onComplete()
-        })
-        .catch((err) => {
-          debug(`Failed to submit reward for job ${jobId}`)
-          debug(err)
-          onComplete(err)
-        })
+    try {
+      debug(`Allocating rewards for job ${jobId}.`)
+      await allocate({
+        requesterDid: self.user.did,
+        password: self.user.password,
+        contentDid,
+        job: {
+          jobId,
+          farmers,
+          rewards
+        }
+      })
+    } catch (err) {
+      debug(`Failed to allocate rewards for job ${jobId}`)
+      // TODO Handle failed job
+      self.stopBroadcast(err)
     }
 
-    this.autoQueue.append(transaction)
+    rewardMap.forEach((value, key) => {
+      const { connection } = self.hiredFarmers.get(key)
+      connection.sendReward(value)
+    })
+    self.emit('jobcomplete', jobId)
   }
 
   generateReward(peerId, units) {

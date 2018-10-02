@@ -1,6 +1,15 @@
 /* eslint class-methods-use-this: 1 */
 const {
-  messages, FarmerBase, duplex, util
+  messages,
+  FarmerBase,
+  duplex: {
+    RequesterConnection
+  },
+  util: {
+    idify,
+    nonceString,
+    bytesToGBs
+  }
 } = require('ara-farming-protocol')
 const { createSwarm } = require('ara-network/discovery')
 const crypto = require('ara-crypto')
@@ -9,27 +18,23 @@ const pify = require('pify')
 const fp = require('find-free-port')
 const ip = require('ip')
 
-const { RequesterConnection } = duplex
-const {
-  idify, nonceString, bytesToGBs
-} = util
-
 class Farmer extends FarmerBase {
   /**
    * Farmer replicates an AFS for a min price
+   * @param {String} user.did did of the farmer
+   * @param {String} user.password password of the farmer's did
    * @param {int} price Desired price in Ara^-18/upload
-   * @param {Wallet} wallet Farmer's Wallet
    * @param {AFS} afs Instance of AFS
    */
-  constructor(wallet, price, afs) {
+  constructor(user, price, afs) {
     super()
     this.price = price
     this.deliveryMap = new Map()
-    this.wallet = wallet
     this.afs = afs
 
+    this.user = user
     this.farmerID = new messages.AraId()
-    this.farmerID.setDid(wallet.userDid)
+    this.farmerID.setDid(user.did)
 
     // TODO: actually sign data
     this.farmerSig = new messages.Signature()
@@ -42,12 +47,14 @@ class Farmer extends FarmerBase {
 
     this.peerSwarm = createSwarm()
     this.peerSwarm.on('connection', handleConnection)
-    this.peerSwarm.join(this.afs.did, { announce: false })
+
+    this.peerSwarm.join(Buffer.from(this.afs.did, 'hex'), { announce: false })
     const self = this
 
-    function handleConnection(connection, peer) {
-      debug(`Peer Swarm: Peer Connected: ${idify(peer.host, peer.port)}`)
-      const requesterConnection = new RequesterConnection(peer, connection, { timeout: 6000 })
+    function handleConnection(socket, details) {
+      if (!details.peer) return
+      debug(`Peer Swarm: Peer Connected: ${idify(details.peer.host, details.peer.port)}`)
+      const requesterConnection = new RequesterConnection(details.peer, socket, { timeout: 6000 })
       self.addRequester(requesterConnection)
     }
   }
