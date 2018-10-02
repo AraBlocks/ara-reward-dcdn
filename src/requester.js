@@ -127,10 +127,10 @@ class Requester extends RequesterBase {
   async prepareJob(contentDid, budget) {
     debug(`Budgetting ${budget} Ara for AFS ${contentDid}`)
     const self = this
-    const jobId = ethify(nonceString(self.sow))
+    const jobId = nonceString(self.sow)
     let currentBudget = 0
     try {
-      currentBudget = await getBudget({ contentDid, jobId })
+      currentBudget = await getBudget({ contentDid, jobId: ethify(jobId) })
     } catch (err) {
       debug('prepareJob:', err)
       currentBudget = 0
@@ -145,7 +145,7 @@ class Requester extends RequesterBase {
         password: self.user.password,
         contentDid,
         job: {
-          jobId,
+          jobId: ethify(jobId),
           budget: diff
         }
       })
@@ -216,7 +216,7 @@ class Requester extends RequesterBase {
     const farmers = []
     const rewards = []
     const rewardMap = new Map()
-    const jobId = ethify(nonceString(self.sow))
+    const jobId = nonceString(self.sow)
 
     // Format rewards for contract
     this.receiptCountdown = new Countdown(this.deliveryMap.size, this.stopBroadcast.bind(this))
@@ -254,7 +254,7 @@ class Requester extends RequesterBase {
         password: self.user.password,
         contentDid,
         job: {
-          jobId,
+          jobId: ethify(jobId),
           farmers,
           rewards
         }
