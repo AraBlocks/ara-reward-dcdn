@@ -51,10 +51,9 @@ class Farmer extends FarmerBase {
     this.peerSwarm.join(Buffer.from(this.afs.did, 'hex'), { announce: false })
     const self = this
 
-    function handleConnection(socket, details) {
-      if (!details.peer) return
-      debug(`Peer Swarm: Peer Connected: ${idify(details.peer.host, details.peer.port)}`)
-      const requesterConnection = new RequesterConnection(details.peer, socket, { timeout: 6000 })
+    function handleConnection(socket, peer) {
+      debug(`Peer Swarm: Peer Connected: ${idify(peer.host, peer.port)}`)
+      const requesterConnection = new RequesterConnection(peer, socket, { timeout: 6000 })
       self.addRequester(requesterConnection)
     }
   }
