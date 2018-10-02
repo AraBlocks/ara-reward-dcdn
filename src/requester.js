@@ -13,6 +13,11 @@ const {
 const { FarmerConnection } = duplex
 
 class Requester extends RequesterBase {
+  /**
+   * Requester replicates an AFS for a sow
+   * @param {Wallet} wallet Requester's Wallet
+   * @param {AFS} afs Instance of AFS
+   */
   constructor(sow, matcher, wallet, afs) {
     super(sow, matcher)
     this.hiredFarmers = new Map()
@@ -32,15 +37,26 @@ class Requester extends RequesterBase {
     this.afs = afs
   }
 
-  startBroadcast() {
-    debug('Requesting: ', this.afs.did)
-
-    this.setupContentSwarm()
-
-    this.peerSwarm = createSwarm()
-    this.peerSwarm.on('connection', handleConnection)
-    this.peerSwarm.join(this.afs.did)
+  async startBroadcast() {
     const self = this
+    debug('Requesting: ', self.afs.did)
+
+    // TODO: Only download if new data
+    // TODO: use Ara rather than ether conversion
+    // Calculate and job budget
+    const amount = weiToEther(self.matcher.maxCost)
+    debug(`Staking ${amount} Ara for AFS ${self.afs.did}`)
+    await self.prepareJob(self.afs.did, amount, (err) => {
+      if (err) {
+        debug(`failed to start broadcast for ${self.afs.did}`, err)
+        return
+      }
+      self.setupContentSwarm()
+      self.peerSwarm = createSwarm()
+      self.peerSwarm.on('connection', handleConnection)
+      self.peerSwarm.join(self.afs.did)
+    })
+
     function handleConnection(connection, peer) {
       debug(`Peer Swarm: Peer connected: ${idify(peer.host, peer.port)}`)
       const farmerConnection = new FarmerConnection(peer, connection, { timeout: 6000 })
@@ -53,12 +69,9 @@ class Requester extends RequesterBase {
     this.contentSwarm = createSwarm({ stream })
     this.contentSwarm.on('connection', handleConnection)
 
-    let oldByteLength = 0
     const { content } = self.afs.partitions.resolve(self.afs.HOME)
 
     if (content) {
-      // TODO: calc current downloaded size in bytes
-      oldByteLength = 0
       attachDownloadListener(content)
     } else {
       self.afs.once('content', () => {
@@ -68,19 +81,6 @@ class Requester extends RequesterBase {
 
     // Handle when the content needs updated
     async function attachDownloadListener(feed) {
-      // Calculate and job budget
-      // NOTE: this is a hack to get content size and should be done prior to download
-      // TODO: use Ara rather than ether conversion
-      // TODO: check if balance for job already
-      // TODO: Only download if new data
-      feed.once('download', () => {
-        debug(`old size: ${oldByteLength}, new size: ${feed.byteLength}`)
-        const sizeDelta = feed.byteLength - oldByteLength
-        const amount = weiToEther(self.matcher.maxCost * sizeDelta) / bytesToGBs(1)
-        debug(`Staking ${amount} Ara for a size delta of ${bytesToGBs(sizeDelta)} GBs`)
-        self.submitJob(self.afs.did, amount)
-      })
-
       // Record download data
       feed.on('download', (index, data, from) => {
         const peerIdHex = from.remoteId.toString('hex')
@@ -117,26 +117,41 @@ class Requester extends RequesterBase {
     debug('Service Stopped')
   }
 
-  // Submit the job to the blockchain
-  async submitJob(contentDid, amount) {
+  // Retrieve or Submit the job to the blockchain
+  async prepareJob(contentDid, amount, onReady) {
     const self = this
     const jobId = nonceString(self.sow)
-
-    const transaction = (onComplete) => {
-      debug(`Submitting job ${jobId} with budget ${amount} Ara.`)
-      self.wallet
-        .submitJob(contentDid, jobId, amount)
-        .then(() => {
-          self.emit('jobcreated', jobId, contentDid)
-          debug('Job submitted successfully')
-          onComplete()
-        })
-        .catch((err) => {
-          onComplete(err)
-        })
+    let currentBudget = 0
+    try {
+      currentBudget = await this.wallet.getBudget(contentDid, jobId)
+      debug(`prepareJob currentBudget is: ${currentBudget}`)
+    } catch (err){
+      currentBudget = 0
+      debug('prepareJob:', err)
     }
 
-    this.autoQueue.append(transaction)
+    // TODO refactor to use await
+    if (currentBudget < amount){
+      const transaction = (onComplete) => {
+        debug(`Submitting job ${jobId} with budget ${amount} Ara.`)
+        self.wallet
+          .submitJob(contentDid, jobId, amount)
+          .then(() => {
+            self.emit('jobcreated', jobId, contentDid)
+            debug('Job submitted successfully')
+            onReady()
+            onComplete()
+          })
+          .catch((err) => {
+            onReady(err)
+            onComplete(err)
+          })
+      }
+
+      this.autoQueue.append(transaction)
+    } else {
+      onReady()
+    }
   }
 
   async validateQuote(quote) {
@@ -205,13 +220,21 @@ class Requester extends RequesterBase {
 
     // Format rewards for contract
     this.receiptCountdown = new Countdown(this.deliveryMap.size, this.stopBroadcast.bind(this))
+    let total = 0
+    this.deliveryMap.forEach((value) => { total += value })
+
+    if (0 === total){
+      debug('No bytes received. Not sending rewards.')
+      return
+    }
+
     this.deliveryMap.forEach((value, key) => {
       const peerId = this.swarmIdMap.get(key)
-      const units = value
+      const units = value / total
       const reward = this.generateReward(peerId, units)
       const userId = reward.getAgreement().getQuote().getFarmer().getDid()
       // TODO: use Ara
-      const amount = weiToEther(reward.getAmount()) / bytesToGBs(1)
+      const amount = weiToEther(reward.getAmount())
 
       if (amount > 0) {
         farmers.push(userId)
@@ -249,7 +272,7 @@ class Requester extends RequesterBase {
   generateReward(peerId, units) {
     const { agreement } = this.hiredFarmers.get(peerId)
     const quote = agreement.getQuote()
-    const amount = quote.getPerUnitCost() * units
+    const amount = Math.floor(quote.getPerUnitCost() * units)
     const reward = new messages.Reward()
     reward.setNonce(crypto.randomBytes(32))
     reward.setAgreement(agreement)

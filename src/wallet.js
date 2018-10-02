@@ -1,6 +1,7 @@
-const { submit, allocate } = require('ara-contracts/rewards')
+const { submit, allocate, getBudget } = require('ara-contracts/rewards')
 const { ethify } = require('ara-util/web3')
 
+// TODO consider the necessity of this class. 
 class Wallet {
   constructor(did, password) {
     this.userDid = did
@@ -29,6 +30,13 @@ class Wallet {
         farmers,
         rewards
       }
+    })
+  }
+
+  getBudget(contentDid, jobId) {
+    return getBudget({
+      contentDid,
+      jobId: ethify(jobId)
     })
   }
 }
