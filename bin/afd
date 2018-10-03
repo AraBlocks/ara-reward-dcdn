@@ -71,12 +71,12 @@ program.command(
 )
 
 program.command(
-  'publish',
+  'seed',
   'Host AFS for network',
   // eslint-disable-next-line no-shadow
   program => program
-    .usage('usage: $0 [-D] publish [options]')
-  , onpublish
+    .usage('usage: $0 [-D] seed [options]')
+  , onseed
 )
 
 program.command(
@@ -133,7 +133,7 @@ async function ondownload(argv){
     type: 'input',
     name: 'maxPeers',
     message:
-    '\nPlease enter the maximum number of publishers you want to hire.\n' +
+    '\nPlease enter the maximum number of peers you want to hire.\n' +
     'Peers:'
   } ])
 
@@ -171,10 +171,10 @@ async function ondownload(argv){
   }
 }
 
-async function onpublish(argv){
+async function onseed(argv){
 
   let did = getIdentifier(argv.did || await getDid()) 
-  info(`starting DCDN to publish ${did}`)
+  info(`starting DCDN to seed ${did}`)
 
   let password = await getPassword()
 
@@ -196,7 +196,7 @@ async function onpublish(argv){
       price: farmingPrice,
     })
   } catch (e) {
-    error(`Error occurred while publishing DID ${did}`, e)
+    error(`Error occurred while seeding DID ${did}`, e)
     return process.exit(1)
   }
 }

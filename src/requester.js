@@ -150,8 +150,8 @@ class Requester extends RequesterBase {
         }
       })
       debug('Job submitted successfully')
-      self.emit('jobcreated', jobId, contentDid)
     }
+    self.emit('jobready', jobId, contentDid)
   }
 
   async validateQuote(quote) {

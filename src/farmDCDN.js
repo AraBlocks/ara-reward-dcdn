@@ -6,13 +6,11 @@ const { Farmer } = require('./farmer.js')
 const multidrive = require('multidrive')
 const crypto = require('ara-crypto')
 const toilet = require('toiletdb')
+const mkdirp = require('mkdirp')
 const debug = require('debug')('afd')
 const pify = require('pify')
 const DCDN = require('ara-network-node-dcdn/dcdn')
-const {
-  DEFAULT_CONFIG_STORE,
-  DEFAULT_JOB_STORE
-} = require('../constants')
+const rc = require('./rc')()
 
 const $driveCreator = Symbol('driveCreator')
 
@@ -21,7 +19,6 @@ const $driveCreator = Symbol('driveCreator')
  */
 class FarmDCDN extends DCDN {
   /**
-   * @param {String} opts.config store.json path
    * @param {String} opts.userID user DID
    * @return {Object}
    */
@@ -37,14 +34,11 @@ class FarmDCDN extends DCDN {
       did: getIdentifier(opts.userID),
       password: opts.password
     }
-
-    // Preload afses from store
-    this.config = opts.config || DEFAULT_CONFIG_STORE
   }
 
   async _loadDrive() {
     if (!this[$driveCreator]) {
-      const store = toilet(this.config)
+      const store = toilet(rc.dcdn.config)
       this[$driveCreator] = await pify(multidrive)(
         store,
         FarmDCDN._createAFS,
@@ -64,7 +58,9 @@ class FarmDCDN extends DCDN {
       this.running = true
       const self = this
 
-      this.jobsInProgress = toilet(DEFAULT_JOB_STORE)
+      await pify(mkdirp)(rc.dcdn.root)
+
+      this.jobsInProgress = toilet(rc.dcdn.jobs)
       await pify(this.jobsInProgress.open)()
 
       const archives = await this._loadDrive()
@@ -165,7 +161,7 @@ class FarmDCDN extends DCDN {
 
       const matcher = new matchers.MaxCostMatcher(convertedPrice, maxPeers)
       service = new Requester(sow, matcher, this.user, afs)
-      service.once('jobcreated', async (job, did) => {
+      service.once('jobready', async (job, did) => {
         await pify(self.jobsInProgress.write)(job, did)
       })
       service.once('jobcomplete', async (job) => {
