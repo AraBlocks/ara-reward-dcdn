@@ -11,8 +11,8 @@ const {
     weiToEther
   }
 } = require('ara-farming-protocol')
-const { createSwarm, createHyperswarm } = require('ara-network/discovery')
-//const createHyperswarm = require('@hyperswarm/network')
+
+const createHyperswarm = require('@hyperswarm/network')
 const { submit, allocate, getBudget } = require('ara-contracts/rewards')
 const { Countdown } = require('./util')
 const { ethify } = require('ara-util/web3')
@@ -29,7 +29,6 @@ class Requester extends RequesterBase {
   constructor(sow, matcher, user, afs) {
     super(sow, matcher)
     this.hiredFarmers = new Map()
-    this.swarmIdMap = new Map()
     this.deliveryMap = new Map()
     this.user = user
 
@@ -49,17 +48,14 @@ class Requester extends RequesterBase {
     debug('Requesting: ', self.afs.did)
 
     // TODO: Only download if new data
-    // TODO: use Ara rather than ether conversion
-    // Calculate and submit job budget
     try {
-      const amount = weiToEther(self.matcher.maxCost)
-      await self.prepareJob(self.afs.did, amount)
+      await self.prepareJob()
     } catch (err) {
       debug(`failed to start broadcast for ${self.afs.did}`, err)
       return
     }
 
-    self.setupContentSwarm()
+    self._attachListeners()
     self.peerSwarm = createHyperswarm()
     self.peerSwarm.on('connection', handleConnection)
     self.peerSwarm.join(Buffer.from(self.afs.did, 'hex'), { lookup: true, announce: false })
@@ -72,10 +68,8 @@ class Requester extends RequesterBase {
     }
   }
 
-  async setupContentSwarm() {
+  async _attachListeners() {
     const self = this
-    this.contentSwarm = createSwarm({ stream })
-    this.contentSwarm.on('connection', handleConnection)
 
     const { content } = self.afs.partitions.resolve(self.afs.HOME)
 
@@ -91,48 +85,35 @@ class Requester extends RequesterBase {
     async function attachDownloadListener(feed) {
       // Record download data
       feed.on('download', (index, data, from) => {
-        const peerIdHex = from.remoteId.toString('hex')
-        self.dataReceived(peerIdHex, data.length)
+        self.dataReceived(from.stream.stream.peerId, data.length)
       })
 
       // Handle when the content finishes downloading
       feed.once('sync', async () => {
         debug('Files:', await self.afs.readdir('.'))
-        self.sendRewards(self.afs.did)
+        self._closeReplicationStreams()
+        self.sendRewards()
       })
-    }
-
-    function stream() {
-      const afsstream = self.afs.replicate({
-        upload: false,
-        download: true
-      })
-      return afsstream
-    }
-
-    async function handleConnection(connection, peer) {
-      const contentSwarmId = connection.remoteId.toString('hex')
-      const connectionId = idify(peer.host, peer.port)
-      self.swarmIdMap.set(contentSwarmId, connectionId)
-      debug(`Content Swarm: Peer connected: ${connectionId}`)
     }
   }
 
   stopBroadcast(err) {
     if (err) debug(`Broadcast Error: ${err}`)
-    if (this.contentSwarm) this.contentSwarm.destroy()
     if (this.peerSwarm) this.peerSwarm.destroy()
     debug('Service Stopped')
   }
 
   // Retrieve or Submit the job to the blockchain
-  async prepareJob(contentDid, budget) {
-    debug(`Budgetting ${budget} Ara for AFS ${contentDid}`)
+  async prepareJob() {
     const self = this
+    // TODO: use Ara rather than ether conversion
+    const budget = weiToEther(self.matcher.maxCost)
+
+    debug(`Budgetting ${budget} Ara for AFS ${self.afs.did}`)
     const jobId = nonceString(self.sow)
     let currentBudget = 0
     try {
-      currentBudget = await getBudget({ contentDid, jobId: ethify(jobId) })
+      currentBudget = await getBudget({ contentDid: self.afs.did, jobId: ethify(jobId) })
     } catch (err) {
       debug('prepareJob:', err)
       currentBudget = 0
@@ -145,7 +126,7 @@ class Requester extends RequesterBase {
       await submit({
         requesterDid: self.user.did,
         password: self.user.password,
-        contentDid,
+        contentDid: self.afs.did,
         job: {
           jobId: ethify(jobId),
           budget: diff
@@ -153,7 +134,7 @@ class Requester extends RequesterBase {
       })
       debug('Job submitted successfully')
     }
-    self.emit('jobready', jobId, contentDid)
+    self.emit('jobready', jobId, self.afs.did)
   }
 
   async validateQuote(quote) {
@@ -176,25 +157,29 @@ class Requester extends RequesterBase {
   }
 
   async onHireConfirmed(agreement, connection) {
-    const { peer } = connection
+    const { peerId } = connection
 
-    // Extract port
-    const data = Buffer.from(agreement.getData())
-    const port = data.readUInt32LE(0)
+    const stream = this.afs.replicate({
+      upload: false,
+      download: true
+    })
+    stream.peerId = peerId
 
     // Store hired farmer
-    const peerId = idify(peer.host, port)
-    this.hiredFarmers.set(peerId, { connection, agreement })
+    this.hiredFarmers.set(peerId, { connection, agreement, stream })
 
     // Start work
-    this.startWork(peer, port)
+    debug(`Piping stream with ${agreement.getQuote().getFarmer().getDid()} from ${peerId}`)
+    connection.stopDataListener()
+    connection.stream.pipe(stream).pipe(connection.stream)
   }
 
-  // Handle when ready to start work
-  async startWork(peer, port) {
-    const connectionId = idify(peer.host, port)
-    debug(`Starting AFS Connection with ${connectionId}`)
-    this.contentSwarm.addPeer(this.afs.did, { host: peer.host, port })
+  _closeReplicationStreams()
+  {
+    this.hiredFarmers.forEach((value, key) => {
+      const { stream } = value
+      stream.close()
+    })
   }
 
   async onReceipt(receipt, connection) {
@@ -204,16 +189,16 @@ class Requester extends RequesterBase {
     }
   }
 
-  dataReceived(peerSwarmId, units) {
-    if (this.deliveryMap.has(peerSwarmId)) {
-      const total = this.deliveryMap.get(peerSwarmId) + units
-      this.deliveryMap.set(peerSwarmId, total)
+  dataReceived(peerId, units) {
+    if (this.deliveryMap.has(peerId)) {
+      const total = this.deliveryMap.get(peerId) + units
+      this.deliveryMap.set(peerId, total)
     } else {
-      this.deliveryMap.set(peerSwarmId, units)
+      this.deliveryMap.set(peerId, units)
     }
   }
 
-  async sendRewards(contentDid) {
+  async sendRewards() {
     const self = this
     const farmers = []
     const rewards = []
@@ -231,7 +216,7 @@ class Requester extends RequesterBase {
     }
 
     this.deliveryMap.forEach((value, key) => {
-      const peerId = this.swarmIdMap.get(key)
+      const peerId = key
       const units = value / total
       const reward = this.generateReward(peerId, units)
       const userId = reward.getAgreement().getQuote().getFarmer().getDid()
@@ -254,7 +239,7 @@ class Requester extends RequesterBase {
       await allocate({
         requesterDid: self.user.did,
         password: self.user.password,
-        contentDid,
+        contentDid: self.afs.did,
         job: {
           jobId: ethify(jobId),
           farmers,
@@ -269,6 +254,7 @@ class Requester extends RequesterBase {
 
     rewardMap.forEach((value, key) => {
       const { connection } = self.hiredFarmers.get(key)
+      connection.startDataListener()
       connection.sendReward(value)
     })
     self.emit('jobcomplete', jobId)
