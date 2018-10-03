@@ -37,15 +37,20 @@ class FarmDCDN extends DCDN {
   }
 
   async _loadDrive() {
-    if (!this[$driveCreator]) {
-      const store = toilet(rc.dcdn.config)
-      this[$driveCreator] = await pify(multidrive)(
-        store,
-        FarmDCDN._createAFS,
-        DCDN._closeAFS
-      )
-    }
-    return this[$driveCreator].list()
+    // Create root
+    await pify(mkdirp)(rc.dcdn.root)
+
+    // Create jobs
+    this.jobsInProgress = toilet(rc.dcdn.jobs)
+    await pify(this.jobsInProgress.open)()
+
+    // Create config
+    const store = toilet(rc.dcdn.config)
+    this[$driveCreator] = await pify(multidrive)(
+      store,
+      FarmDCDN._createAFS,
+      DCDN._closeAFS
+    )
   }
 
   /**
@@ -58,12 +63,9 @@ class FarmDCDN extends DCDN {
       this.running = true
       const self = this
 
-      await pify(mkdirp)(rc.dcdn.root)
+      if (!this[$driveCreator]) await this._loadDrive()
 
-      this.jobsInProgress = toilet(rc.dcdn.jobs)
-      await pify(this.jobsInProgress.open)()
-
-      const archives = await this._loadDrive()
+      const archives = this[$driveCreator].list()
       archives.forEach((archive) => {
         if (archive instanceof Error) {
           debug('failed to initialize archive with %j: %s', archive.data, archive.message)
@@ -197,7 +199,8 @@ class FarmDCDN extends DCDN {
     if (this.running) {
       this.running = false
       const self = this
-      const archives = await this._loadDrive()
+
+      const archives = this[$driveCreator].list()
       archives.forEach((archive) => {
         if (!(archive instanceof Error)) {
           self._stopService(archive.did)
@@ -248,7 +251,8 @@ class FarmDCDN extends DCDN {
    */
   async unjoin(opts) {
     const key = opts.key || getIdentifier(opts.did)
-    await this._loadDrive()
+    if (!this[$driveCreator]) await this._loadDrive()
+      
     try {
       await this._stopService(key)
       await pify(this[$driveCreator].close)(key)
