@@ -1,9 +1,8 @@
-const { messages, matchers } = require('ara-farming-protocol')
+const { messages, matchers, util: { etherToWei } } = require('ara-farming-protocol')
 const { create: createAFS } = require('ara-filesystem')
 const { getIdentifier } = require('ara-identity/did')
 const { Requester } = require('./requester.js')
 const { Farmer } = require('./farmer.js')
-const { Wallet } = require('./wallet')
 const multidrive = require('multidrive')
 const crypto = require('ara-crypto')
 const toilet = require('toiletdb')
@@ -33,9 +32,11 @@ class FarmDCDN extends DCDN {
       throw new Error('FarmDCDN requires User Identity')
     }
 
-    this.userID = getIdentifier(opts.userID)
-    this.wallet = new Wallet(this.userID, opts.password)
     this.services = {}
+    this.user = {
+      did: getIdentifier(opts.userID),
+      password: opts.password
+    }
 
     // Preload afses from store
     this.config = opts.config || DEFAULT_CONFIG_STORE
@@ -85,12 +86,11 @@ class FarmDCDN extends DCDN {
     return null
   }
 
-   _attachListeners(afs) {
+  _attachListeners(afs) {
     const self = this
-    
+
     const {
       dcdnOpts: {
-        upload,
         download
       }
     } = afs
@@ -115,7 +115,7 @@ class FarmDCDN extends DCDN {
       })
 
       // Handle when download progress
-      feed.on('download', (index, data, from) => {
+      feed.on('download', () => {
         self.emit('progress', afs.did, feed.downloaded())
       })
 
@@ -144,6 +144,9 @@ class FarmDCDN extends DCDN {
 
     if (!upload && !download) throw new Error('upload or download must be true')
 
+    // TODO: use Ara to Ara^-18
+    const convertedPrice = etherToWei(price)
+
     this._attachListeners(afs)
     let service
 
@@ -152,16 +155,16 @@ class FarmDCDN extends DCDN {
       if ('string' === typeof jobNonce) jobNonce = Buffer.from(jobNonce, 'hex')
 
       const requester = new messages.AraId()
-      requester.setDid(this.userID)
+      requester.setDid(this.user.did)
 
       const sow = new messages.SOW()
       sow.setNonce(jobNonce)
-      sow.setWorkUnit('Byte')
+      sow.setWorkUnit('AFS')
       sow.setCurrencyUnit('Ara^-18')
       sow.setRequester(requester)
 
-      const matcher = new matchers.MaxCostMatcher(price, maxPeers)
-      service = new Requester(sow, matcher, this.wallet, afs)
+      const matcher = new matchers.MaxCostMatcher(convertedPrice, maxPeers)
+      service = new Requester(sow, matcher, this.user, afs)
       service.once('jobcreated', async (job, did) => {
         await pify(self.jobsInProgress.write)(job, did)
       })
@@ -174,11 +177,11 @@ class FarmDCDN extends DCDN {
         self.emit('requestcomplete', afs.did)
       })
     } else if (upload) {
-      service = new Farmer(this.wallet, price, afs)
+      service = new Farmer(this.user, convertedPrice, afs)
     }
 
     this.services[afs.did] = service
-    service.startBroadcast()
+    await service.startBroadcast()
   }
 
   _stopService(did) {
