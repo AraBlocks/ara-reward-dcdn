@@ -1,6 +1,6 @@
 {
   "name": "ara-network-node-dcdn-farm",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "description": "An Ara Network node that runs a rewardable DCDN",
   "main": "index.js",
   "bin": {
@@ -12,8 +12,7 @@
     "lint-fix": "eslint . --fix",
     "coverage": "npm run nyc",
     "nyc": "nyc npm test",
-    "changelog": "conventional-changelog --same-file --preset angular --release-count 0 --infile CHANGELOG.md",
-    "version": "npm run changelog && git add CHANGELOG.md",
+    "release-changelog": "conventional-changelog --same-file --preset angular --release-count 0 --infile CHANGELOG.md",
     "cli-readme": "node ./scripts/generate-cli-readme AFD > CLI.md"
   },
   "repository": {
@@ -43,14 +42,14 @@
     "ara-console": "arablocks/ara-console#semver:^0.2.1",
     "ara-crypto": "arablocks/ara-crypto#semver:^0.7.0",
     "ara-identity": "arablocks/ara-identity#semver:^0.24.0",
-    "ara-network": "arablocks/ara-network#semver:^1.0.0-beta.3",
+    "ara-network": "arablocks/ara-network",
     "ara-runtime-configuration": "arablocks/ara-runtime-configuration#semver:^0.5.0",
     "ara-secret-storage": "arablocks/ara-secret-storage#semver:^0.1.1",
-    "ara-filesystem": "arablocks/ara-filesystem#semver:^0.2.1",
+    "ara-filesystem": "arablocks/ara-filesystem#semver:^0.1.1",
     "ara-contracts": "arablocks/ara-contracts#semver:^0.2.6",
-    "ara-farming-protocol": "littlstar/farming-protocol#semver:0.0.1",
-    "ara-network-node-dcdn": "arablocks/ara-network-node-dcdn#semver:^0.4.1",
-    "ara-util": "arablocks/ara-util#semver:^0.3.4",
+    "ara-farming-protocol": "littlstar/farming-protocol#semver:^0.1.0",
+    "ara-network-node-dcdn": "arablocks/ara-network-node-dcdn#semver:^0.3.0",
+    "ara-util": "arablocks/ara-util#semver:^0.3.3",
     "farming-protocol-buffers": "arablocks/farming-protocol-buffers#semver:^0.1.0",
     "find-free-port": "^2.0.0",
     "bencode": "^2.0.0",

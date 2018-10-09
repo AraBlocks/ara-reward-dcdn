@@ -46,7 +46,7 @@ program.option('identity', {
   alias: 'i',
   type: 'string',
   required: true,
-
+  default: rc.network.identity.whoami,
   describe:
   `A valid, local, and resolvable Ara identity DID
   URI of the owner of the AFS. You will be

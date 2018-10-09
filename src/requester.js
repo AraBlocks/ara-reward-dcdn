@@ -164,6 +164,9 @@ class Requester extends RequesterBase {
       download: true
     })
     stream.peerId = peerId
+    stream.once('end', () => {
+      connection.stream.unpipe(stream).unpipe(connection.stream)
+    })
 
     // Store hired farmer
     this.hiredFarmers.set(peerId, { connection, agreement, stream })
