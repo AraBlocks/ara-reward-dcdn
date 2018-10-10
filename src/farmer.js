@@ -145,7 +145,9 @@ class Farmer extends FarmerBase {
   }
 
   async startWork(agreement, connection) {
-    connection.stopDataListener()
+    // TODO: put this somewhere internal to connection
+    connection.stream.removeListeners('data')
+
     const self = this
     const sow = agreement.getQuote().getSow()
     debug(`Replicating ${this.afs.did} with requester ${sow.getRequester().getDid()}`)
@@ -163,7 +165,8 @@ class Farmer extends FarmerBase {
 
     stream.on('end', () => {
       connection.stream.unpipe(stream).unpipe(connection.stream)
-      connection.startDataListener()
+      // TODO: put this somewhere internal to connection
+      connection.stream.on('data', connection.onData.bind(connection))
     })
 
     connection.stream.pipe(stream).pipe(connection.stream)

@@ -55,10 +55,11 @@ class Requester extends RequesterBase {
       return
     }
 
+    debug('Creating and joining hyperswarm')
     self._attachListeners()
     self.peerSwarm = createHyperswarm()
     self.peerSwarm.on('connection', handleConnection)
-    self.peerSwarm.join(Buffer.from(self.afs.did, 'hex'), { lookup: true, announce: false })
+    self.peerSwarm.join(Buffer.from(self.afs.did, 'hex'), { lookup: true, announce: true })
 
     function handleConnection(socket, details) {
       const peer = details.peer || {}
@@ -157,6 +158,9 @@ class Requester extends RequesterBase {
   }
 
   async onHireConfirmed(agreement, connection) {
+    // TODO: put this somewhere internal to connection
+    connection.stream.removeAllListeners('data')
+
     const { peerId } = connection
 
     const stream = this.afs.replicate({
@@ -173,7 +177,6 @@ class Requester extends RequesterBase {
 
     // Start work
     debug(`Piping stream with ${agreement.getQuote().getFarmer().getDid()} from ${peerId}`)
-    connection.stopDataListener()
     connection.stream.pipe(stream).pipe(connection.stream)
   }
 
@@ -257,7 +260,8 @@ class Requester extends RequesterBase {
 
     rewardMap.forEach((value, key) => {
       const { connection } = self.hiredFarmers.get(key)
-      connection.startDataListener()
+      // TODO: put this somewhere internal to connection
+      connection.stream.on('data', connection.onData.bind(connection))
       connection.sendReward(value)
     })
     self.emit('jobcomplete', jobId)
