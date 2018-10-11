@@ -145,7 +145,7 @@ class Farmer extends FarmerBase {
 
   async startWork(agreement, connection) {
     // TODO: put this somewhere internal to connection
-    connection.stream.removeListeners('data')
+    connection.stream.removeAllListeners('data')
 
     const self = this
     const sow = agreement.getQuote().getSow()
