@@ -16,7 +16,6 @@ const crypto = require('ara-crypto')
 const debug = require('debug')('afd:farmer')
 const pify = require('pify')
 
-
 class Farmer extends FarmerBase {
   /**
    * Farmer replicates an AFS for a min price
@@ -47,7 +46,7 @@ class Farmer extends FarmerBase {
     this.peerSwarm = createHyperswarm()
     this.peerSwarm.on('connection', handleConnection)
 
-    this.peerSwarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: true, announce: true })
+    this.peerSwarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: false, announce: true })
     const self = this
 
     function handleConnection(socket, details) {
@@ -59,7 +58,7 @@ class Farmer extends FarmerBase {
   }
 
   stopBroadcast() {
-    if (this.peerSwarm) this.peerSwarm.destroy()
+    if (this.peerSwarm) this.peerSwarm.leave(Buffer.from(this.afs.did, 'hex'))
   }
 
   /**
@@ -164,12 +163,15 @@ class Farmer extends FarmerBase {
     })
 
     stream.on('end', () => {
-      connection.stream.unpipe(stream).unpipe(connection.stream)
+      connection.stream.unpipe()
+      stream.unpipe()
+      stream.destroy()
       // TODO: put this somewhere internal to connection
       connection.stream.on('data', connection.onData.bind(connection))
+      connection.stream.resume()
     })
 
-    connection.stream.pipe(stream).pipe(connection.stream)
+    connection.stream.pipe(stream).pipe(connection.stream, { end: false })
   }
 }
 

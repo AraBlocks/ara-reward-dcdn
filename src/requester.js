@@ -57,9 +57,10 @@ class Requester extends RequesterBase {
 
     debug('Creating and joining hyperswarm')
     self._attachListeners()
+    // TODO: move creation out of class
     self.peerSwarm = createHyperswarm()
     self.peerSwarm.on('connection', handleConnection)
-    self.peerSwarm.join(Buffer.from(self.afs.did, 'hex'), { lookup: true, announce: true })
+    self.peerSwarm.join(Buffer.from(self.afs.did, 'hex'), { lookup: true, announce: false })
 
     function handleConnection(socket, details) {
       const peer = details.peer || {}
@@ -100,7 +101,7 @@ class Requester extends RequesterBase {
 
   stopBroadcast(err) {
     if (err) debug(`Broadcast Error: ${err}`)
-    if (this.peerSwarm) this.peerSwarm.destroy()
+    if (this.peerSwarm) this.peerSwarm.leave(Buffer.from(this.afs.did, 'hex'))
     debug('Service Stopped')
   }
 
@@ -168,23 +169,26 @@ class Requester extends RequesterBase {
       download: true
     })
     stream.peerId = peerId
-    stream.once('end', () => {
-      connection.stream.unpipe(stream).unpipe(connection.stream)
-    })
 
     // Store hired farmer
     this.hiredFarmers.set(peerId, { connection, agreement, stream })
 
     // Start work
     debug(`Piping stream with ${agreement.getQuote().getFarmer().getDid()} from ${peerId}`)
-    connection.stream.pipe(stream).pipe(connection.stream)
+    connection.stream.pipe(stream).pipe(connection.stream, { end: false })
   }
 
   _closeReplicationStreams()
   {
     this.hiredFarmers.forEach((value, key) => {
-      const { stream } = value
-      stream.close()
+      const { connection, stream } = value
+      connection.stream.unpipe()
+      stream.unpipe()
+      stream.destroy()
+      // TODO: put this somewhere internal to connection
+      // TODO: handle random last message from stream
+      connection.stream.on('data', connection.onData.bind(connection))
+      connection.stream.resume()
     })
   }
 
@@ -212,7 +216,11 @@ class Requester extends RequesterBase {
     const jobId = nonceString(self.sow)
 
     // Format rewards for contract
-    this.receiptCountdown = new Countdown(this.deliveryMap.size, this.stopBroadcast.bind(this))
+    this.receiptCountdown = new Countdown(this.deliveryMap.size, () => {
+      // TODO: handle if not enough receipts come back
+      self.stopBroadcast()
+      self.emit('jobcomplete', jobId)
+    })
     let total = 0
     this.deliveryMap.forEach((value) => { total += value })
 
@@ -260,11 +268,8 @@ class Requester extends RequesterBase {
 
     rewardMap.forEach((value, key) => {
       const { connection } = self.hiredFarmers.get(key)
-      // TODO: put this somewhere internal to connection
-      connection.stream.on('data', connection.onData.bind(connection))
       connection.sendReward(value)
     })
-    self.emit('jobcomplete', jobId)
   }
 
   generateReward(peerId, units) {
