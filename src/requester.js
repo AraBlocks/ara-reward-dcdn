@@ -6,13 +6,11 @@ const {
     FarmerConnection
   },
   util: {
-    idify,
     nonceString,
     weiToEther
   }
 } = require('ara-farming-protocol')
 
-const createHyperswarm = require('@hyperswarm/network')
 const { submit, allocate, getBudget } = require('ara-contracts/rewards')
 const { Countdown } = require('./util')
 const { ethify } = require('ara-util/web3')
@@ -41,36 +39,15 @@ class Requester extends RequesterBase {
     this.requesterSig.setData('avalidsignature')
 
     this.afs = afs
+    this._attachListeners()
   }
 
-  async startBroadcast() {
-    const self = this
-    debug('Requesting: ', self.afs.did)
-
-    // TODO: Only download if new data
-    try {
-      await self.prepareJob()
-    } catch (err) {
-      debug(`failed to start broadcast for ${self.afs.did}`, err)
-      return
-    }
-
-    debug('Creating and joining hyperswarm')
-    self._attachListeners()
-    // TODO: move creation out of class
-    self.peerSwarm = createHyperswarm()
-    self.peerSwarm.on('connection', handleConnection)
-    self.peerSwarm.join(Buffer.from(self.afs.did, 'hex'), { lookup: true, announce: false })
-
-    function handleConnection(socket, details) {
-      const peer = details.peer || {}
-      debug(`Peer Swarm: Peer connected: ${idify(peer.host, peer.port)}`)
-      const farmerConnection = new FarmerConnection(peer, socket, { timeout: 6000 })
-      process.nextTick(() => self.addFarmer(farmerConnection))
-    }
+  addConnection(peer, socket){
+    const farmerConnection = new FarmerConnection(peer, socket, { timeout: 6000 })
+    process.nextTick(() => self.addFarmer(farmerConnection))
   }
 
-  async _attachListeners() {
+  _attachListeners() {
     const self = this
 
     const { content } = self.afs.partitions.resolve(self.afs.HOME)
@@ -84,7 +61,7 @@ class Requester extends RequesterBase {
     }
 
     // Handle when the content needs updated
-    async function attachDownloadListener(feed) {
+    function attachDownloadListener(feed) {
       // Record download data
       feed.on('download', (index, data, from) => {
         self.dataReceived(from.stream.stream.peerId, data.length)
@@ -97,12 +74,6 @@ class Requester extends RequesterBase {
         self.sendRewards()
       })
     }
-  }
-
-  stopBroadcast(err) {
-    if (err) debug(`Broadcast Error: ${err}`)
-    if (this.peerSwarm) this.peerSwarm.leave(Buffer.from(this.afs.did, 'hex'))
-    debug('Service Stopped')
   }
 
   // Retrieve or Submit the job to the blockchain
@@ -136,7 +107,6 @@ class Requester extends RequesterBase {
       })
       debug('Job submitted successfully')
     }
-    self.emit('jobready', jobId, self.afs.did)
   }
 
   async validateQuote(quote) {
@@ -218,7 +188,6 @@ class Requester extends RequesterBase {
     // Format rewards for contract
     this.receiptCountdown = new Countdown(this.deliveryMap.size, () => {
       // TODO: handle if not enough receipts come back
-      self.stopBroadcast()
       self.emit('jobcomplete', jobId)
     })
     let total = 0
@@ -263,7 +232,6 @@ class Requester extends RequesterBase {
     } catch (err) {
       debug(`Failed to allocate rewards for job ${jobId}`)
       // TODO Handle failed job
-      self.stopBroadcast(err)
     }
 
     rewardMap.forEach((value, key) => {

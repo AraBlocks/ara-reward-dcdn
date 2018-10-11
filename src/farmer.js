@@ -6,15 +6,12 @@ const {
     RequesterConnection
   },
   util: {
-    idify,
     nonceString,
     bytesToGBs
   }
 } = require('ara-farming-protocol')
-const createHyperswarm = require('@hyperswarm/network')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:farmer')
-const pify = require('pify')
 
 class Farmer extends FarmerBase {
   /**
@@ -40,25 +37,9 @@ class Farmer extends FarmerBase {
     this.farmerSig.setData('avalidsignature')
   }
 
-  async startBroadcast() {
-    debug('Broadcasting: ', this.afs.did)
-
-    this.peerSwarm = createHyperswarm()
-    this.peerSwarm.on('connection', handleConnection)
-
-    this.peerSwarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: false, announce: true })
-    const self = this
-
-    function handleConnection(socket, details) {
-      const peer = details.peer || {}
-      debug(`Peer Swarm: Peer Connected: ${idify(peer.host, peer.port)}`)
-      const requesterConnection = new RequesterConnection(peer, socket, { timeout: 6000 })
-      self.addRequester(requesterConnection)
-    }
-  }
-
-  stopBroadcast() {
-    if (this.peerSwarm) this.peerSwarm.leave(Buffer.from(this.afs.did, 'hex'))
+  addConnection(peer, socket){
+    const requesterConnection = new RequesterConnection(peer, socket, { timeout: 6000 })
+    this.addRequester(requesterConnection)
   }
 
   /**
