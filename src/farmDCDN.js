@@ -184,8 +184,6 @@ class FarmDCDN extends DCDN {
       }
     } else if (upload) {
       service = new Farmer(this.user, convertedPrice, afs)
-      opts = { lookup: false, announce: true }
-
     }
 
     this.services[did] = service
