@@ -1,9 +1,8 @@
-const { messages, matchers, util: { etherToWei } } = require('ara-farming-protocol')
+const { messages, matchers, util: { idify, etherToWei } } = require('ara-farming-protocol')
 const { create: createAFS } = require('ara-filesystem')
 const { getIdentifier } = require('ara-identity/did')
 const { Requester } = require('./requester.js')
 const { Farmer } = require('./farmer.js')
-const createHyperswarm = require('@hyperswarm/network')
 const multidrive = require('multidrive')
 const crypto = require('ara-crypto')
 const toilet = require('toiletdb')
@@ -35,6 +34,7 @@ class FarmDCDN extends DCDN {
       did: getIdentifier(opts.userID),
       password: opts.password
     }
+    this.running = false
   }
 
   async _loadDrive() {
@@ -60,11 +60,10 @@ class FarmDCDN extends DCDN {
    * @return {null}
    */
   async start() {
-    if (!this.swarm) {
-      this.swarm = createHyperswarm()
-      this.swarm.on('connection', handleConnection)
-      const self = this
+    const self = this
 
+    if (!this.running) {
+      this.running = true
       if (!this[$driveCreator]) await this._loadDrive()
 
       const archives = this[$driveCreator].list()
@@ -75,14 +74,6 @@ class FarmDCDN extends DCDN {
           self._startService(archive)
         }
       })
-    }
-
-    function handleConnection(socket, details) {
-      const peer = details.peer || {}
-      debug(`Peer Swarm: Peer connected: ${idify(peer.host, peer.port)}`)
-      if (peer.topic && self.services[peer.topic.toString('hex')]) {
-        self.services[peer.topic.toString('hex')].addConnection(peer, socket)
-      }
     }
   }
 
@@ -158,11 +149,8 @@ class FarmDCDN extends DCDN {
 
     this._attachListeners(afs)
     let service
-    let opts
 
     if (download) {
-      opts = { lookup: true, announce: false }
-
       let jobNonce = jobId || await this._getJobInProgress(did) || crypto.randomBytes(32)
       if ('string' === typeof jobNonce) jobNonce = Buffer.from(jobNonce, 'hex')
 
@@ -195,19 +183,19 @@ class FarmDCDN extends DCDN {
         return
       }
     } else if (upload) {
-      opts = { lookup: false, announce: true }
       service = new Farmer(this.user, convertedPrice, afs)
+      opts = { lookup: false, announce: true }
+
     }
 
     this.services[did] = service
-    this.swarm.join(Buffer.from(did, 'hex'), opts)
-    debug('Broadcasting: ', did)
+    service.start()
   }
 
   _stopService(did) {
     debug('Stopping service for', did)
     if (did in this.services) {
-      this.swarm.leave(Buffer.from(did, 'hex'))
+      this.services[did].stop()
       delete this.services[did]
     }
   }
@@ -218,7 +206,7 @@ class FarmDCDN extends DCDN {
    * @return {null}
    */
   async stop() {
-    if (this.swarm) {
+    if (this.running) {
       const self = this
 
       const archives = this[$driveCreator].list()
@@ -228,7 +216,7 @@ class FarmDCDN extends DCDN {
         }
       })
       await pify(this[$driveCreator].disconnect)()
-      this.swarm = null
+      this.running = false
     }
   }
 
@@ -253,7 +241,7 @@ class FarmDCDN extends DCDN {
     await this.unjoin(opts)
     const archive = await pify(this[$driveCreator].create)(opts)
 
-    if (this.swarm) {
+    if (this.running) {
       if (archive instanceof Error) {
         debug('failed to initialize archive with %j: %s', archive.data, archive.message)
         return

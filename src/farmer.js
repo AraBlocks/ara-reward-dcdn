@@ -10,6 +10,7 @@ const {
     bytesToGBs
   }
 } = require('ara-farming-protocol')
+const createHyperswarm = require('@hyperswarm/network')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:farmer')
 
@@ -37,9 +38,22 @@ class Farmer extends FarmerBase {
     this.farmerSig.setData('avalidsignature')
   }
 
-  addConnection(peer, socket){
-    const requesterConnection = new RequesterConnection(peer, socket, { timeout: 6000 })
-    this.addRequester(requesterConnection)
+  start(){
+    const self = this
+    this.swarm = createHyperswarm()
+    this.swarm.on('connection', handleConnection)
+    this.swarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: false, announce: true })
+    debug('Broadcasting: ', this.afs.did)
+
+    function handleConnection(socket, details) {
+      const peer = details.peer || {}
+      const requesterConnection = new RequesterConnection(peer, socket, { timeout: 6000 })
+      self.addRequester(requesterConnection)
+    }
+  }
+
+  stop(){
+    if (this.swarm) this.swarm.leave(Buffer.from(this.afs.did, 'hex'))
   }
 
   /**

@@ -14,6 +14,7 @@ const {
 const { submit, allocate, getBudget } = require('ara-contracts/rewards')
 const { Countdown } = require('./util')
 const { ethify } = require('ara-util/web3')
+const createHyperswarm = require('@hyperswarm/network')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
 
@@ -38,13 +39,27 @@ class Requester extends RequesterBase {
     this.requesterSig.setAraId(this.userID)
     this.requesterSig.setData('avalidsignature')
 
+    this.swarm = null
     this.afs = afs
     this._attachListeners()
   }
 
-  addConnection(peer, socket){
-    const farmerConnection = new FarmerConnection(peer, socket, { timeout: 6000 })
-    process.nextTick(() => self.addFarmer(farmerConnection))
+  start(){
+    const self = this
+    this.swarm = createHyperswarm()
+    this.swarm.on('connection', handleConnection)
+    this.swarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: true, announce: false })
+    debug('Broadcasting: ', this.afs.did)
+
+    function handleConnection(socket, details) {
+      const peer = details.peer || {}
+      const farmerConnection = new FarmerConnection(peer, socket, { timeout: 6000 })
+      process.nextTick(() => self.addFarmer(farmerConnection))
+    }
+  }
+
+  stop(){
+    if (this.swarm) this.swarm.leave(Buffer.from(this.afs.did, 'hex'))
   }
 
   _attachListeners() {
