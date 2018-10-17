@@ -6,13 +6,15 @@ const {
     RequesterConnection
   },
   util: {
+    idify,
     nonceString,
     bytesToGBs
   }
 } = require('ara-farming-protocol')
-const createHyperswarm = require('@hyperswarm/network')
+const { constructor: createHyperswarm } = require('@hyperswarm/network')()
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:farmer')
+const utp = require('utp-native')
 
 class Farmer extends FarmerBase {
   /**
@@ -40,13 +42,14 @@ class Farmer extends FarmerBase {
 
   start(){
     const self = this
-    this.swarm = createHyperswarm()
+    this.swarm = createHyperswarm({ socket: utp() })
     this.swarm.on('connection', handleConnection)
     this.swarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: false, announce: true })
     debug('Broadcasting: ', this.afs.did)
 
     function handleConnection(socket, details) {
       const peer = details.peer || {}
+      debug('onconnection:', idify(peer.host, peer.port))
       const requesterConnection = new RequesterConnection(peer, socket, { timeout: 6000 })
       self.addRequester(requesterConnection)
     }
