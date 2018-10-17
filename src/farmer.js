@@ -11,7 +11,7 @@ const {
     bytesToGBs
   }
 } = require('ara-farming-protocol')
-const { constructor: createHyperswarm } = require('@hyperswarm/network')()
+const createHyperswarm = require('@hyperswarm/network')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:farmer')
 const utp = require('utp-native')
