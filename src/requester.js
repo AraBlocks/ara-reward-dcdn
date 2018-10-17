@@ -6,6 +6,7 @@ const {
     FarmerConnection
   },
   util: {
+    idify,
     nonceString,
     weiToEther
   }
@@ -17,6 +18,7 @@ const { ethify } = require('ara-util/web3')
 const createHyperswarm = require('@hyperswarm/network')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
+const utp = require('utp-native')
 
 class Requester extends RequesterBase {
   /**
@@ -46,20 +48,27 @@ class Requester extends RequesterBase {
 
   start(){
     const self = this
-    this.swarm = createHyperswarm()
+
+    // TODO: use single swarm with multiple sockets
+    this.swarm = createHyperswarm({ socket: utp() })
     this.swarm.on('connection', handleConnection)
     this.swarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: true, announce: false })
-    debug('Broadcasting: ', this.afs.did)
+    debug('Requesting: ', this.afs.did)
 
     function handleConnection(socket, details) {
       const peer = details.peer || {}
+      debug('onconnection:', idify(peer.host, peer.port))
       const farmerConnection = new FarmerConnection(peer, socket, { timeout: 6000 })
       process.nextTick(() => self.addFarmer(farmerConnection))
     }
   }
 
   stop(){
-    if (this.swarm) this.swarm.leave(Buffer.from(this.afs.did, 'hex'))
+    if (this.swarm) {
+      this.swarm.leave(Buffer.from(this.afs.did, 'hex'))
+      this.swarm.discovery.destroy()
+      this.swarm = null
+    }
   }
 
   _attachListeners() {
@@ -86,6 +95,7 @@ class Requester extends RequesterBase {
       feed.once('sync', async () => {
         debug('Files:', await self.afs.readdir('.'))
         self._closeReplicationStreams()
+        self.stop()
         self.sendRewards()
       })
     }
@@ -168,7 +178,7 @@ class Requester extends RequesterBase {
     this.hiredFarmers.forEach((value, key) => {
       const { connection, stream } = value
       connection.stream.unpipe()
-      stream.unpipe()
+      // stream.unpipe()
       stream.destroy()
       // TODO: put this somewhere internal to connection
       // TODO: handle random last message from stream
