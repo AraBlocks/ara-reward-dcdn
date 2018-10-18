@@ -42,7 +42,14 @@ class Farmer extends FarmerBase {
 
   start(){
     const self = this
-    this.swarm = createHyperswarm({ socket: utp() })
+
+    const socket = utp()
+    socket.on('error', (error) => {
+      debug(error)
+      // TODO: what to do with utp errors?
+    })
+
+    this.swarm = createHyperswarm({ socket })
     this.swarm.on('connection', handleConnection)
     this.swarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: false, announce: true })
     debug('Broadcasting: ', this.afs.did)
@@ -161,6 +168,11 @@ class Farmer extends FarmerBase {
       // TODO: put this somewhere internal to connection
       connection.stream.on('data', connection.onData.bind(connection))
       connection.stream.resume()
+    })
+
+    stream.on('error', (error) => {
+      debug(error)
+      // TODO: what to do with the connection on replication errors?
     })
 
     connection.stream.pipe(stream).pipe(connection.stream, { end: false })

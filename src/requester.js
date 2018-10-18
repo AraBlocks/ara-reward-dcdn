@@ -49,8 +49,14 @@ class Requester extends RequesterBase {
   start(){
     const self = this
 
+    const socket = utp()
+    socket.on('error', (error) => {
+      debug(error)
+      // TODO: what to do with utp errors?
+    })
+    
     // TODO: use single swarm with multiple topics
-    this.swarm = createHyperswarm({ socket: utp() })
+    this.swarm = createHyperswarm({ socket })
     this.swarm.on('connection', handleConnection)
     this.swarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: true, announce: false })
     debug('Requesting: ', this.afs.did)
@@ -164,6 +170,11 @@ class Requester extends RequesterBase {
       download: true
     })
     stream.peerId = peerId
+
+    stream.on('error', (error) => {
+      debug(error)
+      // TODO: what to do with the connection on replication errors?
+    })
 
     // Store hired farmer
     this.hiredFarmers.set(peerId, { connection, agreement, stream })
