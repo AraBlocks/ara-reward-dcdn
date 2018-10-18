@@ -95,12 +95,6 @@ class Farmer extends FarmerBase {
     return agreement
   }
 
-  // TODO: consider creating onHireConfirmed for farmer in AFP
-  async onAgreement(agreement, connection) {
-    await super.onAgreement(agreement, connection)
-    this.startWork(agreement, connection)
-  }
-
   async validateSow(sow) {
     // TODO: Validate DID
     if (sow) return true
@@ -117,7 +111,7 @@ class Farmer extends FarmerBase {
   }
 
   /**
-   * This should returns whether a reward is valid.
+   * Returns whether a reward is valid.
    * @param {messages.Reward} reward
    * @returns {boolean}
    */
@@ -127,7 +121,7 @@ class Farmer extends FarmerBase {
   }
 
   /**
-   * This should return a receipt given a reward.
+   * Returns a receipt given a reward.
    * @param {messages.Reward} reward
    * @returns {messages.Receipt}
    */
@@ -141,7 +135,7 @@ class Farmer extends FarmerBase {
     return receipt
   }
 
-  async startWork(agreement, connection) {
+  async onHireConfirmed(agreement, connection) {
     // TODO: put this somewhere internal to connection
     connection.stream.removeAllListeners('data')
 

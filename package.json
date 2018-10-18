@@ -48,7 +48,7 @@
     "ara-secret-storage": "arablocks/ara-secret-storage#semver:^0.1.1",
     "ara-filesystem": "arablocks/ara-filesystem#semver:^0.2.1",
     "ara-contracts": "arablocks/ara-contracts#semver:^0.2.6",
-    "ara-farming-protocol": "littlstar/farming-protocol#semver:^0.0.1",
+    "ara-farming-protocol": "littlstar/farming-protocol#semver:^0.0.2",
     "ara-network-node-dcdn": "arablocks/ara-network-node-dcdn#semver:^0.4.1",
     "ara-util": "arablocks/ara-util#semver:^0.3.4",
     "farming-protocol-buffers": "arablocks/farming-protocol-buffers#semver:^0.1.0",
