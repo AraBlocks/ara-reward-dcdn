@@ -161,8 +161,8 @@ class Farmer extends FarmerBase {
     })
 
     stream.on('end', () => {
+      debug('Replication stream ended')
       connection.stream.unpipe()
-      stream.unpipe()
       stream.destroy()
       // TODO: put this somewhere internal to connection
       connection.stream.on('data', connection.onData.bind(connection))

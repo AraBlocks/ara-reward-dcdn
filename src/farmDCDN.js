@@ -226,7 +226,7 @@ class FarmDCDN extends DCDN {
    * @param  {boolean} opts.download
    * @param  {float} opts.price Price to distribute AFS
    * @param  {int} opts.maxPeers
-   * @param  {String} opts.jobId
+   * @param  {String} [opts.jobId]
    * @return {null}
    */
   async join(opts) {
@@ -263,7 +263,13 @@ class FarmDCDN extends DCDN {
       
     try {
       await this._stopService(key)
-      await pify(this[$driveCreator].close)(key)
+      const archives = this[$driveCreator].list()
+      for (const archive of archives) {
+        if (key === archive.did){
+          await pify(this[$driveCreator].close)(key)
+          return
+        }
+      }
     } catch (err) {
       debug(err)
     }

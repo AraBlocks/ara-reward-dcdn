@@ -49,7 +49,7 @@ class Requester extends RequesterBase {
   start(){
     const self = this
 
-    // TODO: use single swarm with multiple sockets
+    // TODO: use single swarm with multiple topics
     this.swarm = createHyperswarm({ socket: utp() })
     this.swarm.on('connection', handleConnection)
     this.swarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: true, announce: false })
@@ -178,10 +178,8 @@ class Requester extends RequesterBase {
     this.hiredFarmers.forEach((value, key) => {
       const { connection, stream } = value
       connection.stream.unpipe()
-      // stream.unpipe()
       stream.destroy()
       // TODO: put this somewhere internal to connection
-      // TODO: handle random last message from stream
       connection.stream.on('data', connection.onData.bind(connection))
       connection.stream.resume()
     })
@@ -191,6 +189,7 @@ class Requester extends RequesterBase {
     // Expects receipt from all rewarded farmers
     if (receipt && connection) {
       if (this.receiptCountdown) this.receiptCountdown.decrement()
+      connection.stream.destroy()
     }
   }
 
