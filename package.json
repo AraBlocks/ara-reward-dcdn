@@ -12,7 +12,8 @@
     "lint-fix": "eslint . --fix",
     "coverage": "npm run nyc",
     "nyc": "nyc npm test",
-    "release-changelog": "conventional-changelog --same-file --preset angular --release-count 0 --infile CHANGELOG.md",
+    "changelog": "conventional-changelog --same-file --preset angular --release-count 0 --infile CHANGELOG.md",
+    "version": "npm run changelog && git add CHANGELOG.md",
     "cli-readme": "node ./scripts/generate-cli-readme AFD > CLI.md"
   },
   "repository": {
@@ -37,7 +38,7 @@
   "homepage": "https://github.com/littlstar/ara-network-node-dcdn-farm#readme",
   "dependencies": {
     "@hyperswarm/discovery": "^1.1.0",
-    "@hyperswarm/network": "^0.0.3",
+    "@hyperswarm/network": "^0.0.4",
     "ansi-diff-stream": "^1.2.1",
     "ara-console": "arablocks/ara-console#semver:^0.2.1",
     "ara-crypto": "arablocks/ara-crypto#semver:^0.7.0",
@@ -48,7 +49,7 @@
     "ara-filesystem": "arablocks/ara-filesystem#semver:^0.2.1",
     "ara-contracts": "arablocks/ara-contracts#semver:^0.2.6",
     "ara-farming-protocol": "littlstar/farming-protocol#semver:^0.0.1",
-    "ara-network-node-dcdn": "arablocks/ara-network-node-dcdn#semver:^0.4.0",
+    "ara-network-node-dcdn": "arablocks/ara-network-node-dcdn#semver:^0.4.1",
     "ara-util": "arablocks/ara-util#semver:^0.3.4",
     "farming-protocol-buffers": "arablocks/farming-protocol-buffers#semver:^0.1.0",
     "utp-native": "^1.7.3",
