@@ -48,7 +48,7 @@ class Farmer extends FarmerBase {
       debug(error)
       // TODO: what to do with utp errors?
     })
-
+    
     this.swarm = createHyperswarm({ socket })
     this.swarm.on('connection', handleConnection)
     this.swarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: false, announce: true })
@@ -161,21 +161,24 @@ class Farmer extends FarmerBase {
       download: false
     })
 
-    stream.on('end', () => {
-      debug('Replication stream ended')
+    stream.on('end', () => finish())
+    stream.on('error', (error) => finish(error))
+
+    connection.stream.pipe(stream).pipe(connection.stream, { end: false })
+
+    function finish(error){
       connection.stream.unpipe()
       stream.destroy()
+
+      if (error) {
+        connection.close()
+        debug(error)
+        return
+      }
       // TODO: put this somewhere internal to connection
       connection.stream.on('data', connection.onData.bind(connection))
       connection.stream.resume()
-    })
-
-    stream.on('error', (error) => {
-      debug(error)
-      // TODO: what to do with the connection on replication errors?
-    })
-
-    connection.stream.pipe(stream).pipe(connection.stream, { end: false })
+    }
   }
 }
 
