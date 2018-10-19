@@ -100,9 +100,24 @@ class Requester extends RequesterBase {
       // Handle when the content finishes downloading
       feed.once('sync', async () => {
         debug('Files:', await self.afs.readdir('.'))
-        self._closeReplicationStreams()
-        self.stop()
-        self.sendRewards()
+        feed.close(() => {
+          /**
+           * Unpipe the streams attached to the farmer
+           * sockets and resume AFP communication
+           **/ 
+          self.hiredFarmers.forEach((value, key) => {
+            const { connection, stream } = value
+            connection.stream.unpipe()
+            stream.destroy()
+            // TODO: put this somewhere internal to connection
+            connection.stream.on('data', connection.onData.bind(connection))
+            connection.stream.resume()
+          })
+  
+          self.stop()
+          // TODO: store rewards to send later
+          self.sendRewards()
+        })
       })
     }
   }
@@ -182,18 +197,6 @@ class Requester extends RequesterBase {
     // Start work
     debug(`Piping stream with ${agreement.getQuote().getFarmer().getDid()} from ${peerId}`)
     connection.stream.pipe(stream).pipe(connection.stream, { end: false })
-  }
-
-  _closeReplicationStreams()
-  {
-    this.hiredFarmers.forEach((value, key) => {
-      const { connection, stream } = value
-      connection.stream.unpipe()
-      stream.destroy()
-      // TODO: put this somewhere internal to connection
-      connection.stream.on('data', connection.onData.bind(connection))
-      connection.stream.resume()
-    })
   }
 
   async onReceipt(receipt, connection) {
