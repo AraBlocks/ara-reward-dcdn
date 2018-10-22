@@ -1,5 +1,5 @@
 const extend = require('extend')
-const FarmDCDN = require('./src/farmDCDN')
+const FarmDCDN = require('./src/dcdn')
 const rc = require('ara-runtime-configuration')()
 
 let dcdn

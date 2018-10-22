@@ -1,6 +1,7 @@
 const { messages, matchers, util: { idify, etherToWei } } = require('ara-farming-protocol')
 const { create: createAFS } = require('ara-filesystem')
 const { getIdentifier } = require('ara-identity/did')
+const { hasPurchased } = require('ara-contracts/library')
 const { Requester } = require('./requester.js')
 const { Farmer } = require('./farmer.js')
 const multidrive = require('multidrive')
@@ -175,6 +176,14 @@ class FarmDCDN extends DCDN {
       })
 
       try {
+        const purchased = await hasPurchased({
+          contentDid: did,
+          purchaserDid: this.user.did
+        })
+  
+        if (!purchased){
+          throw new Error("User has not purchased content")
+        }
         // TODO: only prepare job if download needed
         await service.prepareJob()
         await pify(self.jobsInProgress.write)(jobNonce, did)
@@ -279,16 +288,14 @@ class FarmDCDN extends DCDN {
     const { did } = opts
 
     debug(`initializing afs of did ${did}`)
-    let afs
-    let err = null
-    try {
-      ({ afs } = await createAFS({ did }))
-      afs.dcdnOpts = opts
-    } catch (e) {
-      err = e
-    }
 
-    done(err, afs)
+    try {
+      const { afs } = await createAFS({ did })
+      afs.dcdnOpts = opts
+      done (null, afs)
+    } catch (err) {
+      done (err, null)
+    }
   }
 }
 
