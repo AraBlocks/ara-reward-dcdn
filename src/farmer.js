@@ -11,12 +11,10 @@ const {
     bytesToGBs
   }
 } = require('ara-farming-protocol')
-const { createSwarm } = require('ara-network/discovery')
+const createHyperswarm = require('@hyperswarm/network')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:farmer')
-const pify = require('pify')
-const fp = require('find-free-port')
-const ip = require('ip')
+const utp = require('utp-native')
 
 class Farmer extends FarmerBase {
   /**
@@ -42,24 +40,30 @@ class Farmer extends FarmerBase {
     this.farmerSig.setData('avalidsignature')
   }
 
-  async startBroadcast() {
-    debug('Broadcasting: ', this.afs.did)
-
-    this.peerSwarm = createSwarm()
-    this.peerSwarm.on('connection', handleConnection)
-
-    this.peerSwarm.join(Buffer.from(this.afs.did, 'hex'), { announce: false })
+  start(){
     const self = this
 
-    function handleConnection(socket, peer) {
-      debug(`Peer Swarm: Peer Connected: ${idify(peer.host, peer.port)}`)
+    const socket = utp()
+    socket.on('error', (error) => {
+      debug(error)
+      // TODO: what to do with utp errors?
+    })
+    
+    this.swarm = createHyperswarm({ socket })
+    this.swarm.on('connection', handleConnection)
+    this.swarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: false, announce: true })
+    debug('Broadcasting: ', this.afs.did)
+
+    function handleConnection(socket, details) {
+      const peer = details.peer || {}
+      debug('onconnection:', idify(peer.host, peer.port))
       const requesterConnection = new RequesterConnection(peer, socket, { timeout: 6000 })
       self.addRequester(requesterConnection)
     }
   }
 
-  stopBroadcast() {
-    if (this.peerSwarm) this.peerSwarm.destroy()
+  stop(){
+    if (this.swarm) this.swarm.leave(Buffer.from(this.afs.did, 'hex'))
   }
 
   /**
@@ -93,17 +97,8 @@ class Farmer extends FarmerBase {
    * @returns {messages.Agreement}
    */
   async signAgreement(agreement) {
+    // TODO sign data
     agreement.setFarmerSignature(this.farmerSig)
-
-    // Get free port and pass it as the agreement data
-    const port = await pify(fp)(Math.floor(30000 * Math.random()), ip.address())
-
-    const data = Buffer.alloc(4)
-    data.writeInt32LE(port, 0)
-    agreement.setData(data)
-
-    // Start work on port
-    this.startWork(agreement, port)
     return agreement
   }
 
@@ -123,7 +118,7 @@ class Farmer extends FarmerBase {
   }
 
   /**
-   * This should returns whether a reward is valid.
+   * Returns whether a reward is valid.
    * @param {messages.Reward} reward
    * @returns {boolean}
    */
@@ -133,7 +128,7 @@ class Farmer extends FarmerBase {
   }
 
   /**
-   * This should return a receipt given a reward.
+   * Returns a receipt given a reward.
    * @param {messages.Reward} reward
    * @returns {messages.Receipt}
    */
@@ -147,40 +142,42 @@ class Farmer extends FarmerBase {
     return receipt
   }
 
-  async startWork(agreement, port) {
+  async onHireConfirmed(agreement, connection) {
+    // TODO: put this somewhere internal to connection
+    connection.stream.removeAllListeners('data')
+
+    const self = this
     const sow = agreement.getQuote().getSow()
-    debug(`Listening for requester ${sow.getRequester().getDid()} on port ${port}`)
+    debug(`Replicating ${this.afs.did} with requester ${sow.getRequester().getDid()}`)
     const sowId = nonceString(sow)
     const { content } = this.afs.partitions.resolve(this.afs.HOME)
 
-    const self = this
-    content.on('upload', (index, data) => {
+    content.on('upload', (_, data) => {
       self.dataTransmitted(sowId, data.length)
     })
 
-    const opts = {
-      stream
-    }
-    const swarm = createSwarm(opts)
-    swarm.on('connection', handleConnection)
-    swarm.listen(port)
+    const stream = self.afs.replicate({
+      upload: true,
+      download: false
+    })
 
-    function stream() {
-      const afsstream = self.afs.replicate({
-        upload: true,
-        download: false
-      })
-      afsstream.once('end', onend)
+    stream.on('end', () => finish())
+    stream.on('error', (error) => finish(error))
 
-      function onend() {
-        swarm.destroy()
+    connection.stream.pipe(stream).pipe(connection.stream, { end: false })
+
+    function finish(error){
+      connection.stream.unpipe()
+      stream.destroy()
+
+      if (error) {
+        connection.close()
+        debug(error)
+        return
       }
-
-      return afsstream
-    }
-
-    function handleConnection(_, peer) {
-      debug(`Content Swarm: Peer Connected: ${idify(peer.host, peer.port)}`)
+      // TODO: put this somewhere internal to connection
+      connection.stream.on('data', connection.onData.bind(connection))
+      connection.stream.resume()
     }
   }
 }

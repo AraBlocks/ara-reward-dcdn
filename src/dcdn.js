@@ -1,6 +1,7 @@
-const { messages, matchers, util: { etherToWei } } = require('ara-farming-protocol')
+const { messages, matchers, util: { idify, etherToWei } } = require('ara-farming-protocol')
 const { create: createAFS } = require('ara-filesystem')
 const { getIdentifier } = require('ara-identity/did')
+const { hasPurchased } = require('ara-contracts/library')
 const { Requester } = require('./requester.js')
 const { Farmer } = require('./farmer.js')
 const multidrive = require('multidrive')
@@ -34,6 +35,7 @@ class FarmDCDN extends DCDN {
       did: getIdentifier(opts.userID),
       password: opts.password
     }
+    this.running = false
   }
 
   async _loadDrive() {
@@ -59,10 +61,10 @@ class FarmDCDN extends DCDN {
    * @return {null}
    */
   async start() {
+    const self = this
+
     if (!this.running) {
       this.running = true
-      const self = this
-
       if (!this[$driveCreator]) await this._loadDrive()
 
       const archives = this[$driveCreator].list()
@@ -127,10 +129,10 @@ class FarmDCDN extends DCDN {
 
   async _startService(afs) {
     const self = this
-    debug('starting service for', afs.did)
     if (!afs.dcdnOpts) throw new Error('afs missing dcdn options')
 
     const {
+      did,
       dcdnOpts: {
         upload,
         download,
@@ -141,6 +143,7 @@ class FarmDCDN extends DCDN {
     } = afs
 
     if (!upload && !download) throw new Error('upload or download must be true')
+    debug('starting service for', did)
 
     // TODO: use Ara to Ara^-18
     const convertedPrice = etherToWei(price)
@@ -149,7 +152,7 @@ class FarmDCDN extends DCDN {
     let service
 
     if (download) {
-      let jobNonce = jobId || await this._getJobInProgress(afs.did) || crypto.randomBytes(32)
+      let jobNonce = jobId || await this._getJobInProgress(did) || crypto.randomBytes(32)
       if ('string' === typeof jobNonce) jobNonce = Buffer.from(jobNonce, 'hex')
 
       const requester = new messages.AraId()
@@ -163,29 +166,43 @@ class FarmDCDN extends DCDN {
 
       const matcher = new matchers.MaxCostMatcher(convertedPrice, maxPeers)
       service = new Requester(sow, matcher, this.user, afs)
-      service.once('jobready', async (job, did) => {
-        await pify(self.jobsInProgress.write)(job, did)
-      })
       service.once('jobcomplete', async (job) => {
         await pify(self.jobsInProgress.delete)(job)
         await self.unjoin(afs.dcdnOpts)
 
         /** This is to signify when all farmers have responded
             with receipts and it's safe to publish the afs * */
-        self.emit('requestcomplete', afs.did)
+        self.emit('requestcomplete', did)
       })
+
+      try {
+        const purchased = await hasPurchased({
+          contentDid: did,
+          purchaserDid: this.user.did
+        })
+  
+        if (!purchased){
+          throw new Error("User has not purchased content")
+        }
+        // TODO: only prepare job if download needed
+        await service.prepareJob()
+        await pify(self.jobsInProgress.write)(jobNonce, did)
+      } catch (err) {
+        debug(`failed to start broadcast for ${did}`, err)
+        return
+      }
     } else if (upload) {
       service = new Farmer(this.user, convertedPrice, afs)
     }
 
-    this.services[afs.did] = service
-    await service.startBroadcast()
+    this.services[did] = service
+    service.start()
   }
 
   _stopService(did) {
-    debug('stopping service for', did)
+    debug('Stopping service for', did)
     if (did in this.services) {
-      this.services[did].stopBroadcast()
+      this.services[did].stop()
       delete this.services[did]
     }
   }
@@ -197,7 +214,6 @@ class FarmDCDN extends DCDN {
    */
   async stop() {
     if (this.running) {
-      this.running = false
       const self = this
 
       const archives = this[$driveCreator].list()
@@ -207,6 +223,7 @@ class FarmDCDN extends DCDN {
         }
       })
       await pify(this[$driveCreator].disconnect)()
+      this.running = false
     }
   }
 
@@ -218,7 +235,7 @@ class FarmDCDN extends DCDN {
    * @param  {boolean} opts.download
    * @param  {float} opts.price Price to distribute AFS
    * @param  {int} opts.maxPeers
-   * @param  {String} opts.jobId
+   * @param  {String} [opts.jobId]
    * @return {null}
    */
   async join(opts) {
@@ -255,7 +272,13 @@ class FarmDCDN extends DCDN {
       
     try {
       await this._stopService(key)
-      await pify(this[$driveCreator].close)(key)
+      const archives = this[$driveCreator].list()
+      for (const archive of archives) {
+        if (key === archive.did){
+          await pify(this[$driveCreator].close)(key)
+          return
+        }
+      }
     } catch (err) {
       debug(err)
     }
@@ -265,16 +288,14 @@ class FarmDCDN extends DCDN {
     const { did } = opts
 
     debug(`initializing afs of did ${did}`)
-    let afs
-    let err = null
-    try {
-      ({ afs } = await createAFS({ did }))
-      afs.dcdnOpts = opts
-    } catch (e) {
-      err = e
-    }
 
-    done(err, afs)
+    try {
+      const { afs } = await createAFS({ did })
+      afs.dcdnOpts = opts
+      done (null, afs)
+    } catch (err) {
+      done (err, null)
+    }
   }
 }
 

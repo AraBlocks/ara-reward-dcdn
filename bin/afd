@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { initialize, start, getInstance } = require('../')
+const { start, getInstance } = require('../')
 const { getIdentifier } = require('ara-identity/did')
 const { info, error } = require('ara-console')
 const { basename } = require('path')
@@ -46,7 +46,7 @@ program.option('identity', {
   alias: 'i',
   type: 'string',
   required: true,
-
+  default: rc.network.identity.whoami,
   describe:
   `A valid, local, and resolvable Ara identity DID
   URI of the owner of the AFS. You will be
@@ -107,6 +107,9 @@ async function onstart(argv){
       password: password,
       userID: argv.identity,
     })
+
+    const dcdn = await getInstance()
+    attachDownloadVisualizer(dcdn)
   } catch (e) {
     error(`Error occurred with starting DCDN Node`, e)
     return process.exit(1)
@@ -149,25 +152,11 @@ async function ondownload(argv){
     })
 
     const dcdn = await getInstance()
-    attachDownloadVisualizer(did, dcdn)
+    attachDownloadVisualizer(dcdn)
     
   } catch (e) {
     error(`Error occurred while downloading ${did}`, e)
     return process.exit(1)
-  }
-
-  // Creates a progress visualizer bar in cli
-  function attachDownloadVisualizer(id, dcdn) {
-    const pBar = new clip.Bar({}, clip.Presets.shades_classic)
-    dcdn.on('start', (did, total) => {
-      if (id === did) pBar.start(total, 0)
-    })
-    dcdn.on('progress', (did, value) => {
-      if (id === did) pBar.update(value)
-    })
-    dcdn.on('complete', (did) => {
-      if (id === did) pBar.stop()
-    })
   }
 }
 
@@ -229,4 +218,28 @@ function onfatal(err) {
     error("fatal:", err.message)
   }
   process.exit(1)
+}
+
+// Creates a progress visualizer bar in cli
+function attachDownloadVisualizer(dcdn) {
+  const visualizers = new Map()
+  dcdn.on('start', (did, total) => {
+    if (visualizers.has(did)) return
+    info(`Download started for ${did}`)
+    const pBar = new clip.Bar({}, clip.Presets.shades_classic)
+    pBar.start(total, 0)
+    visualizers.set(did, pBar)
+  })
+  dcdn.on('progress', (did, value) => {
+    if (!visualizers.has(did)) return
+    const pBar = visualizers.get(did)
+    pBar.update(value)
+  })
+  dcdn.on('complete', (did) => {
+    if (!visualizers.has(did)) return
+    const pBar = visualizers.get(did)
+    pBar.stop()
+    info(`Download complete for ${did}`)
+    visualizers.delete(did)
+  })
 }
