@@ -15,10 +15,9 @@ const {
 const { submit, allocate, getBudget } = require('ara-contracts/rewards')
 const { Countdown } = require('./util')
 const { ethify } = require('ara-util/web3')
-const createHyperswarm = require('@hyperswarm/network')
+const { createSwarm } = require('ara-network/discovery')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
-const utp = require('utp-native')
 
 class Requester extends RequesterBase {
   /**
@@ -49,14 +48,8 @@ class Requester extends RequesterBase {
   start(){
     const self = this
 
-    const socket = utp()
-    socket.on('error', (error) => {
-      debug(error)
-      // TODO: what to do with utp errors?
-    })
-    
     // TODO: use single swarm with multiple topics
-    this.swarm = createHyperswarm({ socket })
+    this.swarm = createSwarm()
     this.swarm.on('connection', handleConnection)
     this.swarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: true, announce: false })
     debug('Requesting: ', this.afs.did)

@@ -11,10 +11,9 @@ const {
     bytesToGBs
   }
 } = require('ara-farming-protocol')
-const createHyperswarm = require('@hyperswarm/network')
+const { createSwarm } = require('ara-network/discovery')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:farmer')
-const utp = require('utp-native')
 
 class Farmer extends FarmerBase {
   /**
@@ -43,13 +42,7 @@ class Farmer extends FarmerBase {
   start(){
     const self = this
 
-    const socket = utp()
-    socket.on('error', (error) => {
-      debug(error)
-      // TODO: what to do with utp errors?
-    })
-    
-    this.swarm = createHyperswarm({ socket })
+    this.swarm = createSwarm()
     this.swarm.on('connection', handleConnection)
     this.swarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: false, announce: true })
     debug('Broadcasting: ', this.afs.did)
