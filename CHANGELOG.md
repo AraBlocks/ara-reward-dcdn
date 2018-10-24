@@ -1,3 +1,8 @@
+<a name="0.1.1"></a>
+## [0.1.1](https://github.com/littlstar/ara-network-node-dcdn-farm/compare/0.1.0...0.1.1) (2018-10-24)
+
+
+
 <a name="0.1.0"></a>
 # [0.1.0](https://github.com/littlstar/ara-network-node-dcdn-farm/compare/0.0.2...0.1.0) (2018-10-23)
 
