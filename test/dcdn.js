@@ -1,4 +1,7 @@
 const test = require('ava')
 
-test.todo('dcdn.startService')
-test.todo('dcdn.stopService')
+test.todo('dcdn.start')
+test.todo('dcdn.stop')
+test.todo('dcdn.join')
+test.todo('dcdn.unjoin')
+

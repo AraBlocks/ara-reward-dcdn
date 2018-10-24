@@ -1,8 +1,8 @@
 const extend = require('extend')
-const FarmDCDN = require('./src/dcdn')
+const dcdn = require('./src/dcdn')
 const rc = require('ara-runtime-configuration')()
 
-let dcdn
+let instance = null
 
 /**
  * Start broadcasting services for an ara-network node for DCDN
@@ -11,21 +11,14 @@ let dcdn
  * @return {Boolean}
  */
 
-async function start(argv) {
-  if (dcdn) return false
-  dcdn = new FarmDCDN(argv)
+async function start(argv = {}) {
+  if (!instance) instance = new dcdn(argv)
 
-  if (argv.did) {
-    await dcdn.join({
-      did: argv.did,
-      download: argv.download,
-      upload: argv.upload,
-      price: argv.price,
-      maxPeers: argv.maxPeers,
-      jobId: argv.jobId
-    })
+  const { did } = argv
+  if (did) {
+    await instance.join(argv)
   } else {
-    await dcdn.start()
+    await instance.start()
   }
   return true
 }
@@ -35,10 +28,16 @@ async function start(argv) {
  * @public
  * @return {null}
  */
-async function stop() {
-  if (!dcdn) return false
-  await dcdn.stop()
-  dcdn = null
+async function stop(argv = {}) {
+  if (!instance) return false
+
+  const { did } = argv
+  if (did) {
+    await instance.unjoin(argv)
+  } else {
+    await instance.stop()
+    instance = null
+  }
   return true
 }
 
@@ -110,11 +109,19 @@ async function configure(argv, program) {
  * @return {Object}
  */
 async function getInstance() {
-  return dcdn
+  return instance
+}
+
+/**
+ * Sets the DCDN object
+ */
+async function setInstance(obj) {
+  if (obj instanceof dcdn) instance = obj
 }
 
 module.exports = {
   getInstance,
+  setInstance,
   configure,
   start,
   stop
