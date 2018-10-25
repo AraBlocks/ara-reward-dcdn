@@ -49,7 +49,8 @@ class Farmer extends FarmerBase {
       // TODO: what to do with utp errors?
     })
     
-    this.swarm = createHyperswarm({ socket })
+    // TODO: use single swarm with multiple topics
+    this.swarm = createHyperswarm({ socket, domain: 'ara.local' })
     this.swarm.on('connection', handleConnection)
     this.swarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: false, announce: true })
     debug('Broadcasting: ', this.afs.did)

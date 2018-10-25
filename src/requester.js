@@ -56,8 +56,9 @@ class Requester extends RequesterBase {
     })
     
     // TODO: use single swarm with multiple topics
-    this.swarm = createHyperswarm({ socket })
+    this.swarm = createHyperswarm({ socket, domain: 'ara.local' })
     this.swarm.on('connection', handleConnection)
+
     this.swarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: true, announce: false })
     debug('Requesting: ', this.afs.did)
 
