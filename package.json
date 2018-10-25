@@ -1,5 +1,5 @@
 {
-  "name": "ara-network-node-dcdn-farm",
+  "name": "ara-farming-dcdn",
   "version": "0.1.1",
   "description": "An Ara Network node that runs a rewardable DCDN",
   "main": "index.js",
@@ -18,7 +18,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/littlstar/ara-network-node-dcdn-farm.git"
+    "url": "git+https://github.com/littlstar/ara-farming-dcdn.git"
   },
   "keywords": [
     "ara",
@@ -33,9 +33,9 @@
   ],
   "license": "LGPL-3.0",
   "bugs": {
-    "url": "https://github.com/littlstar/ara-network-node-dcdn-farm/issues"
+    "url": "https://github.com/littlstar/ara-farming-dcdn/issues"
   },
-  "homepage": "https://github.com/littlstar/ara-network-node-dcdn-farm#readme",
+  "homepage": "https://github.com/littlstar/ara-farming-dcdn#readme",
   "dependencies": {
     "@hyperswarm/discovery": "^1.1.0",
     "@hyperswarm/network": "^0.0.4",
