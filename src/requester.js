@@ -59,7 +59,7 @@ class Requester extends RequesterBase {
     this.swarm = createHyperswarm({ socket, domain: 'ara.local' })
     this.swarm.on('connection', handleConnection)
 
-    this.swarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: true, announce: false })
+    this.swarm.join(this.afs.discoveryKey, { lookup: true, announce: false })
     debug('Requesting: ', this.afs.did)
 
     function handleConnection(socket, details) {
@@ -72,7 +72,7 @@ class Requester extends RequesterBase {
 
   stop(){
     if (this.swarm) {
-      this.swarm.leave(Buffer.from(this.afs.did, 'hex'))
+      this.swarm.leave(this.afs.discoveryKey)
       this.swarm.discovery.destroy()
       this.swarm = null
     }
