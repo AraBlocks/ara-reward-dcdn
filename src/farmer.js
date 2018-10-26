@@ -52,8 +52,8 @@ class Farmer extends FarmerBase {
     // TODO: use single swarm with multiple topics
     this.swarm = createHyperswarm({ socket, domain: 'ara.local' })
     this.swarm.on('connection', handleConnection)
-    this.swarm.join(Buffer.from(this.afs.did, 'hex'), { lookup: false, announce: true })
-    debug('Broadcasting: ', this.afs.did)
+    this.swarm.join(this.afs.discoveryKey, { lookup: false, announce: true })
+    debug('Seeding: ', this.afs.did)
 
     function handleConnection(socket, details) {
       const peer = details.peer || {}
@@ -64,7 +64,7 @@ class Farmer extends FarmerBase {
   }
 
   stop(){
-    if (this.swarm) this.swarm.leave(Buffer.from(this.afs.did, 'hex'))
+    if (this.swarm) this.swarm.leave(this.afs.discoveryKey)
   }
 
   /**
