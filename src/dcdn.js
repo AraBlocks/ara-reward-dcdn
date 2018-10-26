@@ -168,22 +168,20 @@ class FarmDCDN extends DCDN {
       service = new Requester(sow, matcher, this.user, afs)
       service.once('jobcomplete', async (job) => {
         await pify(self.jobsInProgress.delete)(job)
-        await self.unjoin(afs.dcdnOpts)
+        await self.unjoin(dcdnOpts)
 
         /** This is to signify when all farmers have responded
             with receipts and it's safe to publish the afs * */
         self.emit('requestcomplete', did)
+
+        // If both upload and download are true, then will immediately start seeding
+        if (upload) {
+          dcdnOpts.download = false
+          self.join(dcdnOpts)
+        }
       })
 
       try {
-        const purchased = await hasPurchased({
-          contentDid: did,
-          purchaserDid: this.user.did
-        })
-  
-        if (!purchased){
-          throw new Error("User has not purchased content")
-        }
         // TODO: only prepare job if download needed
         await service.prepareJob()
         await pify(self.jobsInProgress.write)(jobNonce, did)
@@ -239,10 +237,6 @@ class FarmDCDN extends DCDN {
    * @return {null}
    */
   async join(opts) {
-    if (opts.upload && opts.download) {
-      throw new Error('both upload and download cannot be true')
-    }
-
     opts.key = getIdentifier(opts.did)
 
     await this.unjoin(opts)
