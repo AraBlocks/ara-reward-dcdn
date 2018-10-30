@@ -1,5 +1,5 @@
 const extend = require('extend')
-const dcdn = require('./src/dcdn')
+const DCDN = require('./src/dcdn')
 const rc = require('ara-runtime-configuration')()
 
 let instance = null
@@ -12,7 +12,7 @@ let instance = null
  */
 
 async function start(argv = {}) {
-  if (!instance) instance = new dcdn(argv)
+  if (!instance) instance = new DCDN(argv)
 
   const { did } = argv
   if (did) {
@@ -116,7 +116,7 @@ async function getInstance() {
  * Sets the DCDN object
  */
 async function setInstance(obj) {
-  if (obj instanceof dcdn) instance = obj
+  if (obj instanceof DCDN) instance = obj
 }
 
 module.exports = {

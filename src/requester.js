@@ -14,7 +14,7 @@ const {
 
 const { submit, allocate, getBudget } = require('ara-contracts/rewards')
 const { Countdown } = require('./util')
-const { ethify } = require('ara-util/web3')
+const { toHexString } = require('ara-util/transform')
 const createHyperswarm = require('@hyperswarm/network')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
@@ -46,7 +46,7 @@ class Requester extends RequesterBase {
     this._attachListeners()
   }
 
-  start(){
+  start() {
     const self = this
 
     const socket = utp()
@@ -54,7 +54,7 @@ class Requester extends RequesterBase {
       debug(error)
       // TODO: what to do with utp errors?
     })
-    
+
     // TODO: use single swarm with multiple topics
     this.swarm = createHyperswarm({ socket, domain: 'ara.local' })
     this.swarm.on('connection', handleConnection)
@@ -70,7 +70,7 @@ class Requester extends RequesterBase {
     }
   }
 
-  stop(){
+  stop() {
     if (this.swarm) {
       this.swarm.leave(this.afs.discoveryKey)
       this.swarm.discovery.destroy()
@@ -105,8 +105,8 @@ class Requester extends RequesterBase {
           /**
            * Unpipe the streams attached to the farmer
            * sockets and resume AFP communication
-           **/ 
-          self.hiredFarmers.forEach((value, key) => {
+           * */
+          self.hiredFarmers.forEach((value) => {
             const { connection, stream } = value
             connection.stream.unpipe()
             stream.destroy()
@@ -114,7 +114,7 @@ class Requester extends RequesterBase {
             connection.stream.on('data', connection.onData.bind(connection))
             connection.stream.resume()
           })
-  
+
           self.stop()
           // TODO: store rewards to send later
           self.sendRewards()
@@ -130,10 +130,10 @@ class Requester extends RequesterBase {
     const budget = weiToEther(self.matcher.maxCost)
 
     debug(`Budgetting ${budget} Ara for AFS ${self.afs.did}`)
-    const jobId = nonceString(self.sow)
+    const jobId = toHexString(nonceString(self.sow), { ethify: true })
     let currentBudget = 0
     try {
-      currentBudget = await getBudget({ contentDid: self.afs.did, jobId: ethify(jobId) })
+      currentBudget = await getBudget({ contentDid: self.afs.did, jobId })
     } catch (err) {
       debug('prepareJob:', err)
       currentBudget = 0
@@ -148,7 +148,7 @@ class Requester extends RequesterBase {
         password: self.user.password,
         contentDid: self.afs.did,
         job: {
-          jobId: ethify(jobId),
+          jobId,
           budget: diff
         }
       })
@@ -222,7 +222,7 @@ class Requester extends RequesterBase {
     const farmers = []
     const rewards = []
     const rewardMap = new Map()
-    const jobId = nonceString(self.sow)
+    const jobId = toHexString(nonceString(self.sow), { ethify: true })
 
     // Format rewards for contract
     this.receiptCountdown = new Countdown(this.deliveryMap.size, () => {
@@ -263,7 +263,7 @@ class Requester extends RequesterBase {
         password: self.user.password,
         contentDid: self.afs.did,
         job: {
-          jobId: ethify(jobId),
+          jobId,
           farmers,
           rewards
         }
