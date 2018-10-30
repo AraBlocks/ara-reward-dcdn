@@ -21,7 +21,7 @@ test('index.setInstance', async (t) => {
 test('index.start', async (t) => {
   await index.setInstance(inst)
 
-  t.true(await index.start({did: 'test'}))
+  t.true(await index.start({ did: 'test' }))
   t.true(inst.join.calledOnce)
 
   t.true(await index.start())
@@ -31,7 +31,7 @@ test('index.start', async (t) => {
 test('index.stop', async (t) => {
   await index.setInstance(inst)
 
-  t.true(await index.stop({did: 'test'}))
+  t.true(await index.stop({ did: 'test' }))
   t.true(inst.unjoin.calledOnce)
 
   t.true(await index.stop())

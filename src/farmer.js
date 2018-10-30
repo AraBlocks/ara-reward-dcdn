@@ -40,7 +40,7 @@ class Farmer extends FarmerBase {
     this.farmerSig.setData('avalidsignature')
   }
 
-  start(){
+  start() {
     const self = this
 
     const socket = utp()
@@ -48,7 +48,7 @@ class Farmer extends FarmerBase {
       debug(error)
       // TODO: what to do with utp errors?
     })
-    
+
     // TODO: use single swarm with multiple topics
     this.swarm = createHyperswarm({ socket, domain: 'ara.local' })
     this.swarm.on('connection', handleConnection)
@@ -63,7 +63,7 @@ class Farmer extends FarmerBase {
     }
   }
 
-  stop(){
+  stop() {
     if (this.swarm) this.swarm.leave(this.afs.discoveryKey)
   }
 
@@ -163,11 +163,11 @@ class Farmer extends FarmerBase {
     })
 
     stream.on('end', () => finish())
-    stream.on('error', (error) => finish(error))
+    stream.on('error', error => finish(error))
 
     connection.stream.pipe(stream).pipe(connection.stream, { end: false })
 
-    function finish(error){
+    function finish(error) {
       connection.stream.unpipe()
       stream.destroy()
 
