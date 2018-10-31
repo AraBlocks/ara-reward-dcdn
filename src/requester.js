@@ -7,12 +7,20 @@ const {
   },
   util: {
     idify,
-    nonceString,
-    weiToEther
+    nonceString
   }
 } = require('ara-farming-protocol')
 
-const { submit, allocate, getBudget } = require('ara-contracts/rewards')
+const {
+  token: {
+    constrainTokenValue
+  },
+  rewards: {
+    submit,
+    allocate,
+    getBudget
+  }
+} = require('ara-contracts')
 const { Countdown } = require('./util')
 const { toHexString } = require('ara-util/transform')
 const createHyperswarm = require('@hyperswarm/network')
@@ -60,12 +68,12 @@ class Requester extends RequesterBase {
     this.swarm.on('connection', handleConnection)
 
     this.swarm.join(this.afs.discoveryKey, { lookup: true, announce: false })
-    debug('Requesting: ', this.afs.did)
+    debug('Requesting:', this.afs.did)
 
-    function handleConnection(socket, details) {
+    function handleConnection(connection, details) {
       const peer = details.peer || {}
       debug('onconnection:', idify(peer.host, peer.port))
-      const farmerConnection = new FarmerConnection(peer, socket, { timeout: 6000 })
+      const farmerConnection = new FarmerConnection(peer, connection, { timeout: 6000 })
       process.nextTick(() => self.addFarmer(farmerConnection))
     }
   }
@@ -126,8 +134,7 @@ class Requester extends RequesterBase {
   // Retrieve or Submit the job to the blockchain
   async prepareJob() {
     const self = this
-    // TODO: use Ara rather than ether conversion
-    const budget = weiToEther(self.matcher.maxCost)
+    const budget = Number(constrainTokenValue(self.matcher.maxCost.toString()))
 
     debug(`Budgetting ${budget} Ara for AFS ${self.afs.did}`)
     const jobId = toHexString(nonceString(self.sow), { ethify: true })
@@ -242,8 +249,7 @@ class Requester extends RequesterBase {
       const units = value / total
       const reward = this.generateReward(peerId, units)
       const userId = reward.getAgreement().getQuote().getFarmer().getDid()
-      // TODO: use Ara
-      const amount = weiToEther(reward.getAmount())
+      const amount = Number(constrainTokenValue(reward.getAmount().toString()))
 
       if (amount > 0) {
         farmers.push(userId)

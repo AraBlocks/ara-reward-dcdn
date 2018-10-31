@@ -5,7 +5,7 @@ const dcdn = require('../src/dcdn')
 
 const inst = sinon.createStubInstance(dcdn)
 
-test.beforeEach(async (t) => {
+test.beforeEach(async () => {
   await index.setInstance(null)
 })
 

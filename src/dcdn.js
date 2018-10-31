@@ -1,8 +1,9 @@
-const { messages, matchers, util: { etherToWei } } = require('ara-farming-protocol')
+const { token: { expandTokenValue } } = require('ara-contracts')
+const { messages, matchers } = require('ara-farming-protocol')
 const { create: createAFS } = require('ara-filesystem')
+const { getIdentifier } = require('ara-util')
 const { Requester } = require('./requester.js')
 const { toBuffer } = require('ara-util/transform')
-const { getIdentifier } = require('ara-util')
 const { Farmer } = require('./farmer.js')
 const EventEmitter = require('events')
 const multidrive = require('multidrive')
@@ -25,7 +26,7 @@ class FarmDCDN extends EventEmitter {
    */
   constructor(opts = {}) {
     super()
-    
+
     if (!opts.userID) {
       throw new Error('FarmDCDN requires User Identity')
     }
@@ -146,8 +147,7 @@ class FarmDCDN extends EventEmitter {
     if (!upload && !download) throw new Error('upload or download must be true')
     debug('starting service for', did)
 
-    // TODO: use Ara to Ara^-18
-    const convertedPrice = etherToWei(price)
+    const convertedPrice = Number(expandTokenValue(price.toString()))
 
     this._attachListeners(afs)
     let service
@@ -268,12 +268,8 @@ class FarmDCDN extends EventEmitter {
     try {
       await this._stopService(key)
       const archives = this[$driveCreator].list()
-      for (const archive of archives) {
-        if (key === archive.did) {
-          await pify(this[$driveCreator].close)(key)
-          return
-        }
-      }
+      if (-1 === archives.findIndex(archive => key === archive.did)) return
+      await pify(this[$driveCreator].close)(key)
     } catch (err) {
       debug(err)
     }
