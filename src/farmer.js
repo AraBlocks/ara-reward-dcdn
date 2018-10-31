@@ -55,10 +55,10 @@ class Farmer extends FarmerBase {
     this.swarm.join(this.afs.discoveryKey, { lookup: false, announce: true })
     debug('Seeding: ', this.afs.did)
 
-    function handleConnection(socket, details) {
+    function handleConnection(connection, details) {
       const peer = details.peer || {}
       debug('onconnection:', idify(peer.host, peer.port))
-      const requesterConnection = new RequesterConnection(peer, socket, { timeout: 6000 })
+      const requesterConnection = new RequesterConnection(peer, connection, { timeout: 6000 })
       self.addRequester(requesterConnection)
     }
   }
