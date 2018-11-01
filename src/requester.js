@@ -21,12 +21,13 @@ const {
     getBudget
   }
 } = require('ara-contracts')
-const { Countdown } = require('./util')
+const { Countdown, sign, verify } = require('./util')
 const { toHexString } = require('ara-util/transform')
 const createHyperswarm = require('@hyperswarm/network')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
 const utp = require('utp-native')
+const { sign, verify } = require('./utils')
 
 class Requester extends RequesterBase {
   /**
@@ -39,22 +40,25 @@ class Requester extends RequesterBase {
     super(sow, matcher)
     this.hiredFarmers = new Map()
     this.deliveryMap = new Map()
-    this.user = user
 
+    this.user = user
     this.userID = new messages.AraId()
     this.userID.setDid(user.did)
-
-    // TODO: actually sign data
-    this.requesterSig = new messages.Signature()
-    this.requesterSig.setAraId(this.userID)
-    this.requesterSig.setData('avalidsignature')
 
     this.swarm = null
     this.afs = afs
     this._attachListeners()
   }
 
-  start() {
+  async getSignature() {
+    const signature = await sign(this.user)
+    farmerSig = new messages.Signature()
+    farmerSig.setAraId(this.userID)
+    farmerSig.setData(signature)
+    return farmerSig
+  }
+
+  start(){
     const self = this
 
     const socket = utp()
@@ -170,16 +174,17 @@ class Requester extends RequesterBase {
   }
 
   async generateAgreement(quote) {
+    const signature = await getSignature()
     const agreement = new messages.Agreement()
     agreement.setNonce(crypto.randomBytes(32))
     agreement.setQuote(quote)
-    agreement.setRequesterSignature(this.requesterSig)
+    agreement.setRequesterSignature(signature)
     return agreement
   }
 
   async validateAgreement(agreement) {
-    if (agreement) return true
-    return false
+    const farmerSignature = agreement.getFarmerSignature()
+    return verify(farmerSignature)
   }
 
   async onHireConfirmed(agreement, connection) {

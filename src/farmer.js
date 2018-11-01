@@ -15,6 +15,7 @@ const createHyperswarm = require('@hyperswarm/network')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:farmer')
 const utp = require('utp-native')
+const { sign, verify } = require('./utils')
 
 class Farmer extends FarmerBase {
   /**
@@ -33,11 +34,14 @@ class Farmer extends FarmerBase {
     this.user = user
     this.farmerID = new messages.AraId()
     this.farmerID.setDid(user.did)
+  }
 
-    // TODO: actually sign data
-    this.farmerSig = new messages.Signature()
-    this.farmerSig.setAraId(this.farmerID)
-    this.farmerSig.setData('avalidsignature')
+  async getSignature() {
+    const signature = await sign(this.user)
+    farmerSig = new messages.Signature()
+    farmerSig.setAraId(this.farmerID)
+    farmerSig.setData(signature)
+    return farmerSig
   }
 
   start() {
@@ -87,9 +91,10 @@ class Farmer extends FarmerBase {
    * @returns {boolean}
    */
   async validateAgreement(agreement) {
-    // TODO: check that data is signed by requester
+    const requesterSignature = agreement.getRequesterSignature()
+    const verified = verify(requesterSignature)
     const quote = agreement.getQuote()
-    return quote.getPerUnitCost() == this.price
+    return (quote.getPerUnitCost() == this.price) && verified
   }
 
   /**
@@ -98,8 +103,8 @@ class Farmer extends FarmerBase {
    * @returns {messages.Agreement}
    */
   async signAgreement(agreement) {
-    // TODO sign data
-    agreement.setFarmerSignature(this.farmerSig)
+    const signature = await getSignature()
+    agreement.setFarmerSignature(signature)
     return agreement
   }
 
@@ -136,10 +141,11 @@ class Farmer extends FarmerBase {
   async generateReceipt(reward) {
     const sowId = nonceString(reward.getAgreement().getQuote().getSow())
     debug(`Uploaded ${bytesToGBs(this.deliveryMap.get(sowId))} Gbs for job ${sowId}`)
+    const signature = await getSignature()
     const receipt = new messages.Receipt()
     receipt.setNonce(crypto.randomBytes(32))
     receipt.setReward(reward)
-    receipt.setFarmerSignature(this.farmerSig)
+    receipt.setFarmerSignature(signature)
     return receipt
   }
 
