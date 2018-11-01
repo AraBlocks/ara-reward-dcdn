@@ -6,12 +6,16 @@ const DCDN_DIR = 'dcdn'
 const DEFAULT_CONFIG_STORE = 'store.json'
 const DEFAULT_JOB_STORE = 'jobs.json'
 
-const defaults = () => ({
-  dcdn: {
-    root: resolve(rc().data.root, DCDN_DIR),
-    config: resolve(rc().data.root, DCDN_DIR, DEFAULT_CONFIG_STORE),
-    jobs: resolve(rc().data.root, DCDN_DIR, DEFAULT_JOB_STORE)
+const defaults = (base) => {
+  return {
+    network: {
+      dcdn: {
+        root: resolve(base.data.root, DCDN_DIR),
+        config: resolve(base.data.root, DCDN_DIR, DEFAULT_CONFIG_STORE),
+        jobs: resolve(base.data.root, DCDN_DIR, DEFAULT_JOB_STORE)
+      }
+    }
   }
-})
+}
 
-module.exports = conf => rc(extend(true, {}, defaults(), conf))
+module.exports = conf => rc((base) => extend(true, defaults(base), conf))
