@@ -1,33 +1,43 @@
-const crypto = require('ara-crypto')
-const rc = require('ara-runtime-configuration')()
-const { resolve } = require('path')
-const { DID } = require('did-uri')
-const pify = require('pify')
+/* eslint class-methods-use-this: 1 */
+const { messages } = require('ara-farming-protocol')
 const { readFile } = require('fs')
+const { resolve } = require('path')
+const crypto = require('ara-crypto')
+const pify = require('pify')
+const rc = require('ara-runtime-configuration')()
 const ss = require('ara-secret-storage')
 
+class User {
+  constructor(did, password) {
+    this.did = did
+    this.password = password
+    this.secretKey = null
+  }
 
-async function sign(user) {
-  const did = new DID(user.did)
-  const password = crypto.blake2b(Buffer.from(user.pass))
-  const publicKey = Buffer.from(did.identifier, 'hex')
-  const hash = crypto.blake2b(publicKey).toString('hex')
-  const path = resolve(rc.network.identity.root, hash, 'keystore/ara')
-  const keystore = JSON.parse(await pify(readFile)(path, 'utf8'))
-  const secretKey = ss.decrypt(keystore, { key: password.slice(0, 16) })
-  const message = Buffer.from(user.did)
-  return crypto.sign(message, secretKey)
-}
+  async loadKey() {
+    const password = crypto.blake2b(Buffer.from(this.password))
+    const publicKey = Buffer.from(this.did, 'hex')
+    const hash = crypto.blake2b(publicKey).toString('hex')
+    const path = resolve(rc.network.identity.root, hash, 'keystore/ara')
+    const keystore = JSON.parse(await pify(readFile)(path, 'utf8'))
+    this.secretKey = ss.decrypt(keystore, { key: password.slice(0, 16) })
+  }
 
-function verify(signature) {
-  const signatureData = Buffer.from(signature.getData())
-  const signatureDid = 'did:ara:' + signature.getAraId().getDid()
+  sign(message) {
+    if (!this.secretKey) throw new Error('secretKey is null')
+    const signature = crypto.sign(message, this.secretKey)
+    const userSig = new messages.Signature()
+    userSig.setDid(this.did)
+    userSig.setData(signature)
+    return userSig
+  }
 
-  const did = new DID(signatureDid)
-  const publicKey = Buffer.from(did.identifier, 'hex')
-  const message = Buffer.from(signatureDid)
-
-  return crypto.verify(signatureData, message, publicKey)
+  verify(message, data) {
+    const signedData = Buffer.from(message.getSignature().getData())
+    const signedDid = message.getSignature().getDid()
+    const publicKey = Buffer.from(signedDid, 'hex')
+    return crypto.verify(signedData, data, publicKey)
+  }
 }
 
 class Countdown {
@@ -46,6 +56,5 @@ class Countdown {
 
 module.exports = {
   Countdown,
-  sign,
-  verify
+  User
 }

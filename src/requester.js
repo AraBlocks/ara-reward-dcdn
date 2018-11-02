@@ -21,13 +21,12 @@ const {
     getBudget
   }
 } = require('ara-contracts')
-const { Countdown, sign, verify } = require('./util')
+const { Countdown } = require('./util')
 const { toHexString } = require('ara-util/transform')
 const createHyperswarm = require('@hyperswarm/network')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
 const utp = require('utp-native')
-const { sign, verify } = require('./utils')
 
 class Requester extends RequesterBase {
   /**
@@ -40,27 +39,15 @@ class Requester extends RequesterBase {
     super(sow, matcher)
     this.hiredFarmers = new Map()
     this.deliveryMap = new Map()
-
+    this.stateMap = new Map()
     this.user = user
-    this.userID = new messages.AraId()
-    this.userID.setDid(user.did)
-
     this.swarm = null
     this.afs = afs
     this._attachListeners()
   }
 
-  async getSignature() {
-    const signature = await sign(this.user)
-    farmerSig = new messages.Signature()
-    farmerSig.setAraId(this.userID)
-    farmerSig.setData(signature)
-    return farmerSig
-  }
-
-  start(){
+  start() {
     const self = this
-
     const socket = utp()
     socket.on('error', (error) => {
       debug(error)
@@ -167,28 +154,48 @@ class Requester extends RequesterBase {
     }
   }
 
+  /**
+   * Returns whether a quote is valid
+   * @param {messages.Quote} quote
+   * @returns {boolean}
+   */
   async validateQuote(quote) {
-    // TODO: Validate DID
-    if (quote) return true
-    return false
+    const data = Buffer.from(this.sow.serializeBinary())
+    return this.user.verify(quote, data)
   }
 
+  /**
+   * Returns an agreement given a quote.
+   * @param {messages.Quote} quote
+   * @returns {messages.Agreement}
+   */
   async generateAgreement(quote) {
-    const signature = await getSignature()
+    const quoteData = Buffer.from(quote.serializeBinary())
+    const signature = this.user.sign(quoteData)
     const agreement = new messages.Agreement()
     agreement.setNonce(crypto.randomBytes(32))
     agreement.setQuote(quote)
-    agreement.setRequesterSignature(signature)
+    agreement.setSignature(signature)
+
+    const nonce = nonceString(agreement)
+    this.stateMap.set(nonce, Buffer.from(agreement.serializeBinary()))
     return agreement
   }
 
+  /**
+   * Returns whether an agreement is valid
+   * @param {messages.Agreement} agreement
+   * @returns {boolean}
+   */
   async validateAgreement(agreement) {
-    const farmerSignature = agreement.getFarmerSignature()
-    return verify(farmerSignature)
+    const nonce = nonceString(agreement)
+    const data = this.stateMap.get(nonce)
+    return this.user.verify(agreement, data)
   }
 
   async onHireConfirmed(agreement, connection) {
     // TODO: put this somewhere internal to connection
+
     connection.stream.removeAllListeners('data')
 
     const { peerId } = connection
@@ -208,7 +215,7 @@ class Requester extends RequesterBase {
     this.hiredFarmers.set(peerId, { connection, agreement, stream })
 
     // Start work
-    debug(`Piping stream with ${agreement.getQuote().getFarmer().getDid()} from ${peerId}`)
+    debug(`Piping stream with ${agreement.getQuote().getSignature().getDid()} from ${peerId}`)
     connection.stream.pipe(stream).pipe(connection.stream, { end: false })
   }
 
@@ -253,7 +260,7 @@ class Requester extends RequesterBase {
       const peerId = key
       const units = value / total
       const reward = this.generateReward(peerId, units)
-      const userId = reward.getAgreement().getQuote().getFarmer().getDid()
+      const userId = reward.getAgreement().getQuote().getSignature().getDid()
       const amount = Number(constrainTokenValue(reward.getAmount().toString()))
 
       if (amount > 0) {
@@ -294,10 +301,17 @@ class Requester extends RequesterBase {
     const { agreement } = this.hiredFarmers.get(peerId)
     const quote = agreement.getQuote()
     const amount = Math.floor(quote.getPerUnitCost() * units)
+    const agreementData = Buffer.from(agreement.serializeBinary())
+    const signature = this.user.sign(agreementData)
+
     const reward = new messages.Reward()
     reward.setNonce(crypto.randomBytes(32))
     reward.setAgreement(agreement)
     reward.setAmount(amount)
+    reward.setSignature(signature)
+
+    const nonce = nonceString(reward)
+    this.stateMap.set(nonce, Buffer.from(reward.serializeBinary()))
     return reward
   }
 }

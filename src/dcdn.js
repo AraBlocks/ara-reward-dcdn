@@ -13,6 +13,7 @@ const mkdirp = require('mkdirp')
 const debug = require('debug')('afd')
 const pify = require('pify')
 const rc = require('./rc')()
+const { User } = require('./util')
 const { resolve } = require('path')
 
 const $driveCreator = Symbol('driveCreator')
@@ -36,10 +37,7 @@ class FarmDCDN extends EventEmitter {
     }
 
     this.services = {}
-    this.user = {
-      did: getIdentifier(opts.userID),
-      password: opts.password
-    }
+    this.user = new User(getIdentifier(opts.userID), opts.password)
     this.running = false
 
     this.root = resolve(rc.network.dcdn.root, this.user.did)
@@ -71,8 +69,10 @@ class FarmDCDN extends EventEmitter {
    */
   async start() {
     const self = this
+
     if (!this.running) {
       this.running = true
+      if (!this.user.secretKey) await this.user.loadKey()
       if (!this[$driveCreator]) await this._loadDrive()
 
       const archives = this[$driveCreator].list()
@@ -163,14 +163,14 @@ class FarmDCDN extends EventEmitter {
       let jobNonce = jobId || await this._getJobInProgress(did) || crypto.randomBytes(32)
       if ('string' === typeof jobNonce) jobNonce = toBuffer(jobNonce, 'hex')
 
-      const requester = new messages.AraId()
-      requester.setDid(this.user.did)
+      const signature = new messages.Signature()
+      signature.setDid(this.user.did)
 
       const sow = new messages.SOW()
       sow.setNonce(jobNonce)
       sow.setWorkUnit('AFS')
       sow.setCurrencyUnit('Ara^-18')
-      sow.setRequester(requester)
+      sow.setSignature(signature)
 
       const matcher = new matchers.MaxCostMatcher(convertedPrice, maxPeers)
       service = new Requester(sow, matcher, this.user, afs)
