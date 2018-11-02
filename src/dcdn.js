@@ -41,14 +41,14 @@ class FarmDCDN extends EventEmitter {
 
   async _loadDrive() {
     // Create root
-    await pify(mkdirp)(rc.dcdn.root)
+    await pify(mkdirp)(rc.network.dcdn.root)
 
     // Create jobs
-    this.jobsInProgress = toilet(rc.dcdn.jobs)
+    this.jobsInProgress = toilet(rc.network.dcdn.jobs)
     await pify(this.jobsInProgress.open)()
 
     // Create config
-    const store = toilet(rc.dcdn.config)
+    const store = toilet(rc.network.dcdn.config)
     this[$driveCreator] = await pify(multidrive)(
       store,
       FarmDCDN._createAFS,
@@ -63,7 +63,6 @@ class FarmDCDN extends EventEmitter {
    */
   async start() {
     const self = this
-
     if (!this.running) {
       this.running = true
       if (!this[$driveCreator]) await this._loadDrive()
@@ -191,6 +190,7 @@ class FarmDCDN extends EventEmitter {
         return
       }
     } else if (upload) {
+      console.log('uploading:', this.user, convertedPrice, afs.did)
       service = new Farmer(this.user, convertedPrice, afs)
     }
 
@@ -238,18 +238,23 @@ class FarmDCDN extends EventEmitter {
    * @return {null}
    */
   async join(opts) {
-    opts.key = getIdentifier(opts.did)
+    if (!opts || 'object' != typeof opts) {
+      throw new TypeError('Expecting `opts` to be an object')
+    }
+    opts.key = opts.key || getIdentifier(opts.did)
 
     await this.unjoin(opts)
     const archive = await pify(this[$driveCreator].create)(opts)
-
+    
     if (this.running) {
       if (archive instanceof Error) {
         debug('failed to initialize archive with %j: %s', archive.data, archive.message)
         return
       }
+      console.log('joining')
       await this._startService(archive)
     } else {
+      console.log('starting')
       await this.start()
     }
   }
@@ -262,6 +267,10 @@ class FarmDCDN extends EventEmitter {
    * @return {null}
    */
   async unjoin(opts) {
+    if (!opts || 'object' != typeof opts) {
+      throw new TypeError('Expecting `opts` to be an object')
+    }
+
     const key = opts.key || getIdentifier(opts.did)
     if (!this[$driveCreator]) await this._loadDrive()
 
@@ -277,7 +286,6 @@ class FarmDCDN extends EventEmitter {
 
   static async _createAFS(opts, done) {
     const { did } = opts
-
     debug(`initializing afs of did ${did}`)
 
     try {
