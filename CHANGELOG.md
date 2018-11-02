@@ -59,6 +59,3 @@
 * **download:** added download visualizer ([5840174](https://github.com/littlstar/ara-farming-dcdn/commit/5840174))
 * **rc:** use rc to define job and config store ([331f645](https://github.com/littlstar/ara-farming-dcdn/commit/331f645))
 * **src:** added stopService ([0844928](https://github.com/littlstar/ara-farming-dcdn/commit/0844928))
-
-
-

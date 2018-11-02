@@ -11,11 +11,12 @@ const {
     bytesToGBs
   }
 } = require('ara-farming-protocol')
+
 const createHyperswarm = require('@hyperswarm/network')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:farmer')
 const utp = require('utp-native')
-const { sign, verify } = require('./utils')
+const { hasPurchased } = require('ara-contracts/library')
 
 class Farmer extends FarmerBase {
   /**
@@ -29,19 +30,9 @@ class Farmer extends FarmerBase {
     super()
     this.price = price
     this.deliveryMap = new Map()
+    this.stateMap = new Map()
     this.afs = afs
-
     this.user = user
-    this.farmerID = new messages.AraId()
-    this.farmerID.setDid(user.did)
-  }
-
-  async getSignature() {
-    const signature = await sign(this.user)
-    farmerSig = new messages.Signature()
-    farmerSig.setAraId(this.farmerID)
-    farmerSig.setData(signature)
-    return farmerSig
   }
 
   start() {
@@ -72,46 +63,64 @@ class Farmer extends FarmerBase {
   }
 
   /**
+   * Returns whether a SOW is valid.
+   * @param {messages.SOW} sow
+   * @returns {boolean}
+   */
+  async validateSow(sow) {
+    // TODO check topic
+    return true
+  }
+
+  /**
    * Returns a quote given an SOW.
    * @param {messages.SOW} sow
    * @returns {messages.Quote}
    */
   async generateQuote(sow) {
+    const sowData = Buffer.from(sow.serializeBinary())
+    const signature = this.user.sign(sowData)
     const quote = new messages.Quote()
     quote.setNonce(crypto.randomBytes(32))
-    quote.setFarmer(this.farmerID)
     quote.setPerUnitCost(this.price)
     quote.setSow(sow)
+    quote.setSignature(signature)
+
+    const nonce = nonceString(quote)
+    this.stateMap.set(nonce, Buffer.from(quote.serializeBinary()))
     return quote
   }
 
   /**
-   * Returns whether a agreement is valid
+   * Returns whether an agreement is valid
    * @param {messages.Agreement} agreement
    * @returns {boolean}
    */
   async validateAgreement(agreement) {
-    const requesterSignature = agreement.getRequesterSignature()
-    const verified = verify(requesterSignature)
-    const quote = agreement.getQuote()
-    return (quote.getPerUnitCost() == this.price) && verified
+    const purchased = await hasPurchased({
+      contentDid: this.afs.did,
+      purchaserDid: agreement.getSignature().getDid()
+    })
+
+    const nonce = nonceString(agreement.getQuote())
+    const data = this.stateMap.get(nonce)
+
+    return this.user.verify(agreement, data) && purchased
   }
 
   /**
-   * Sign and return a agreement
+   * Sign and return an agreement to the requester
    * @param {messages.Agreement} agreement
    * @returns {messages.Agreement}
    */
   async signAgreement(agreement) {
-    const signature = await getSignature()
-    agreement.setFarmerSignature(signature)
-    return agreement
-  }
+    const agreementData = Buffer.from(agreement.serializeBinary())
+    const signature = this.user.sign(agreementData)
+    agreement.setSignature(signature)
 
-  async validateSow(sow) {
-    // TODO: Validate DID
-    if (sow) return true
-    return false
+    const nonce = nonceString(agreement)
+    this.stateMap.set(nonce, Buffer.from(agreement.serializeBinary()))
+    return agreement
   }
 
   dataTransmitted(sowId, units) {
@@ -129,8 +138,10 @@ class Farmer extends FarmerBase {
    * @returns {boolean}
    */
   async validateReward(reward) {
-    if (reward) return true
-    return false
+    // TODO: need to compare expected and received reward
+    const nonce = nonceString(reward.getAgreement())
+    const data = this.stateMap.get(nonce)
+    return this.user.verify(reward, data)
   }
 
   /**
@@ -141,24 +152,27 @@ class Farmer extends FarmerBase {
   async generateReceipt(reward) {
     const sowId = nonceString(reward.getAgreement().getQuote().getSow())
     debug(`Uploaded ${bytesToGBs(this.deliveryMap.get(sowId))} Gbs for job ${sowId}`)
-    const signature = await getSignature()
+
+    const rewardData = Buffer.from(reward.serializeBinary())
+    const signature = this.user.sign(rewardData)
     const receipt = new messages.Receipt()
     receipt.setNonce(crypto.randomBytes(32))
     receipt.setReward(reward)
-    receipt.setFarmerSignature(signature)
+    receipt.setSignature(signature)
+
+    const nonce = nonceString(receipt)
+    this.stateMap.set(nonce, Buffer.from(receipt.serializeBinary()))
     return receipt
   }
 
   async onHireConfirmed(agreement, connection) {
     // TODO: put this somewhere internal to connection
     connection.stream.removeAllListeners('data')
-
     const self = this
     const sow = agreement.getQuote().getSow()
-    debug(`Replicating ${this.afs.did} with requester ${sow.getRequester().getDid()}`)
+    debug(`Replicating ${this.afs.did} with requester ${sow.getSignature().getDid()}`)
     const sowId = nonceString(sow)
     const { content } = this.afs.partitions.resolve(this.afs.HOME)
-
     content.on('upload', (_, data) => {
       self.dataTransmitted(sowId, data.length)
     })
