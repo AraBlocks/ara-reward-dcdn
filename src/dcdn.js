@@ -190,7 +190,6 @@ class FarmDCDN extends EventEmitter {
         return
       }
     } else if (upload) {
-      console.log('uploading:', this.user, convertedPrice, afs.did)
       service = new Farmer(this.user, convertedPrice, afs)
     }
 
@@ -251,10 +250,8 @@ class FarmDCDN extends EventEmitter {
         debug('failed to initialize archive with %j: %s', archive.data, archive.message)
         return
       }
-      console.log('joining')
       await this._startService(archive)
     } else {
-      console.log('starting')
       await this.start()
     }
   }

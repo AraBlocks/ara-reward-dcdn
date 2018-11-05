@@ -10,17 +10,10 @@ const rc = require('../src/rc')()
 const TEST_PASSWORD = 'abcd'
 
 let testUser = null
-let testAfsDid = null
-
-console.log(rc)
 
 test.before(async () => {
     testUser = await aid.create({ context, password: TEST_PASSWORD })
     await aid.util.writeIdentity(testUser)
-
-    const { afs: testAfs } = await afs.create({ owner: testUser.did.identifier, password: TEST_PASSWORD })
-    testAfsDid = testAfs.did
-    await testAfs.close()
 })
 
 test('dcdn.constructor', (t) => {
@@ -96,13 +89,15 @@ test('dcdn.join.invalid', async (t) => {
 })
 
 test('dcdn.unjoin', async (t) => {
+    const { afs: { did } } = await afs.create({ owner: testUser.did.identifier, password: TEST_PASSWORD })
+
     const dcdn = new DCDN({
         userID: testUser.did.identifier,
         password: TEST_PASSWORD
     })
 
     try {
-        await dcdn.unjoin({ did: testAfsDid })
+        await dcdn.unjoin({ did })
         t.pass()
     } catch (e) {
         t.fail()
@@ -111,27 +106,68 @@ test('dcdn.unjoin', async (t) => {
 
 
 test('dcdn.join.upload', async (t) => {
+    const { afs: { did } } = await afs.create({ owner: testUser.did.identifier, password: TEST_PASSWORD })
+
     const dcdn = new DCDN({
         userID: testUser.did.identifier,
         password: TEST_PASSWORD
     })
 
-
-
     await dcdn.join({
-        did: testAfsDid,
+        did,
         upload: true,
         download: false,
         price: 1,
         maxPeers: 1
     })
 
-    t.pass()
+    t.true(dcdn.running)
     await dcdn.stop()
-    // t.true(dcdn.running)
-    // await dcdn.stop()
-    // t.false(dcdn.running)
+    t.false(dcdn.running)
+    await dcdn.unjoin({ did })
 })
 
-test.todo('dcdn.join.uploadanddownload')
-test.todo('dcdn.join.download')
+test('dcdn.join.uploadanddownload', async (t) => {
+    const { afs: { did } } = await afs.create({ owner: testUser.did.identifier, password: TEST_PASSWORD })
+
+    const dcdn = new DCDN({
+        userID: testUser.did.identifier,
+        password: TEST_PASSWORD
+    })
+
+    await dcdn.join({
+        did,
+        upload: true,
+        download: true,
+        price: 1,
+        maxPeers: 1
+    })
+
+    t.true(dcdn.running)
+    await dcdn.stop()
+    t.false(dcdn.running)
+    await dcdn.unjoin({ did })
+})
+
+test('dcdn.join.download', async (t) => {
+    const { afs: { did } } = await afs.create({ owner: testUser.did.identifier, password: TEST_PASSWORD })
+
+    const dcdn = new DCDN({
+        userID: testUser.did.identifier,
+        password: TEST_PASSWORD
+    })
+
+    await dcdn.join({
+        did,
+        upload: false,
+        download: true,
+        price: 1,
+        maxPeers: 1
+    })
+
+    t.true(dcdn.running)
+    await dcdn.stop()
+    t.false(dcdn.running)
+    await dcdn.unjoin({ did })
+})
+
