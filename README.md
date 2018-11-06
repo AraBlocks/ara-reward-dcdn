@@ -25,7 +25,7 @@ $ npm install --save ara-farming-dcdn
 ### Start
 
 ```sh
-$ afd start
+$ afd start -i <userDID>
 ```
 
 ### Download
@@ -36,6 +36,11 @@ $ afd download -d <contentDID> -i <userDID>
 ### Seed
 ```sh
 $ afd seed -d <contentDID> -i <userDID>
+```
+
+### Metadata
+```sh
+$ afd metadata -d <contentDID> -i <userDID>
 ```
 
 ## API
@@ -62,6 +67,7 @@ Joins a hyperswarm for a given AFS and replicates for a reward. Adds the interes
   - `did` - The `DID` of the interested AFS
   - `upload` - Whether or not to upload
   - `download` - Whether or not to download
+  - `metaSync` - Whether or not to sync the metadata
   - `price` - The minimum cost required to replicate
   - `maxPeers` - The max peers desired for replication
   - `jobId` - *optional* The job ID to use for the download
