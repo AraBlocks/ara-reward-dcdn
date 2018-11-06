@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const { start, getInstance } = require('../')
-const { getIdentifier } = require('ara-identity/did')
+const { getIdentifier } = require('ara-util')
 const { info, error } = require('ara-console')
 const { basename } = require('path')
 const inquirer = require('inquirer')
