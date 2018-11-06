@@ -296,7 +296,7 @@ class FarmDCDN extends EventEmitter {
 
   static async _closeAFS(afs, done) {
     debug('closing afs')
-    afs.close()
+    if (afs) await afs.close()
     done()
   }
 }
