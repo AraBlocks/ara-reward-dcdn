@@ -29,6 +29,7 @@ class Farmer extends FarmerBase {
     this.price = price
     this.deliveryMap = new Map()
     this.afs = afs
+    this.swarm = null
 
     this.user = user
     this.farmerID = new messages.AraId()

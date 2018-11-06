@@ -5,6 +5,7 @@ const { getIdentifier } = require('ara-util')
 const { Requester } = require('./requester.js')
 const { toBuffer } = require('ara-util/transform')
 const { Farmer } = require('./farmer.js')
+const MetadataService = require('./metadata')
 const EventEmitter = require('events')
 const multidrive = require('multidrive')
 const crypto = require('ara-crypto')
@@ -36,6 +37,7 @@ class FarmDCDN extends EventEmitter {
     }
 
     this.services = {}
+
     this.user = {
       did: getIdentifier(opts.userID),
       password: opts.password
@@ -144,6 +146,7 @@ class FarmDCDN extends EventEmitter {
       dcdnOpts: {
         upload,
         download,
+        metaSync,
         price,
         maxPeers,
         jobId
@@ -151,10 +154,9 @@ class FarmDCDN extends EventEmitter {
       dcdnOpts
     } = afs
 
-    if (!upload && !download) throw new Error('upload or download must be true')
     debug('starting service for', did)
 
-    const convertedPrice = Number(expandTokenValue(price.toString()))
+    const convertedPrice = (price) ? Number(expandTokenValue(price.toString())) : 0
 
     this._attachListeners(afs)
     let service
@@ -201,15 +203,28 @@ class FarmDCDN extends EventEmitter {
       service = new Farmer(this.user, convertedPrice, afs)
     }
 
-    this.services[did] = service
-    service.start()
+    if (metaSync) {
+      const metaService = new MetadataService(afs)
+      this.services[afs.partitions.etc.discoveryKey] = metaService
+      metaService.start()
+    }
+
+    if (service) {
+      this.services[did] = service
+      service.start()
+    }
   }
 
-  _stopService(did) {
-    debug('Stopping service for', did)
-    if (did in this.services) {
-      this.services[did].stop()
-      delete this.services[did]
+  _stopService(afs) {
+    debug('Stopping service for', afs.did)
+    if (afs.partitions.etc.discoveryKey in this.services) {
+      this.services[afs.partitions.etc.discoveryKey].stop()
+      delete this.services[afs.partitions.etc.discoveryKey]
+    }
+
+    if (afs.did in this.services) {
+      this.services[afs.did].stop()
+      delete this.services[afs.did]
     }
   }
 
@@ -225,7 +240,7 @@ class FarmDCDN extends EventEmitter {
       const archives = this[$driveCreator].list()
       archives.forEach((archive) => {
         if (!(archive instanceof Error)) {
-          self._stopService(archive.did)
+          self._stopService(archive)
         }
       })
       await pify(this[$driveCreator].disconnect)()
@@ -239,6 +254,7 @@ class FarmDCDN extends EventEmitter {
    * @param  {String} opts.did
    * @param  {boolean} opts.upload
    * @param  {boolean} opts.download
+   * @param  {boolean} opts.metaSync
    * @param  {float} opts.price Price to distribute AFS
    * @param  {int} opts.maxPeers
    * @param  {String} [opts.jobId]
@@ -280,10 +296,12 @@ class FarmDCDN extends EventEmitter {
     if (!this[$driveCreator]) await this._loadDrive()
 
     try {
-      await this._stopService(key)
       const archives = this[$driveCreator].list()
-      if (-1 === archives.findIndex(archive => key === archive.did)) return
-      await pify(this[$driveCreator].close)(key)
+      const afs = archives.find(archive => key === archive.did)
+      if (afs) {
+        await this._stopService(afs)
+        await pify(this[$driveCreator].close)(key)
+      }
     } catch (err) {
       debug(err)
     }

@@ -80,6 +80,15 @@ program.command(
 )
 
 program.command(
+  'metadata',
+  'Sync metadata with the network',
+  // eslint-disable-next-line no-shadow
+  program => program
+    .usage('usage: $0 [-D] metadata [options]')
+  , onmetadata
+)
+
+program.command(
   'start',
   'Start the DCDN Node with the most recent configuration',
   // eslint-disable-next-line no-shadow
@@ -146,6 +155,7 @@ async function ondownload(argv) {
       did,
       download: true,
       upload: false,
+      metaSync: true,
       price: maxCost,
       maxPeers
     })
@@ -179,10 +189,29 @@ async function onseed(argv) {
       did,
       download: false,
       upload: true,
+      metaSync: true,
       price: farmingPrice,
     })
   } catch (e) {
     error(`Error occurred while seeding DID ${did}`, e)
+    process.exit(1)
+  }
+}
+
+async function onmetadata(argv) {
+  const did = getIdentifier(argv.did || await getDid())
+  info(`starting DCDN to sync metadata for ${did}`)
+
+  try {
+    await start({
+      userID: argv.identity,
+      did,
+      download: false,
+      upload: false,
+      metaSync: true
+    })
+  } catch (e) {
+    error(`Error occurred while syncing metadata ${did}`, e)
     process.exit(1)
   }
 }
