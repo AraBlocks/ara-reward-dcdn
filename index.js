@@ -16,7 +16,14 @@ async function start(argv = {}) {
 
   const { did } = argv
   if (did) {
-    await instance.join(argv)
+    await instance.join({
+      did: argv.did,
+      download: argv.download,
+      upload: argv.upload,
+      price: argv.price,
+      maxPeers: argv.maxPeers,
+      jobId: argv.jobId
+    })
   } else {
     await instance.start()
   }
@@ -33,7 +40,7 @@ async function stop(argv = {}) {
 
   const { did } = argv
   if (did) {
-    await instance.unjoin(argv)
+    await instance.unjoin({ did })
   } else {
     await instance.stop()
     instance = null
