@@ -32,6 +32,8 @@ class Farmer extends FarmerBase {
     this.deliveryMap = new Map()
     this.stateMap = new Map()
     this.afs = afs
+    this.swarm = null
+
     this.user = user
   }
 
