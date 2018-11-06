@@ -237,14 +237,14 @@ class FarmDCDN extends EventEmitter {
    * @return {null}
    */
   async join(opts) {
-    if (!opts || 'object' != typeof opts) {
+    if (!opts || 'object' !== typeof opts) {
       throw new TypeError('Expecting `opts` to be an object')
     }
     opts.key = opts.key || getIdentifier(opts.did)
 
     await this.unjoin(opts)
     const archive = await pify(this[$driveCreator].create)(opts)
-    
+
     if (this.running) {
       if (archive instanceof Error) {
         debug('failed to initialize archive with %j: %s', archive.data, archive.message)
@@ -264,7 +264,7 @@ class FarmDCDN extends EventEmitter {
    * @return {null}
    */
   async unjoin(opts) {
-    if (!opts || 'object' != typeof opts) {
+    if (!opts || 'object' !== typeof opts) {
       throw new TypeError('Expecting `opts` to be an object')
     }
 
