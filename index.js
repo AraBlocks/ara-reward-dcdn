@@ -20,6 +20,7 @@ async function start(argv = {}) {
       did: argv.did,
       download: argv.download,
       upload: argv.upload,
+      metaSync: argv.metaSync,
       price: argv.price,
       maxPeers: argv.maxPeers,
       jobId: argv.jobId
