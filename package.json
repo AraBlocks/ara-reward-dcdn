@@ -47,7 +47,6 @@
     "ara-farming-protocol": "arablocks/ara-farming-protocol#semver:0.1.x",
     "ara-filesystem": "arablocks/ara-filesystem#semver:0.5.x",
     "ara-identity": "arablocks/ara-identity#semver:0.30.x",
-    "ara-network": "arablocks/ara-network#semver:1.0.0-beta.4",
     "ara-runtime-configuration": "arablocks/ara-runtime-configuration#semver:1.1.x",
     "ara-secret-storage": "arablocks/ara-secret-storage#semver:0.1.x",
     "ara-util": "arablocks/ara-util#semver:0.7.x",
