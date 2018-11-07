@@ -1,5 +1,16 @@
-<a name="0.1.2"></a>
-## [0.1.2](https://github.com/littlstar/ara-farming-dcdn/compare/0.1.0...0.1.2) (2018-10-26)
+<a name="0.2.0"></a>
+# [0.2.0](https://github.com/littlstar/ara-farming-dcdn/compare/0.1.0...0.2.0) (2018-11-07)
+
+
+### Bug Fixes
+
+* **bin:** use new getIdentifiter ([278ef0e](https://github.com/littlstar/ara-farming-dcdn/commit/278ef0e))
+* **dcdn:** await close ([723bed3](https://github.com/littlstar/ara-farming-dcdn/commit/723bed3))
+
+
+### Features
+
+* **dcdn:** enable join with upload and download true ([a702c4b](https://github.com/littlstar/ara-farming-dcdn/commit/a702c4b))
 
 
 
