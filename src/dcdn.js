@@ -107,28 +107,26 @@ class FarmDCDN extends EventEmitter {
     } = afs
 
     if (download) {
-      attachContentListener(afs.partitions.home)
+      attachContentListener(afs.did, afs.partitions.home)
     }
 
     if (metaSync) {
-      attachContentListener(afs.partitions.etc)
+      attachContentListener(afs.partitions.etc.discoveryKey.toString('hex'), afs.partitions.etc)
     }
 
-    function attachContentListener(partition) {
+    function attachContentListener(key, partition) {
       const { content } = partition
       if (content) {
-        attachDownloadListener(content)
+        attachDownloadListener(key, content)
       } else {
         partition.once('content', () => {
-          attachDownloadListener(partition.content)
+          attachDownloadListener(key, partition.content)
         })
       }
     }
 
     // Emit download events
-    function attachDownloadListener(feed) {
-      const key = feed.key.toString('hex')
-
+    function attachDownloadListener(key, feed) {
       // Handle when download starts
       feed.once('download', () => {
         debug(`Download ${key} started...`)
@@ -192,7 +190,7 @@ class FarmDCDN extends EventEmitter {
         await self.unjoin(dcdnOpts)
 
         /** This is to signify when all farmers have responded
-            with receipts and it's safe to publish the afs * */
+            with receipts and it's safe to publish the afs **/
         self.emit('requestcomplete', did)
 
         // If both upload and download are true, then will immediately start seeding
