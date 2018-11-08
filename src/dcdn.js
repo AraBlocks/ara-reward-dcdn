@@ -13,6 +13,7 @@ const mkdirp = require('mkdirp')
 const debug = require('debug')('afd')
 const pify = require('pify')
 const rc = require('./rc')()
+const { resolve } = require('path')
 
 const $driveCreator = Symbol('driveCreator')
 
@@ -37,18 +38,22 @@ class FarmDCDN extends EventEmitter {
       password: opts.password
     }
     this.running = false
+
+    this.root = resolve(rc.network.dcdn.root, this.user.did)
+    this.jobs = resolve(rc.network.dcdn.root, this.user.did, 'jobs.json')
+    this.config = resolve(rc.network.dcdn.root, this.user.did, 'store.json')
   }
 
   async _loadDrive() {
     // Create root
-    await pify(mkdirp)(rc.network.dcdn.root)
+    await pify(mkdirp)(this.root)
 
     // Create jobs
-    this.jobsInProgress = toilet(rc.network.dcdn.jobs)
+    this.jobsInProgress = toilet(this.jobs)
     await pify(this.jobsInProgress.open)()
 
     // Create config
-    const store = toilet(rc.network.dcdn.config)
+    const store = toilet(this.config)
     this[$driveCreator] = await pify(multidrive)(
       store,
       FarmDCDN._createAFS,
