@@ -25,9 +25,14 @@ class FarmDCDN extends EventEmitter {
    * @param {String} opts.userID user DID
    * @return {Object}
    */
+
+
+
   constructor(opts = {}) {
     super()
-
+    const DEFAULT_CONFIG_STORE = 'store.json'
+    const DEFAULT_JOB_STORE = 'jobs.json'
+    
     if (!opts.userID) {
       throw new Error('FarmDCDN requires User Identity')
     }
@@ -40,8 +45,9 @@ class FarmDCDN extends EventEmitter {
     this.running = false
 
     this.root = resolve(rc.network.dcdn.root, this.user.did)
-    this.jobs = resolve(rc.network.dcdn.root, this.user.did, 'jobs.json')
-    this.config = resolve(rc.network.dcdn.root, this.user.did, 'store.json')
+    this.jobs = resolve(rc.network.dcdn.root, this.user.did, DEFAULT_CONFIG_STORE)
+    this.config = resolve(rc.network.dcdn.root, this.user.did, DEFAULT_JOB_STORE)
+    console.log(this.root, this.jobs, this.config);
   }
 
   async _loadDrive() {
