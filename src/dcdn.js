@@ -101,38 +101,49 @@ class FarmDCDN extends EventEmitter {
 
     const {
       dcdnOpts: {
-        download
+        download,
+        metaSync
       }
     } = afs
 
     if (download) {
-      const { content } = afs.partitions.resolve(afs.HOME)
+      attachContentListener(afs.partitions.home)
+    }
+
+    if (metaSync) {
+      attachContentListener(afs.partitions.etc)
+    }
+
+    function attachContentListener(partition) {
+      const { content } = partition
       if (content) {
         attachDownloadListener(content)
       } else {
-        afs.once('content', () => {
-          attachDownloadListener(afs.partitions.resolve(afs.HOME).content)
+        partition.once('content', () => {
+          attachDownloadListener(partition.content)
         })
       }
     }
 
     // Emit download events
     function attachDownloadListener(feed) {
+      const key = feed.key.toString('hex')
+
       // Handle when download starts
       feed.once('download', () => {
-        debug(`Download ${afs.did} started...`)
-        self.emit('start', afs.did, feed.length)
+        debug(`Download ${key} started...`)
+        self.emit('start', key, feed.length)
       })
 
       // Handle when download progress
       feed.on('download', () => {
-        self.emit('progress', afs.did, feed.downloaded())
+        self.emit('progress', key, feed.downloaded())
       })
 
       // Handle when the content finishes downloading
       feed.once('sync', () => {
-        self.emit('complete', afs.did)
-        debug(`Download ${afs.did} Complete!`)
+        self.emit('complete', key)
+        debug(`Download ${key} Complete!`)
       })
     }
   }

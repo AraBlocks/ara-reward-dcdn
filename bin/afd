@@ -155,7 +155,7 @@ async function ondownload(argv) {
       did,
       download: true,
       upload: false,
-      metaSync: true,
+      metaSync: false,
       price: maxCost,
       maxPeers
     })

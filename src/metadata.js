@@ -30,7 +30,7 @@ class MetadataService {
     function handleConnection(connection, details) {
       const peer = details.peer || {}
       debug('onconnection:', idify(peer.host, peer.port))
-      pump(connection, stream, connection)
+      pump(connection, stream(), connection)
     }
 
     function stream() {
