@@ -6,14 +6,20 @@ const pump = require('pump')
 const debug = require('debug')('afd:metadata')
 
 class MetadataService {
-  constructor(afs) {
+  constructor(afs, opts = {}) {
+    this.opts = opts
     this.afs = afs
-    this.key = afs.partitions.etc.discoveryKey
     this.swarm = null
   }
 
   start() {
     const self = this
+    const {
+      upload = false,
+      download = false
+    } = this.opts
+
+    if (!upload && !download) return
 
     const socket = utp()
     socket.on('error', (error) => {
@@ -24,7 +30,7 @@ class MetadataService {
     // TODO: use single swarm with multiple topics
     this.swarm = createHyperswarm({ socket, domain: 'ara.local' })
     this.swarm.on('connection', handleConnection)
-    this.swarm.join(this.key, { lookup: true, announce: true })
+    this.swarm.join(this.afs.partitions.etc.discoveryKey, { lookup: download, announce: upload })
     debug('Replicating metadata for: ', this.afs.did)
 
     function handleConnection(connection, details) {
@@ -34,12 +40,12 @@ class MetadataService {
     }
 
     function stream() {
-      return self.afs.partitions.etc.replicate()
+      return self.afs.partitions.etc.replicate({ upload, download })
     }
   }
 
   stop() {
-    this.swarm.leave(this.key)
+    if (this.swarm) this.swarm.leave(this.afs.partitions.etc.discoveryKey)
   }
 }
 

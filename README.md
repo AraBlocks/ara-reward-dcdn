@@ -67,7 +67,7 @@ Joins a hyperswarm for a given AFS and replicates for a reward. Adds the interes
   - `did` - The `DID` of the interested AFS
   - `upload` - Whether or not to upload
   - `download` - Whether or not to download
-  - `metaSync` - Whether or not to sync the metadata
+  - `metaOnly` - Sync on the metadata
   - `price` - The minimum cost required to replicate
   - `maxPeers` - The max peers desired for replication
   - `jobId` - *optional* The job ID to use for the download

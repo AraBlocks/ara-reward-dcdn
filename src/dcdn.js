@@ -17,6 +17,7 @@ const rc = require('./rc')()
 const { resolve } = require('path')
 
 const $driveCreator = Symbol('driveCreator')
+
 const DEFAULT_CONFIG_STORE = 'store.json'
 const DEFAULT_JOB_STORE = 'jobs.json'
 
@@ -82,7 +83,7 @@ class FarmDCDN extends EventEmitter {
         if (archive instanceof Error) {
           debug('failed to initialize archive with %j: %s', archive.data, archive.message)
         } else {
-          self._startService(archive)
+          self._startServices(archive)
         }
       })
     }
@@ -96,37 +97,129 @@ class FarmDCDN extends EventEmitter {
     return null
   }
 
-  _attachListeners(afs) {
+  async _startServices(afs) {
+    const self = this
+    if (!afs.dcdnOpts) throw new Error('afs missing dcdn options')
+
+    const {
+      dcdnOpts: {
+        metaOnly,
+        upload,
+        download
+      }
+    } = afs
+
+    if (!upload && !download) throw new Error('upload or download must be true')
+
+    if (metaOnly) {
+      addService(await this._createMetaService(afs))
+    } else if (download) {
+      addService(await this._createContentService(afs))
+    } else if (upload) {
+      addService(await this._createMetaService(afs))
+      addService(await this._createContentService(afs))
+    }
+
+    function addService({ key, service }) {
+      if (!service) {
+        debug('failed to start service for', key)
+        return
+      }
+      debug('starting service for', key)
+
+      self.services[key] = service
+      service.start()
+    }
+  }
+
+  async _createContentService(afs) {
     const self = this
 
     const {
       dcdnOpts: {
+        upload,
         download,
-        metaSync
-      }
+        price,
+        maxPeers,
+        jobId
+      },
+      dcdnOpts
     } = afs
 
+    let service
+    const key = afs.did
+
+    const convertedPrice = (price) ? Number(expandTokenValue(price.toString())) : 0
+
     if (download) {
-      attachContentListener(afs.did, afs.partitions.home)
-    }
+      this._attachDownloadListener(key, afs.partitions.home)
 
-    if (metaSync) {
-      attachContentListener(afs.partitions.etc.discoveryKey.toString('hex'), afs.partitions.etc)
-    }
+      let jobNonce = jobId || await this._getJobInProgress(key) || crypto.randomBytes(32)
+      if ('string' === typeof jobNonce) jobNonce = toBuffer(jobNonce, 'hex')
 
-    function attachContentListener(key, partition) {
-      const { content } = partition
-      if (content) {
-        attachDownloadListener(key, content)
-      } else {
-        partition.once('content', () => {
-          attachDownloadListener(key, partition.content)
-        })
+      const requester = new messages.AraId()
+      requester.setDid(this.user.did)
+
+      const sow = new messages.SOW()
+      sow.setNonce(jobNonce)
+      sow.setWorkUnit('AFS')
+      sow.setCurrencyUnit('Ara^-18')
+      sow.setRequester(requester)
+
+      const matcher = new matchers.MaxCostMatcher(convertedPrice, maxPeers)
+      service = new Requester(sow, matcher, this.user, afs)
+      service.once('jobcomplete', async (job) => {
+        await pify(self.jobsInProgress.delete)(job)
+        await self.unjoin(dcdnOpts)
+
+        /** This is to signify when all farmers have responded
+            with receipts and it's safe to publish the afs * */
+        self.emit('requestcomplete', key)
+
+        // If both upload and download are true, then will immediately start seeding
+        if (upload) {
+          dcdnOpts.download = false
+          self.join(dcdnOpts)
+        }
+      })
+
+      try {
+        // TODO: only prepare job if download needed
+        await service.prepareJob()
+        await pify(self.jobsInProgress.write)(jobNonce, key)
+      } catch (err) {
+        debug(`failed to start broadcast for ${key}`, err)
+        service = null
       }
+    } else if (upload) {
+      service = new Farmer(this.user, convertedPrice, afs)
+    }
+
+    return { key, service }
+  }
+
+  async _createMetaService(afs) {
+    const key = afs.partitions.etc.discoveryKey.toString('hex')
+    this._attachDownloadListener(key, afs.partitions.etc)
+    const service = new MetadataService(afs, afs.dcdnOpts)
+
+    return { key, service }
+  }
+
+  _attachDownloadListener(key, partition) {
+    const self = this
+
+    const { content } = partition
+    if (content) {
+      attach(content)
+    } else {
+      partition.once('content', () => {
+        attach(partition.content)
+      })
     }
 
     // Emit download events
-    function attachDownloadListener(key, feed) {
+    function attach(feed) {
       // Handle when download starts
       feed.once('download', () => {
         debug(`Download ${key} started...`)
@@ -146,86 +239,9 @@ class FarmDCDN extends EventEmitter {
     }
   }
 
-  async _startService(afs) {
-    const self = this
-    if (!afs.dcdnOpts) throw new Error('afs missing dcdn options')
+  _stopServices(afs) {
+    debug('Stopping services for', afs.did)
 
-    const {
-      did,
-      dcdnOpts: {
-        upload,
-        download,
-        metaSync,
-        price,
-        maxPeers,
-        jobId
-      },
-      dcdnOpts
-    } = afs
-
-    debug('starting service for', did)
-
-    const convertedPrice = (price) ? Number(expandTokenValue(price.toString())) : 0
-
-    this._attachListeners(afs)
-    let service
-
-    if (download) {
-      let jobNonce = jobId || await this._getJobInProgress(did) || crypto.randomBytes(32)
-      if ('string' === typeof jobNonce) jobNonce = toBuffer(jobNonce, 'hex')
-
-      const requester = new messages.AraId()
-      requester.setDid(this.user.did)
-
-      const sow = new messages.SOW()
-      sow.setNonce(jobNonce)
-      sow.setWorkUnit('AFS')
-      sow.setCurrencyUnit('Ara^-18')
-      sow.setRequester(requester)
-
-      const matcher = new matchers.MaxCostMatcher(convertedPrice, maxPeers)
-      service = new Requester(sow, matcher, this.user, afs)
-      service.once('jobcomplete', async (job) => {
-        await pify(self.jobsInProgress.delete)(job)
-        await self.unjoin(dcdnOpts)
-
-        /** This is to signify when all farmers have responded
-            with receipts and it's safe to publish the afs **/
-        self.emit('requestcomplete', did)
-
-        // If both upload and download are true, then will immediately start seeding
-        if (upload) {
-          dcdnOpts.download = false
-          self.join(dcdnOpts)
-        }
-      })
-
-      try {
-        // TODO: only prepare job if download needed
-        await service.prepareJob()
-        await pify(self.jobsInProgress.write)(jobNonce, did)
-      } catch (err) {
-        debug(`failed to start broadcast for ${did}`, err)
-        return
-      }
-    } else if (upload) {
-      service = new Farmer(this.user, convertedPrice, afs)
-    }
-
-    if (metaSync) {
-      const metaService = new MetadataService(afs)
-      this.services[afs.partitions.etc.discoveryKey] = metaService
-      metaService.start()
-    }
-
-    if (service) {
-      this.services[did] = service
-      service.start()
-    }
-  }
-
-  _stopService(afs) {
-    debug('Stopping service for', afs.did)
     if (afs.partitions.etc.discoveryKey in this.services) {
       this.services[afs.partitions.etc.discoveryKey].stop()
       delete this.services[afs.partitions.etc.discoveryKey]
@@ -249,7 +265,7 @@ class FarmDCDN extends EventEmitter {
       const archives = this[$driveCreator].list()
       archives.forEach((archive) => {
         if (!(archive instanceof Error)) {
-          self._stopService(archive)
+          self._stopServices(archive)
         }
       })
       await pify(this[$driveCreator].disconnect)()
@@ -263,7 +279,7 @@ class FarmDCDN extends EventEmitter {
    * @param  {String} opts.did
    * @param  {boolean} opts.upload
    * @param  {boolean} opts.download
-   * @param  {boolean} opts.metaSync
+   * @param  {boolean} opts.metaOnly
    * @param  {float} opts.price Price to distribute AFS
    * @param  {int} opts.maxPeers
    * @param  {String} [opts.jobId]
@@ -283,7 +299,7 @@ class FarmDCDN extends EventEmitter {
         debug('failed to initialize archive with %j: %s', archive.data, archive.message)
         return
       }
-      await this._startService(archive)
+      await this._startServices(archive)
     } else {
       await this.start()
     }
@@ -308,7 +324,7 @@ class FarmDCDN extends EventEmitter {
       const archives = this[$driveCreator].list()
       const afs = archives.find(archive => key === archive.did)
       if (afs) {
-        await this._stopService(afs)
+        await this._stopServices(afs)
         await pify(this[$driveCreator].close)(key)
       }
     } catch (err) {

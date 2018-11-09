@@ -155,7 +155,6 @@ async function ondownload(argv) {
       did,
       download: true,
       upload: false,
-      metaSync: false,
       price: maxCost,
       maxPeers
     })
@@ -189,7 +188,6 @@ async function onseed(argv) {
       did,
       download: false,
       upload: true,
-      metaSync: true,
       price: farmingPrice,
     })
   } catch (e) {
@@ -206,9 +204,9 @@ async function onmetadata(argv) {
     await start({
       userID: argv.identity,
       did,
-      download: false,
+      download: true,
       upload: false,
-      metaSync: true
+      metaOnly: true
     })
   } catch (e) {
     error(`Error occurred while syncing metadata ${did}`, e)
