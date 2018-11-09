@@ -1,3 +1,12 @@
+## [0.2.2](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.1...0.2.2) (2018-11-09)
+
+
+### Bug Fixes
+
+* **dcdn:** switch jobs and config ([108b6b3](https://github.com/littlstar/ara-farming-dcdn/commit/108b6b3))
+
+
+
 ## [0.2.1](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.2.1) (2018-11-09)
 
 
