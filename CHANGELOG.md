@@ -1,4 +1,12 @@
-<a name="0.2.0"></a>
+## [0.2.1](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.2.1) (2018-11-09)
+
+
+### Features
+
+* add userDid to the directory path ([7b435c5](https://github.com/littlstar/ara-farming-dcdn/commit/7b435c5))
+
+
+
 # [0.2.0](https://github.com/littlstar/ara-farming-dcdn/compare/0.1.0...0.2.0) (2018-11-07)
 
 
@@ -14,17 +22,14 @@
 
 
 
-<a name="0.1.0"></a>
 # [0.1.0](https://github.com/littlstar/ara-farming-dcdn/compare/0.0.2...0.1.0) (2018-10-23)
 
 
 
-<a name="0.0.2"></a>
 ## [0.0.2](https://github.com/littlstar/ara-farming-dcdn/compare/0.0.1...0.0.2) (2018-10-23)
 
 
 
-<a name="0.0.1"></a>
 ## [0.0.1](https://github.com/littlstar/ara-farming-dcdn/compare/0844928...0.0.1) (2018-10-09)
 
 
