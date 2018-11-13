@@ -154,10 +154,10 @@ class FarmDCDN extends EventEmitter {
     if (download) {
       const partition = afs.partitions.home
       if (partition.content) {
-        attachProgressListener(afs.did, partition.content)
+        attachProgressListener(partition.content)
       } else {
         partition.once('content', () => {
-          attachProgressListener(afs.did, partition.content)
+          attachProgressListener(partition.content)
         })
       }
 
