@@ -1,5 +1,5 @@
 const { token: { expandTokenValue } } = require('ara-contracts')
-const { messages, matchers } = require('ara-farming-protocol')
+const { matchers } = require('ara-farming-protocol')
 const { create: createAFS } = require('ara-filesystem')
 const { getIdentifier } = require('ara-util')
 const { Requester } = require('./requester.js')
@@ -161,17 +161,8 @@ class FarmDCDN extends EventEmitter {
       let jobNonce = jobId || await this._getJobInProgress(key) || crypto.randomBytes(32)
       if ('string' === typeof jobNonce) jobNonce = toBuffer(jobNonce, 'hex')
 
-      const requester = new messages.AraId()
-      requester.setDid(this.user.did)
-
-      const sow = new messages.SOW()
-      sow.setNonce(jobNonce)
-      sow.setWorkUnit('AFS')
-      sow.setCurrencyUnit('Ara^-18')
-      sow.setRequester(requester)
-
       const matcher = new matchers.MaxCostMatcher(convertedPrice, maxPeers)
-      service = new Requester(sow, matcher, this.user, afs)
+      service = new Requester(jobNonce, matcher, this.user, afs)
       service.once('jobcomplete', async (job) => {
         await pify(self.jobsInProgress.delete)(job)
         await self.unjoin(dcdnOpts)

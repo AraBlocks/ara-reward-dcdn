@@ -31,13 +31,6 @@ class Farmer extends FarmerBase {
     this.swarm = null
 
     this.user = user
-    this.farmerID = new messages.AraId()
-    this.farmerID.setDid(user.did)
-
-    // TODO: actually sign data
-    this.farmerSig = new messages.Signature()
-    this.farmerSig.setAraId(this.farmerID)
-    this.farmerSig.setData('avalidsignature')
   }
 
   start() {
@@ -67,9 +60,12 @@ class Farmer extends FarmerBase {
    * @returns {messages.Quote}
    */
   async generateQuote(sow) {
+    const signature = new messages.Signature()
+    signature.setDid(this.user.did)
+
     const quote = new messages.Quote()
     quote.setNonce(crypto.randomBytes(32))
-    quote.setFarmer(this.farmerID)
+    quote.setSignature(signature)
     quote.setPerUnitCost(this.price)
     quote.setSow(sow)
     return quote
@@ -92,8 +88,6 @@ class Farmer extends FarmerBase {
    * @returns {messages.Agreement}
    */
   async signAgreement(agreement) {
-    // TODO sign data
-    agreement.setFarmerSignature(this.farmerSig)
     return agreement
   }
 
@@ -133,7 +127,6 @@ class Farmer extends FarmerBase {
     const receipt = new messages.Receipt()
     receipt.setNonce(crypto.randomBytes(32))
     receipt.setReward(reward)
-    receipt.setFarmerSignature(this.farmerSig)
     return receipt
   }
 
@@ -143,7 +136,7 @@ class Farmer extends FarmerBase {
 
     const self = this
     const sow = agreement.getQuote().getSow()
-    debug(`Replicating ${this.afs.did} with requester ${sow.getRequester().getDid()}`)
+    debug(`Replicating ${this.afs.did} with requester ${sow.getSignature().getDid()}`)
     const sowId = nonceString(sow)
     const { content } = this.afs.partitions.resolve(this.afs.HOME)
 

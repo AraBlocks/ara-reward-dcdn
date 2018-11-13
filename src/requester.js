@@ -34,19 +34,22 @@ class Requester extends RequesterBase {
    * @param {String} user.password password of the requester's did
    * @param {AFS} afs Instance of AFS
    */
-  constructor(sow, matcher, user, afs) {
+  constructor(jobNonce, matcher, user, afs) {
+    const signature = new messages.Signature()
+    signature.setDid(user.did)
+
+    const sow = new messages.SOW()
+    sow.setNonce(jobNonce)
+    sow.setTopic(afs.did)
+    sow.setWorkUnit('AFS')
+    sow.setCurrencyUnit('Ara^-18')
+    sow.setSignature(signature)
+
     super(sow, matcher)
+
     this.hiredFarmers = new Map()
     this.deliveryMap = new Map()
     this.user = user
-
-    this.userID = new messages.AraId()
-    this.userID.setDid(user.did)
-
-    // TODO: actually sign data
-    this.requesterSig = new messages.Signature()
-    this.requesterSig.setAraId(this.userID)
-    this.requesterSig.setData('avalidsignature')
 
     this.swarm = null
     this.afs = afs
@@ -165,7 +168,6 @@ class Requester extends RequesterBase {
     const agreement = new messages.Agreement()
     agreement.setNonce(crypto.randomBytes(32))
     agreement.setQuote(quote)
-    agreement.setRequesterSignature(this.requesterSig)
     return agreement
   }
 
@@ -195,7 +197,7 @@ class Requester extends RequesterBase {
     this.hiredFarmers.set(peerId, { connection, agreement, stream })
 
     // Start work
-    debug(`Piping stream with ${agreement.getQuote().getFarmer().getDid()} from ${peerId}`)
+    debug(`Piping stream with ${agreement.getQuote().getSignature().getDid()} from ${peerId}`)
     connection.stream.pipe(stream).pipe(connection.stream, { end: false })
   }
 
@@ -240,7 +242,7 @@ class Requester extends RequesterBase {
       const peerId = key
       const units = value / total
       const reward = this.generateReward(peerId, units)
-      const userId = reward.getAgreement().getQuote().getFarmer().getDid()
+      const userId = reward.getAgreement().getQuote().getSignature().getDid()
       const amount = Number(constrainTokenValue(reward.getAmount().toString()))
 
       if (amount > 0) {
