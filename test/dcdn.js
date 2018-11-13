@@ -12,7 +12,7 @@ let testDid = null
 // TODO: more robust testing. Most of this is just sanity check at the moment.
 test.before(async () => {
   testUser = await aid.create({ context, password: TEST_PASSWORD })
-  await aid.util.writeIdentity(testUser)
+  await aid.save(testUser)
   const { afs } = await createAFS({ owner: testUser.did.identifier, password: TEST_PASSWORD })
   testDid = afs.did
   await afs.close()
@@ -164,7 +164,7 @@ test.serial('dcdn.join.download', async (t) => {
   await dcdn.unjoin({ did: testDid })
 })
 
-test.serial('dcdn.join.metaSync', async (t) => {
+test.serial('dcdn.join.download.metaOnly', async (t) => {
   const dcdn = new DCDN({
     userID: testUser.did.identifier,
     password: TEST_PASSWORD
@@ -173,8 +173,27 @@ test.serial('dcdn.join.metaSync', async (t) => {
   await dcdn.join({
     did: testDid,
     upload: false,
+    download: true,
+    metaOnly: true
+  })
+
+  t.true(dcdn.running)
+  await dcdn.stop()
+  t.false(dcdn.running)
+  await dcdn.unjoin({ did: testDid })
+})
+
+test.serial('dcdn.join.upload.metaOnly', async (t) => {
+  const dcdn = new DCDN({
+    userID: testUser.did.identifier,
+    password: TEST_PASSWORD
+  })
+
+  await dcdn.join({
+    did: testDid,
+    upload: true,
     download: false,
-    metaSync: true
+    metaOnly: true
   })
 
   t.true(dcdn.running)

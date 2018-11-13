@@ -37,7 +37,6 @@
   },
   "homepage": "https://github.com/littlstar/ara-farming-dcdn#readme",
   "dependencies": {
-    "@hyperswarm/discovery": "^1.1.0",
     "@hyperswarm/network": "^0.0.4",
     "ansi-diff-stream": "^1.2.1",
     "ara-console": "arablocks/ara-console#semver:0.2.x",

@@ -23,10 +23,9 @@ const {
 } = require('ara-contracts')
 const { Countdown } = require('./util')
 const { toHexString } = require('ara-util/transform')
-const createHyperswarm = require('@hyperswarm/network')
+const createHyperswarm = require('./hyperswarm')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
-const utp = require('utp-native')
 
 class Requester extends RequesterBase {
   /**
@@ -35,8 +34,19 @@ class Requester extends RequesterBase {
    * @param {String} user.password password of the requester's did
    * @param {AFS} afs Instance of AFS
    */
-  constructor(sow, matcher, user, afs) {
+  constructor(jobNonce, matcher, user, afs) {
+    const signature = new messages.Signature()
+    signature.setDid(user.did)
+
+    const sow = new messages.SOW()
+    sow.setNonce(jobNonce)
+    sow.setTopic(afs.did)
+    sow.setWorkUnit('AFS')
+    sow.setCurrencyUnit('Ara^-18')
+    sow.setSignature(signature)
+
     super(sow, matcher)
+
     this.hiredFarmers = new Map()
     this.deliveryMap = new Map()
     this.stateMap = new Map()
@@ -48,14 +58,9 @@ class Requester extends RequesterBase {
 
   start() {
     const self = this
-    const socket = utp()
-    socket.on('error', (error) => {
-      debug(error)
-      // TODO: what to do with utp errors?
-    })
 
     // TODO: use single swarm with multiple topics
-    this.swarm = createHyperswarm({ socket, domain: 'ara.local' })
+    this.swarm = createHyperswarm()
     this.swarm.on('connection', handleConnection)
 
     this.swarm.join(this.afs.discoveryKey, { lookup: true, announce: false })
@@ -80,13 +85,12 @@ class Requester extends RequesterBase {
   _attachListeners() {
     const self = this
 
-    const { content } = self.afs.partitions.resolve(self.afs.HOME)
-
-    if (content) {
-      attachDownloadListener(content)
+    const partition = self.afs.partitions.home
+    if (partition.content) {
+      attachDownloadListener(partition.content)
     } else {
       self.afs.once('content', () => {
-        attachDownloadListener(self.afs.partitions.resolve(self.afs.HOME).content)
+        attachDownloadListener(partition.content)
       })
     }
 
