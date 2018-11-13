@@ -152,7 +152,14 @@ class FarmDCDN extends EventEmitter {
     const convertedPrice = (price) ? Number(expandTokenValue(price.toString())) : 0
 
     if (download) {
-      this._attachDownloadListener(key, afs.partitions.home)
+      const partition = afs.partitions.home
+      if (partition.content) {
+        attachProgressListener(afs.did, partition.content)
+      } else {
+        partition.once('content', () => {
+          attachProgressListener(afs.did, partition.content)
+        })
+      }
 
       let jobNonce = jobId || await this._getJobInProgress(key) || crypto.randomBytes(32)
       if ('string' === typeof jobNonce) jobNonce = toBuffer(jobNonce, 'hex')
@@ -195,31 +202,7 @@ class FarmDCDN extends EventEmitter {
       service = new Farmer(this.user, convertedPrice, afs)
     }
 
-    return { key, service }
-  }
-
-  async _createMetaService(afs) {
-    const key = afs.partitions.etc.discoveryKey.toString('hex')
-    this._attachDownloadListener(key, afs.partitions.etc)
-    const service = new MetadataService(afs, afs.dcdnOpts)
-
-    return { key, service }
-  }
-
-  _attachDownloadListener(key, partition) {
-    const self = this
-
-    const { content } = partition
-    if (content) {
-      attach(content)
-    } else {
-      partition.once('content', () => {
-        attach(partition.content)
-      })
-    }
-
-    // Emit download events
-    function attach(feed) {
+    function attachProgressListener(feed) {
       // Handle when download starts
       feed.once('download', () => {
         debug(`Download ${key} started...`)
@@ -237,6 +220,21 @@ class FarmDCDN extends EventEmitter {
         debug(`Download ${key} Complete!`)
       })
     }
+
+    return { key, service }
+  }
+
+  async _createMetaService(afs) {
+    const self = this
+
+    const key = afs.partitions.etc.discoveryKey.toString('hex')
+    const service = new MetadataService(afs, afs.dcdnOpts)
+    service.once('complete', () => {
+      self.unjoin(afs.dcdnOpts)
+      self.emit('requestcomplete', afs.did)
+    })
+
+    return { key, service }
   }
 
   _stopServices(afs) {
