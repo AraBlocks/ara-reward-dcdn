@@ -120,15 +120,12 @@ class FarmDCDN extends EventEmitter {
       addService(await this._createContentService(afs))
     }
 
-    function addService({ key, service }) {
-      if (!service) {
-        debug('failed to start service for', key)
-        return
+    function addService(service) {
+      if (service) {
+        if (!self.services[afs.did]) self.services[afs.did] = []
+        self.services[afs.did].push(service)
+        service.start()
       }
-      debug('starting service for', key)
-
-      self.services[key] = service
-      service.start()
     }
   }
 
@@ -221,32 +218,41 @@ class FarmDCDN extends EventEmitter {
       })
     }
 
-    return { key, service }
+    return service
   }
 
   async _createMetaService(afs) {
     const self = this
+    const {
+      dcdnOpts: {
+        upload,
+        download
+      },
+      dcdnOpts
+    } = afs
 
-    const key = afs.partitions.etc.discoveryKey.toString('hex')
     const service = new MetadataService(afs, afs.dcdnOpts)
-    service.once('complete', () => {
-      self.unjoin(afs.dcdnOpts)
-      self.emit('requestcomplete', afs.did)
-    })
+    if (download) {
+      service.once('complete', () => {
+        self.unjoin(afs.dcdnOpts)
+        self.emit('requestcomplete', afs.did)
+        if (upload) {
+          dcdnOpts.download = false
+          self.join(dcdnOpts)
+        }
+      })
+    }
 
-    return { key, service }
+    return service
   }
 
   _stopServices(afs) {
     debug('Stopping services for', afs.did)
 
-    if (afs.partitions.etc.discoveryKey in this.services) {
-      this.services[afs.partitions.etc.discoveryKey].stop()
-      delete this.services[afs.partitions.etc.discoveryKey]
-    }
-
     if (afs.did in this.services) {
-      this.services[afs.did].stop()
+      for (const service of this.services[afs.did]) {
+        service.stop()
+      }
       delete this.services[afs.did]
     }
   }

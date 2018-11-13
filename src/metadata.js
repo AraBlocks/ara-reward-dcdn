@@ -23,7 +23,7 @@ class MetadataService extends EventEmitter {
 
     if (!upload && !download) return
     debug('Current version:', this.partition.version)
-
+    // TODO: Handle if no update available
     this.partition.metadata.once('sync', () => {
       if (download) {
         this.partition.once('sync', () => {
