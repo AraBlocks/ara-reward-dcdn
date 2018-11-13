@@ -1,5 +1,5 @@
 const { token: { expandTokenValue } } = require('ara-contracts')
-const { messages, matchers } = require('ara-farming-protocol')
+const { matchers } = require('ara-farming-protocol')
 const { create: createAFS } = require('ara-filesystem')
 const { getIdentifier } = require('ara-util')
 const { Requester } = require('./requester.js')
@@ -119,15 +119,12 @@ class FarmDCDN extends EventEmitter {
       addService(await this._createContentService(afs))
     }
 
-    function addService({ key, service }) {
-      if (!service) {
-        debug('failed to start service for', key)
-        return
+    function addService(service) {
+      if (service) {
+        if (!self.services[afs.did]) self.services[afs.did] = []
+        self.services[afs.did].push(service)
+        service.start()
       }
-      debug('starting service for', key)
-
-      self.services[key] = service
-      service.start()
     }
   }
 
@@ -151,22 +148,20 @@ class FarmDCDN extends EventEmitter {
     const convertedPrice = (price) ? Number(expandTokenValue(price.toString())) : 0
 
     if (download) {
-      this._attachDownloadListener(key, afs.partitions.home)
+      const partition = afs.partitions.home
+      if (partition.content) {
+        attachProgressListener(partition.content)
+      } else {
+        partition.once('content', () => {
+          attachProgressListener(partition.content)
+        })
+      }
 
       let jobNonce = jobId || await this._getJobInProgress(key) || crypto.randomBytes(32)
       if ('string' === typeof jobNonce) jobNonce = toBuffer(jobNonce, 'hex')
 
-      const signature = new messages.Signature()
-      signature.setDid(this.user.did)
-
-      const sow = new messages.SOW()
-      sow.setNonce(jobNonce)
-      sow.setWorkUnit('AFS')
-      sow.setCurrencyUnit('Ara^-18')
-      sow.setSignature(signature)
-
       const matcher = new matchers.MaxCostMatcher(convertedPrice, maxPeers)
-      service = new Requester(sow, matcher, this.user, afs)
+      service = new Requester(jobNonce, matcher, this.user, afs)
       service.once('jobcomplete', async (job) => {
         await pify(self.jobsInProgress.delete)(job)
         await self.unjoin(dcdnOpts)
@@ -194,31 +189,7 @@ class FarmDCDN extends EventEmitter {
       service = new Farmer(this.user, convertedPrice, afs)
     }
 
-    return { key, service }
-  }
-
-  async _createMetaService(afs) {
-    const key = afs.partitions.etc.discoveryKey.toString('hex')
-    this._attachDownloadListener(key, afs.partitions.etc)
-    const service = new MetadataService(afs, afs.dcdnOpts)
-
-    return { key, service }
-  }
-
-  _attachDownloadListener(key, partition) {
-    const self = this
-
-    const { content } = partition
-    if (content) {
-      attach(content)
-    } else {
-      partition.once('content', () => {
-        attach(partition.content)
-      })
-    }
-
-    // Emit download events
-    function attach(feed) {
+    function attachProgressListener(feed) {
       // Handle when download starts
       feed.once('download', () => {
         debug(`Download ${key} started...`)
@@ -236,18 +207,42 @@ class FarmDCDN extends EventEmitter {
         debug(`Download ${key} Complete!`)
       })
     }
+
+    return service
+  }
+
+  async _createMetaService(afs) {
+    const self = this
+    const {
+      dcdnOpts: {
+        upload,
+        download
+      },
+      dcdnOpts
+    } = afs
+
+    const service = new MetadataService(afs, afs.dcdnOpts)
+    if (download) {
+      service.once('complete', () => {
+        self.unjoin(afs.dcdnOpts)
+        self.emit('requestcomplete', afs.did)
+        if (upload) {
+          dcdnOpts.download = false
+          self.join(dcdnOpts)
+        }
+      })
+    }
+
+    return service
   }
 
   _stopServices(afs) {
     debug('Stopping services for', afs.did)
 
-    if (afs.partitions.etc.discoveryKey in this.services) {
-      this.services[afs.partitions.etc.discoveryKey].stop()
-      delete this.services[afs.partitions.etc.discoveryKey]
-    }
-
     if (afs.did in this.services) {
-      this.services[afs.did].stop()
+      for (const service of this.services[afs.did]) {
+        service.stop()
+      }
       delete this.services[afs.did]
     }
   }
