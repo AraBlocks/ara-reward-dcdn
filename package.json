@@ -1,6 +1,6 @@
 {
   "name": "ara-farming-dcdn",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "An Ara Network node that runs a rewardable DCDN",
   "main": "index.js",
   "bin": {

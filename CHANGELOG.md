@@ -1,18 +1,16 @@
-## [0.2.2](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.1...0.2.2) (2018-11-09)
+# [0.3.0](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.3.0) (2018-11-14)
 
 
 ### Bug Fixes
 
-* **dcdn:** switch jobs and config ([108b6b3](https://github.com/littlstar/ara-farming-dcdn/commit/108b6b3))
-
-
-
-## [0.2.1](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.2.1) (2018-11-09)
+* **dcdn:** switch jobs and config ([b0d872c](https://github.com/littlstar/ara-farming-dcdn/commit/b0d872c))
 
 
 ### Features
 
+* add signing and verifying utilities ([72a179e](https://github.com/littlstar/ara-farming-dcdn/commit/72a179e))
 * add userDid to the directory path ([7b435c5](https://github.com/littlstar/ara-farming-dcdn/commit/7b435c5))
+* contract signature ([2d65c05](https://github.com/littlstar/ara-farming-dcdn/commit/2d65c05))
 
 
 
@@ -59,3 +57,6 @@
 * **download:** added download visualizer ([5840174](https://github.com/littlstar/ara-farming-dcdn/commit/5840174))
 * **rc:** use rc to define job and config store ([331f645](https://github.com/littlstar/ara-farming-dcdn/commit/331f645))
 * **src:** added stopService ([0844928](https://github.com/littlstar/ara-farming-dcdn/commit/0844928))
+
+
+
