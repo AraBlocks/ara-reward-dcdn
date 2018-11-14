@@ -6,7 +6,6 @@ const {
     FarmerConnection
   },
   util: {
-    idify,
     nonceString
   }
 } = require('ara-farming-protocol')
@@ -23,7 +22,6 @@ const {
 } = require('ara-contracts')
 const { Countdown } = require('./util')
 const { toHexString } = require('ara-util/transform')
-const createHyperswarm = require('./hyperswarm')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
 
@@ -34,13 +32,13 @@ class Requester extends RequesterBase {
    * @param {String} user.password password of the requester's did
    * @param {AFS} afs Instance of AFS
    */
-  constructor(jobNonce, matcher, user, afs) {
+  constructor(jobNonce, matcher, user, afs, swarm) {
     const signature = new messages.Signature()
     signature.setDid(user.did)
 
     const sow = new messages.SOW()
     sow.setNonce(jobNonce)
-    sow.setTopic(afs.did)
+    sow.setTopic(afs.discoveryKey.toString('hex'))
     sow.setWorkUnit('AFS')
     sow.setCurrencyUnit('Ara^-18')
     sow.setSignature(signature)
@@ -51,35 +49,27 @@ class Requester extends RequesterBase {
     this.deliveryMap = new Map()
     this.stateMap = new Map()
     this.user = user
-    this.swarm = null
+    this.swarm = swarm
     this.afs = afs
+    this.topic = this.afs.discoveryKey
+
     this._attachListeners()
   }
 
   start() {
-    const self = this
-
-    // TODO: use single swarm with multiple topics
-    this.swarm = createHyperswarm()
-    this.swarm.on('connection', handleConnection)
-
-    this.swarm.join(this.afs.discoveryKey, { lookup: true, announce: false })
+    if (this.swarm) this.swarm.join(this.topic, { lookup: true, announce: false })
     debug('Requesting:', this.afs.did)
+  }
 
-    function handleConnection(connection, details) {
-      const peer = details.peer || {}
-      debug('onconnection:', idify(peer.host, peer.port))
-      const farmerConnection = new FarmerConnection(peer, connection, { timeout: 6000 })
-      process.nextTick(() => self.addFarmer(farmerConnection))
-    }
+  onConnection(connection, details) {
+    const self = this
+    const peer = details.peer || {}
+    const farmerConnection = new FarmerConnection(peer, connection, { timeout: 6000 })
+    process.nextTick(() => self.addFarmer(farmerConnection))
   }
 
   stop() {
-    if (this.swarm) {
-      this.swarm.leave(this.afs.discoveryKey)
-      this.swarm.discovery.destroy()
-      this.swarm = null
-    }
+    if (this.swarm) this.swarm.leave(this.topic)
   }
 
   _attachListeners() {

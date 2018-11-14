@@ -44,11 +44,11 @@ test.serial('dcdn.start', async (t) => {
     password: TEST_PASSWORD
   })
 
-  t.false(dcdn.running)
+  t.false(Boolean(dcdn.swarm))
   await dcdn.start()
-  t.true(dcdn.running)
+  t.true(Boolean(dcdn.swarm))
   await dcdn.start()
-  t.true(dcdn.running)
+  t.true(Boolean(dcdn.swarm))
   await dcdn.stop()
 })
 
@@ -58,13 +58,13 @@ test.serial('dcdn.stop', async (t) => {
     password: TEST_PASSWORD
   })
 
-  t.false(dcdn.running)
+  t.false(Boolean(dcdn.swarm))
   await dcdn.stop()
-  t.false(dcdn.running)
+  t.false(Boolean(dcdn.swarm))
   await dcdn.start()
-  t.true(dcdn.running)
+  t.true(Boolean(dcdn.swarm))
   await dcdn.stop()
-  t.false(dcdn.running)
+  t.false(Boolean(dcdn.swarm))
 })
 
 test.serial('dcdn.join.invalid', async (t) => {
@@ -87,7 +87,7 @@ test.serial('dcdn.join.invalid', async (t) => {
     t.pass()
   }
 
-  t.false(dcdn.running)
+  t.false(Boolean(dcdn.swarm))
 })
 
 test.serial('dcdn.unjoin', async (t) => {
@@ -118,9 +118,9 @@ test.serial('dcdn.join.upload', async (t) => {
     maxPeers: 1
   })
 
-  t.true(dcdn.running)
+  t.true(Boolean(dcdn.swarm))
   await dcdn.stop()
-  t.false(dcdn.running)
+  t.false(Boolean(dcdn.swarm))
   await dcdn.unjoin({ did: testDid })
 })
 
@@ -138,9 +138,9 @@ test.serial('dcdn.join.uploadanddownload', async (t) => {
     maxPeers: 1
   })
 
-  t.true(dcdn.running)
+  t.true(Boolean(dcdn.swarm))
   await dcdn.stop()
-  t.false(dcdn.running)
+  t.false(Boolean(dcdn.swarm))
   await dcdn.unjoin({ did: testDid })
 })
 
@@ -158,9 +158,9 @@ test.serial('dcdn.join.download', async (t) => {
     maxPeers: 1
   })
 
-  t.true(dcdn.running)
+  t.true(Boolean(dcdn.swarm))
   await dcdn.stop()
-  t.false(dcdn.running)
+  t.false(Boolean(dcdn.swarm))
   await dcdn.unjoin({ did: testDid })
 })
 
@@ -177,9 +177,9 @@ test.serial('dcdn.join.download.metaOnly', async (t) => {
     metaOnly: true
   })
 
-  t.true(dcdn.running)
+  t.true(Boolean(dcdn.swarm))
   await dcdn.stop()
-  t.false(dcdn.running)
+  t.false(Boolean(dcdn.swarm))
   await dcdn.unjoin({ did: testDid })
 })
 
@@ -196,8 +196,8 @@ test.serial('dcdn.join.upload.metaOnly', async (t) => {
     metaOnly: true
   })
 
-  t.true(dcdn.running)
+  t.true(Boolean(dcdn.swarm))
   await dcdn.stop()
-  t.false(dcdn.running)
+  t.false(Boolean(dcdn.swarm))
   await dcdn.unjoin({ did: testDid })
 })

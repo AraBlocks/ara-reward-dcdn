@@ -1,5 +1,6 @@
+/* eslint class-methods-use-this: 1 */
 const { token: { expandTokenValue } } = require('ara-contracts')
-const { matchers } = require('ara-farming-protocol')
+const { matchers, util: { idify } } = require('ara-farming-protocol')
 const { create: createAFS } = require('ara-filesystem')
 const { getIdentifier } = require('ara-util')
 const { Requester } = require('./requester.js')
@@ -16,6 +17,7 @@ const pify = require('pify')
 const rc = require('./rc')()
 const { User } = require('./util')
 const { resolve } = require('path')
+const createHyperswarm = require('./hyperswarm')
 
 const $driveCreator = Symbol('driveCreator')
 
@@ -38,13 +40,46 @@ class FarmDCDN extends EventEmitter {
       throw new Error('FarmDCDN requires User Identity')
     }
 
+    // Map from topic to service
     this.services = {}
+
+    // Map from did to topics
+    this.topics = {}
+
+    this.swarm = null
     this.user = new User(getIdentifier(opts.userID), opts.password)
-    this.running = false
 
     this.root = resolve(rc.network.dcdn.root, this.user.did)
     this.jobs = resolve(rc.network.dcdn.root, this.user.did, DEFAULT_JOB_STORE)
     this.config = resolve(rc.network.dcdn.root, this.user.did, DEFAULT_CONFIG_STORE)
+  }
+
+  _onConnection(connection, details) {
+    const self = this
+    const peer = details.peer || {}
+    debug('onconnection:', idify(peer.host, peer.port))
+
+    if (peer.topic) {
+      process.nextTick(() => {
+        connection.write(peer.topic)
+        onTopic(peer.topic.toString('hex'))
+      })
+    } else {
+      const timeout = setTimeout(() => { connection.destroy() }, 6000)
+      connection.once('data', (data) => {
+        clearTimeout(timeout)
+        const topic = data.toString('hex')
+        onTopic(topic)
+      })
+    }
+
+    function onTopic(topic) {
+      if (topic in self.services) {
+        self.services[topic].onConnection(connection, details)
+      } else {
+        connection.destroy()
+      }
+    }
   }
 
   async _loadDrive() {
@@ -72,9 +107,11 @@ class FarmDCDN extends EventEmitter {
   async start() {
     const self = this
 
-    if (!this.running) {
-      this.running = true
+    if (!this.swarm) {
       if (!this.user.secretKey) await this.user.loadKey()
+      this.swarm = createHyperswarm()
+      this.swarm.on('connection', this._onConnection.bind(this))
+
       if (!this[$driveCreator]) await this._loadDrive()
 
       const archives = this[$driveCreator].list()
@@ -121,8 +158,10 @@ class FarmDCDN extends EventEmitter {
 
     function addService(service) {
       if (service) {
-        if (!self.services[afs.did]) self.services[afs.did] = []
-        self.services[afs.did].push(service)
+        if (!(afs.did in self.topics)) self.topics[afs.did] = []
+        const topic = service.topic.toString('hex')
+        self.services[topic] = service
+        self.topics[afs.did].push(topic)
         service.start()
       }
     }
@@ -161,7 +200,7 @@ class FarmDCDN extends EventEmitter {
       if ('string' === typeof jobNonce) jobNonce = toBuffer(jobNonce, 'hex')
 
       const matcher = new matchers.MaxCostMatcher(convertedPrice, maxPeers)
-      service = new Requester(jobNonce, matcher, this.user, afs)
+      service = new Requester(jobNonce, matcher, this.user, afs, this.swarm)
       service.once('jobcomplete', async (job) => {
         await pify(self.jobsInProgress.delete)(job)
         await self.unjoin(dcdnOpts)
@@ -186,7 +225,7 @@ class FarmDCDN extends EventEmitter {
         service = null
       }
     } else if (upload) {
-      service = new Farmer(this.user, convertedPrice, afs)
+      service = new Farmer(this.user, convertedPrice, afs, this.swarm)
     }
 
     function attachProgressListener(feed) {
@@ -221,7 +260,7 @@ class FarmDCDN extends EventEmitter {
       dcdnOpts
     } = afs
 
-    const service = new MetadataService(afs, afs.dcdnOpts)
+    const service = new MetadataService(afs, this.swarm, afs.dcdnOpts)
     if (download) {
       service.once('complete', () => {
         self.unjoin(afs.dcdnOpts)
@@ -239,11 +278,12 @@ class FarmDCDN extends EventEmitter {
   _stopServices(afs) {
     debug('Stopping services for', afs.did)
 
-    if (afs.did in this.services) {
-      for (const service of this.services[afs.did]) {
-        service.stop()
+    if (afs.did in this.topics) {
+      for (const topic of this.topics[afs.did]) {
+        this.services[topic].stop()
+        delete this.services[topic]
       }
-      delete this.services[afs.did]
+      delete this.topics[afs.did]
     }
   }
 
@@ -253,7 +293,7 @@ class FarmDCDN extends EventEmitter {
    * @return {null}
    */
   async stop() {
-    if (this.running) {
+    if (this.swarm) {
       const self = this
 
       const archives = this[$driveCreator].list()
@@ -263,7 +303,10 @@ class FarmDCDN extends EventEmitter {
         }
       })
       await pify(this[$driveCreator].disconnect)()
-      this.running = false
+
+      // TODO: update swarm destruction with hyperswarm v1
+      this.swarm.discovery.destroy()
+      this.swarm = null
     }
   }
 
@@ -288,7 +331,7 @@ class FarmDCDN extends EventEmitter {
     await this.unjoin(opts)
     const archive = await pify(this[$driveCreator].create)(opts)
 
-    if (this.running) {
+    if (this.swarm) {
       if (archive instanceof Error) {
         debug('failed to initialize archive with %j: %s', archive.data, archive.message)
         return
