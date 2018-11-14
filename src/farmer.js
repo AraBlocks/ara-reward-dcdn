@@ -6,13 +6,10 @@ const {
     RequesterConnection
   },
   util: {
-    idify,
     nonceString,
     bytesToGBs
   }
 } = require('ara-farming-protocol')
-
-const createHyperswarm = require('./hyperswarm')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:farmer')
 const { hasPurchased } = require('ara-contracts/library')
@@ -25,36 +22,30 @@ class Farmer extends FarmerBase {
    * @param {int} price Desired price in Ara^-18/upload
    * @param {AFS} afs Instance of AFS
    */
-  constructor(user, price, afs) {
+  constructor(user, price, afs, swarm) {
     super()
     this.price = price
     this.deliveryMap = new Map()
     this.stateMap = new Map()
     this.afs = afs
-    this.swarm = null
-
+    this.topic = afs.discoveryKey
+    this.swarm = swarm
     this.user = user
   }
 
   start() {
-    const self = this
-
-    // TODO: use single swarm with multiple topics
-    this.swarm = createHyperswarm()
-    this.swarm.on('connection', handleConnection)
-    this.swarm.join(this.afs.discoveryKey, { lookup: false, announce: true })
+    this.swarm.join(this.topic, { lookup: false, announce: true })
     debug('Seeding: ', this.afs.did)
+  }
 
-    function handleConnection(connection, details) {
-      const peer = details.peer || {}
-      debug('onconnection:', idify(peer.host, peer.port))
-      const requesterConnection = new RequesterConnection(peer, connection, { timeout: 6000 })
-      self.addRequester(requesterConnection)
-    }
+  async onConnection(connection, details) {
+    const peer = details.peer || {}
+    const requesterConnection = new RequesterConnection(peer, connection, { timeout: 6000 })
+    this.addRequester(requesterConnection)
   }
 
   stop() {
-    if (this.swarm) this.swarm.leave(this.afs.discoveryKey)
+    if (this.swarm) this.swarm.leave(this.topic)
   }
 
   /**

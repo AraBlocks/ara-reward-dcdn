@@ -19,6 +19,8 @@ function createHyperswarm() {
   }
 
   swarm.discovery._notify = notify
+  swarm._bind()
+
   return swarm
 }
 
