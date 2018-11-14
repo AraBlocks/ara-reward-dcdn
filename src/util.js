@@ -6,6 +6,7 @@ const crypto = require('ara-crypto')
 const pify = require('pify')
 const rc = require('ara-runtime-configuration')()
 const ss = require('ara-secret-storage')
+const debug = require('debug')('afd:util')
 
 class User {
   constructor(did, password) {
@@ -15,6 +16,10 @@ class User {
   }
 
   async loadKey() {
+    if (!this.did || !this.password) {
+      debug('user did or password not found')
+      return
+    }
     const password = crypto.blake2b(Buffer.from(this.password))
     const publicKey = Buffer.from(this.did, 'hex')
     const hash = crypto.blake2b(publicKey).toString('hex')
@@ -24,7 +29,10 @@ class User {
   }
 
   sign(message) {
-    if (!this.secretKey) throw new Error('secretKey is null')
+    if (!this.secretKey) {
+      debug('secretKey not loaded')
+      return null
+    }
     const signature = crypto.sign(message, this.secretKey)
     const userSig = new messages.Signature()
     userSig.setDid(this.did)
