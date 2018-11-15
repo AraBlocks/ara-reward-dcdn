@@ -58,6 +58,9 @@ class FarmDCDN extends EventEmitter {
     const self = this
     const peer = details.peer || {}
     debug('onconnection:', idify(peer.host, peer.port))
+    connection.on('error', (err) => {
+      debug('connection error:', err)
+    })
 
     if (peer.topic) {
       process.nextTick(() => {
