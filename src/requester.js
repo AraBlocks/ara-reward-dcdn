@@ -2,18 +2,12 @@
 const {
   messages,
   RequesterBase,
-  duplex: {
-    FarmerConnection
-  },
-  util: {
-    nonceString
-  }
+  duplex: { FarmerConnection },
+  util: { nonceString }
 } = require('ara-farming-protocol')
 
 const {
-  token: {
-    constrainTokenValue
-  },
+  token: { constrainTokenValue },
   rewards: {
     submit,
     allocate,

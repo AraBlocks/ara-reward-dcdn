@@ -118,13 +118,13 @@ class FarmDCDN extends EventEmitter {
       if (!this[$driveCreator]) await this._loadDrive()
 
       const archives = this[$driveCreator].list()
-      archives.forEach((archive) => {
+      for (const archive of archives) {
         if (archive instanceof Error) {
           debug('failed to initialize archive with %j: %s', archive.data, archive.message)
         } else {
-          self._startServices(archive)
+          await self._startServices(archive)
         }
-      })
+      }
     }
   }
 
@@ -300,11 +300,11 @@ class FarmDCDN extends EventEmitter {
       const self = this
 
       const archives = this[$driveCreator].list()
-      archives.forEach((archive) => {
+      for (const archive of archives) {
         if (!(archive instanceof Error)) {
-          self._stopServices(archive)
+          await self._stopServices(archive)
         }
-      })
+      }
       await pify(this[$driveCreator].disconnect)()
 
       // TODO: update swarm destruction with hyperswarm v1
