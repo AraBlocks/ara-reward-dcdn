@@ -1,16 +1,20 @@
-# [0.3.0](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.3.0) (2018-11-14)
+## [0.3.1](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.3.1) (2018-11-15)
 
 
 ### Bug Fixes
 
 * **dcdn:** switch jobs and config ([b0d872c](https://github.com/littlstar/ara-farming-dcdn/commit/b0d872c))
+* **util:** safely handle no password ([99c6c8e](https://github.com/littlstar/ara-farming-dcdn/commit/99c6c8e))
 
 
 ### Features
 
-* add signing and verifying utilities ([72a179e](https://github.com/littlstar/ara-farming-dcdn/commit/72a179e))
+* add signing and verifying utilities ([ee02a74](https://github.com/littlstar/ara-farming-dcdn/commit/ee02a74))
 * add userDid to the directory path ([7b435c5](https://github.com/littlstar/ara-farming-dcdn/commit/7b435c5))
-* contract signature ([2d65c05](https://github.com/littlstar/ara-farming-dcdn/commit/2d65c05))
+* contract signature ([10377c9](https://github.com/littlstar/ara-farming-dcdn/commit/10377c9))
+* **dcdn:** metadata replication ([3729334](https://github.com/littlstar/ara-farming-dcdn/commit/3729334))
+* **metadata:** debug listeners for metasync ([6ffc601](https://github.com/littlstar/ara-farming-dcdn/commit/6ffc601))
+* **metadata:** signals when metadata sync. Added hyperswarm override for timeout ([7e38a2a](https://github.com/littlstar/ara-farming-dcdn/commit/7e38a2a))
 
 
 
