@@ -2,17 +2,17 @@
 const {
   messages,
   FarmerBase,
-  duplex: {
-    RequesterConnection
-  },
-  util: {
-    nonceString,
-    bytesToGBs
-  }
+  duplex: { RequesterConnection },
+  util: { nonceString, bytesToGBs }
 } = require('ara-farming-protocol')
+const {
+  library: { hasPurchased },
+  rewards: { getBudget },
+  token: { constrainTokenValue }
+} = require('ara-contracts')
+const { toHexString } = require('ara-util/transform')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:farmer')
-const { hasPurchased } = require('ara-contracts/library')
 
 class Farmer extends FarmerBase {
   /**
@@ -54,8 +54,10 @@ class Farmer extends FarmerBase {
    * @returns {boolean}
    */
   async validateSow(sow) {
-    // TODO check topic
-    return true
+    const jobId = toHexString(nonceString(sow), { ethify: true })
+    const budget = Number(await getBudget({ contentDid: this.afs.did, jobId })) >= Number(constrainTokenValue(this.price.toString()))
+    const match = this.topic.toString('hex') === sow.getTopic()
+    return match && budget
   }
 
   /**
