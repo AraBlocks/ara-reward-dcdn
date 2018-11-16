@@ -173,7 +173,7 @@ class FarmDCDN extends EventEmitter {
         // If both upload and download are true, then will immediately start seeding
         if (upload) {
           dcdnOpts.download = false
-          self.join(dcdnOpts)
+          await self.join(dcdnOpts)
         }
       })
 
@@ -223,12 +223,12 @@ class FarmDCDN extends EventEmitter {
 
     const service = new MetadataService(afs, afs.dcdnOpts)
     if (download) {
-      service.once('complete', () => {
-        self.unjoin(afs.dcdnOpts)
+      service.once('complete', async () => {
+        await self.unjoin(afs.dcdnOpts)
         self.emit('requestcomplete', afs.did)
         if (upload) {
           dcdnOpts.download = false
-          self.join(dcdnOpts)
+          await self.join(dcdnOpts)
         }
       })
     }
