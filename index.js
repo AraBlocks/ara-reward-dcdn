@@ -1,6 +1,7 @@
 const extend = require('extend')
 const DCDN = require('./src/dcdn')
 const rc = require('ara-runtime-configuration')()
+const debug = require('debug')('afd')
 
 let instance = null
 
@@ -28,6 +29,13 @@ async function start(argv = {}) {
   } else {
     await instance.start()
   }
+
+  process.on('SIGINT', async () => {
+    debug('process interrupted...')
+    await instance.stop()
+    process.exit()
+  })
+
   return true
 }
 

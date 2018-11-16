@@ -200,12 +200,12 @@ class FarmDCDN extends EventEmitter {
       }
 
       let jobNonce = jobId || await this._getJobInProgress(key) || crypto.randomBytes(32)
-      if ('string' === typeof jobNonce) jobNonce = toBuffer(jobNonce, 'hex')
+      if ('string' === typeof jobNonce) jobNonce = toBuffer(jobNonce.replace(/^0x/, ''), 'hex')
 
       const matcher = new matchers.MaxCostMatcher(convertedPrice, maxPeers)
       service = new Requester(jobNonce, matcher, this.user, afs, this.swarm)
       service.once('jobcomplete', async (job) => {
-        await pify(self.jobsInProgress.delete)(job)
+        await pify(self.jobsInProgress.delete)(job.replace(/^0x/, ''))
         await self.unjoin(dcdnOpts)
 
         /** This is to signify when all farmers have responded
@@ -308,7 +308,7 @@ class FarmDCDN extends EventEmitter {
       await pify(this[$driveCreator].disconnect)()
 
       // TODO: update swarm destruction with hyperswarm v1
-      this.swarm.discovery.destroy()
+      await pify(this.swarm.destroy)()
       this.swarm = null
     }
   }

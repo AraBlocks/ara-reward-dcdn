@@ -190,7 +190,8 @@ class Requester extends RequesterBase {
 
     const stream = this.afs.replicate({
       upload: false,
-      download: true
+      download: true,
+      live: false
     })
     stream.peerId = peerId
 
