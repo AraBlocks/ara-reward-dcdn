@@ -26,7 +26,7 @@ class Requester extends RequesterBase {
    * @param {String} user.password password of the requester's did
    * @param {AFS} afs Instance of AFS
    */
-  constructor(jobNonce, matcher, user, afs, swarm) {
+  constructor(jobNonce, matcher, user, afs, swarm, queue) {
     const signature = new messages.Signature()
     signature.setDid(user.did)
 
@@ -46,13 +46,20 @@ class Requester extends RequesterBase {
     this.swarm = swarm
     this.afs = afs
     this.topic = this.afs.discoveryKey
+    this.queue = queue
 
     this._attachListeners()
   }
 
   start() {
-    if (this.swarm) this.swarm.join(this.topic, { lookup: true, announce: false })
-    debug('Requesting:', this.afs.did)
+    const self = this
+    const transaction = () => self.prepareJob()
+    this.queue.push(transaction).then(() => {
+      debug('Requesting:', self.afs.did)
+      if (self.swarm) self.swarm.join(self.topic, { lookup: true, announce: false })
+    }).catch((err) => {
+      debug(`failed to start broadcast for ${self.afs.did}`, err)
+    })
   }
 
   onConnection(connection, details) {
@@ -112,6 +119,7 @@ class Requester extends RequesterBase {
 
   // Retrieve or Submit the job to the blockchain
   async prepareJob() {
+    // TODO: only prepare job if download needed
     const self = this
     const budget = Number(constrainTokenValue(self.matcher.maxCost.toString()))
 
@@ -263,7 +271,7 @@ class Requester extends RequesterBase {
       }
     })
 
-    try {
+    const transaction = async () => {
       debug(`Allocating rewards for job ${jobId}.`)
       await allocate({
         requesterDid: self.user.did,
@@ -275,15 +283,18 @@ class Requester extends RequesterBase {
           rewards
         }
       })
-    } catch (err) {
-      debug(`Failed to allocate rewards for job ${jobId}`)
-      // TODO Handle failed job
     }
 
-    rewardMap.forEach((value, key) => {
-      const { connection } = self.hiredFarmers.get(key)
-      connection.sendReward(value)
-    })
+    try {
+      await this.queue.push(transaction)
+      rewardMap.forEach((value, key) => {
+        const { connection } = self.hiredFarmers.get(key)
+        connection.sendReward(value)
+      })
+    } catch (err) {
+      // TODO Handle failed job
+      debug(`Failed to allocate rewards for job ${jobId}`)
+    }
   }
 
   generateReward(peerId, units) {

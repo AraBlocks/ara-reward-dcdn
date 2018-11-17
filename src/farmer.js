@@ -54,6 +54,9 @@ class Farmer extends FarmerBase {
    * @returns {boolean}
    */
   async validateSow(sow) {
+    // TODO: check deposit once k-swarm
+    // TODO: move budget and deposit check to validateAgreement to ensure id ownership
+    // TODO: validate that requester owns jobId
     const jobId = toHexString(nonceString(sow), { ethify: true })
     const budget = Number(await getBudget({ contentDid: this.afs.did, jobId })) >= Number(constrainTokenValue(this.price.toString()))
     const match = this.topic.toString('hex') === sow.getTopic()

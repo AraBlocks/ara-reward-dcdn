@@ -45,10 +45,20 @@ $ afd metadata -d <contentDID> -i <userDID>
 
 ## API
 
+* [dcdn](#dcdn)
 * [dcdn.start](#dcdnstart)
 * [dcdn.stop](#dcdnstop)
 * [dcdn.join](#dcdnjoin)
 * [dcdn.unjoin](#dcdnunjoin)
+
+<a name="dcdn"></a>
+### `dcdn(opts)`
+Constructs a new dcdn instance. 
+
+- `opts`
+  - `userID` - The `DID` of the user
+  - `password` - The password of the user
+  - `queue` - A transaction queue, for queuing blockchain transactions. See `src/autoqueue.js`
 
 <a name="dcdnstart"></a>
 ### `start()`
