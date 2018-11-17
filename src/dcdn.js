@@ -18,6 +18,7 @@ const rc = require('./rc')()
 const { User } = require('./util')
 const { resolve } = require('path')
 const createHyperswarm = require('./hyperswarm')
+const AutoQueue = require('./autoqueue')
 
 const $driveCreator = Symbol('driveCreator')
 
@@ -46,6 +47,7 @@ class FarmDCDN extends EventEmitter {
     // Map from did to topics
     this.topics = {}
 
+    this.queue = opts.queue || new AutoQueue()
     this.swarm = null
     this.user = new User(getIdentifier(opts.userID), opts.password)
 
@@ -122,6 +124,7 @@ class FarmDCDN extends EventEmitter {
         if (archive instanceof Error) {
           debug('failed to initialize archive with %j: %s', archive.data, archive.message)
         } else {
+          // eslint-disable-next-line no-await-in-loop
           await self._startServices(archive)
         }
       }
@@ -201,32 +204,24 @@ class FarmDCDN extends EventEmitter {
 
       let jobNonce = jobId || await this._getJobInProgress(key) || crypto.randomBytes(32)
       if ('string' === typeof jobNonce) jobNonce = toBuffer(jobNonce.replace(/^0x/, ''), 'hex')
+      await pify(self.jobsInProgress.write)(jobNonce, key)
 
       const matcher = new matchers.MaxCostMatcher(convertedPrice, maxPeers)
-      service = new Requester(jobNonce, matcher, this.user, afs, this.swarm)
+      service = new Requester(jobNonce, matcher, this.user, afs, this.swarm, this.queue)
       service.once('jobcomplete', async (job) => {
         await pify(self.jobsInProgress.delete)(job.replace(/^0x/, ''))
         await self.unjoin(dcdnOpts)
-
-        /** This is to signify when all farmers have responded
-            with receipts and it's safe to publish the afs * */
-        self.emit('requestcomplete', key)
 
         // If both upload and download are true, then will immediately start seeding
         if (upload) {
           dcdnOpts.download = false
           await self.join(dcdnOpts)
         }
-      })
 
-      try {
-        // TODO: only prepare job if download needed
-        await service.prepareJob()
-        await pify(self.jobsInProgress.write)(jobNonce, key)
-      } catch (err) {
-        debug(`failed to start broadcast for ${key}`, err)
-        service = null
-      }
+        /** This is to signify when all farmers have responded
+        with receipts and it's safe to publish the afs * */
+        self.emit('requestcomplete', key)
+      })
     } else if (upload) {
       service = new Farmer(this.user, convertedPrice, afs, this.swarm)
     }
@@ -267,11 +262,11 @@ class FarmDCDN extends EventEmitter {
     if (download) {
       service.once('complete', async () => {
         await self.unjoin(afs.dcdnOpts)
-        self.emit('requestcomplete', afs.did)
         if (upload) {
           dcdnOpts.download = false
           await self.join(dcdnOpts)
         }
+        self.emit('requestcomplete', afs.did)
       })
     }
 
@@ -302,6 +297,7 @@ class FarmDCDN extends EventEmitter {
       const archives = this[$driveCreator].list()
       for (const archive of archives) {
         if (!(archive instanceof Error)) {
+          // eslint-disable-next-line no-await-in-loop
           await self._stopServices(archive)
         }
       }

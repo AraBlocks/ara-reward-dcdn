@@ -24,6 +24,7 @@ function createHyperswarm() {
     const wait = eager
       ? 5000
       : 50000
+    // eslint-disable-next-line no-mixed-operators
     return setTimeout(fn, Math.floor(wait + Math.random() * wait))
   }
 
@@ -47,9 +48,9 @@ function createHyperswarm() {
   function connectNext() {
     const peer = swarm.queue.pop()
     if (!peer) return
-    swarm.connect(peer, (err, socket, info) => {
+    swarm.connect(peer, (err, connection, info) => {
       if (!err) {
-        swarm.emit('connection', socket, info)
+        swarm.emit('connection', connection, info)
       }
       swarm._connectNext()
     })
