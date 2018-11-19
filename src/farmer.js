@@ -11,6 +11,7 @@ const {
   token: { constrainTokenValue }
 } = require('ara-contracts')
 const { toHexString } = require('ara-util/transform')
+const constants = require('./constants')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:farmer')
 
@@ -40,7 +41,7 @@ class Farmer extends FarmerBase {
 
   async onConnection(connection, details) {
     const peer = details.peer || {}
-    const requesterConnection = new RequesterConnection(peer, connection, { timeout: 6000 })
+    const requesterConnection = new RequesterConnection(peer, connection, { timeout: constants.DEFAULT_TIMEOUT })
     this.addRequester(requesterConnection)
   }
 

@@ -5,25 +5,23 @@ const { create: createAFS } = require('ara-filesystem')
 const { getIdentifier } = require('ara-util')
 const { Requester } = require('./requester.js')
 const { toBuffer } = require('ara-util/transform')
+const { resolve } = require('path')
 const { Farmer } = require('./farmer.js')
+const { User } = require('./util')
+const createHyperswarm = require('./hyperswarm')
 const MetadataService = require('./metadata')
 const EventEmitter = require('events')
 const multidrive = require('multidrive')
+const AutoQueue = require('./autoqueue')
+const constants = require('./constants')
 const crypto = require('ara-crypto')
 const toilet = require('toiletdb')
 const mkdirp = require('mkdirp')
 const debug = require('debug')('afd')
 const pify = require('pify')
 const rc = require('./rc')()
-const { User } = require('./util')
-const { resolve } = require('path')
-const createHyperswarm = require('./hyperswarm')
-const AutoQueue = require('./autoqueue')
 
 const $driveCreator = Symbol('driveCreator')
-
-const DEFAULT_CONFIG_STORE = 'store.json'
-const DEFAULT_JOB_STORE = 'jobs.json'
 
 /**
  * @class Creates a DCDN node
@@ -52,8 +50,8 @@ class FarmDCDN extends EventEmitter {
     this.user = new User(getIdentifier(opts.userID), opts.password)
 
     this.root = resolve(rc.network.dcdn.root, this.user.did)
-    this.jobs = resolve(rc.network.dcdn.root, this.user.did, DEFAULT_JOB_STORE)
-    this.config = resolve(rc.network.dcdn.root, this.user.did, DEFAULT_CONFIG_STORE)
+    this.jobs = resolve(rc.network.dcdn.root, this.user.did, constants.DEFAULT_JOB_STORE)
+    this.config = resolve(rc.network.dcdn.root, this.user.did, constants.DEFAULT_CONFIG_STORE)
   }
 
   _onConnection(connection, details) {
@@ -70,7 +68,7 @@ class FarmDCDN extends EventEmitter {
         onTopic(peer.topic.toString('hex'))
       })
     } else {
-      const timeout = setTimeout(() => { connection.destroy() }, 6000)
+      const timeout = setTimeout(() => { connection.destroy() }, constants.DEFAULT_TIMEOUT)
       connection.once('data', (data) => {
         clearTimeout(timeout)
         const topic = data.toString('hex')

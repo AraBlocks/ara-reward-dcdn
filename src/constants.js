@@ -1,0 +1,9 @@
+const DEFAULT_CONFIG_STORE = 'store.json'
+const DEFAULT_JOB_STORE = 'jobs.json'
+const DEFAULT_TIMEOUT = 6000
+
+module.exports = {
+  DEFAULT_CONFIG_STORE,
+  DEFAULT_JOB_STORE,
+  DEFAULT_TIMEOUT
+}
