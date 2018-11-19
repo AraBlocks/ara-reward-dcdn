@@ -1,10 +1,11 @@
-## [0.3.2](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.3.2) (2018-11-16)
+# [0.4.0](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.4.0) (2018-11-19)
 
 
 ### Bug Fixes
 
-* **dcdn:** await unjoin on metadata sync ([bb77157](https://github.com/littlstar/ara-farming-dcdn/commit/bb77157))
+* **dcdn:** await unjoin on metadata sync ([8bf601f](https://github.com/littlstar/ara-farming-dcdn/commit/8bf601f))
 * **dcdn:** switch jobs and config ([b0d872c](https://github.com/littlstar/ara-farming-dcdn/commit/b0d872c))
+* **hyperswarm:** enable multiple topics per peer. Allow for 0x in front of jobId ([bfcaeef](https://github.com/littlstar/ara-farming-dcdn/commit/bfcaeef))
 * **util:** safely handle no password ([0515798](https://github.com/littlstar/ara-farming-dcdn/commit/0515798))
 
 
@@ -13,7 +14,9 @@
 * add signing and verifying utilities ([ee02a74](https://github.com/littlstar/ara-farming-dcdn/commit/ee02a74))
 * add userDid to the directory path ([7b435c5](https://github.com/littlstar/ara-farming-dcdn/commit/7b435c5))
 * contract signature ([10377c9](https://github.com/littlstar/ara-farming-dcdn/commit/10377c9))
+* **autoqueue:** synchronous transactions ([5c7251e](https://github.com/littlstar/ara-farming-dcdn/commit/5c7251e))
 * **dcdn:** metadata replication ([053367f](https://github.com/littlstar/ara-farming-dcdn/commit/053367f))
+* **farmer:** check budget ([c745db8](https://github.com/littlstar/ara-farming-dcdn/commit/c745db8))
 * **metadata:** debug listeners for metasync ([718acd5](https://github.com/littlstar/ara-farming-dcdn/commit/718acd5))
 * **metadata:** signals when metadata sync. Added hyperswarm override for timeout ([7a3e22f](https://github.com/littlstar/ara-farming-dcdn/commit/7a3e22f))
 
