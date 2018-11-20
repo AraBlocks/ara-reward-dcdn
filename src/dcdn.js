@@ -64,24 +64,28 @@ class FarmDCDN extends EventEmitter {
 
     if (peer.topic) {
       process.nextTick(() => {
+        listenForTopic()
         connection.write(peer.topic)
-        onTopic(peer.topic.toString('hex'))
       })
     } else {
-      const timeout = setTimeout(() => { connection.destroy() }, constants.DEFAULT_TIMEOUT)
-      connection.once('data', (data) => {
-        clearTimeout(timeout)
-        const topic = data.toString('hex')
-        onTopic(topic)
+      listenForTopic((topic) => {
+        connection.write(topic)
       })
     }
 
-    function onTopic(topic) {
-      if (topic in self.services) {
-        self.services[topic].onConnection(connection, details)
-      } else {
-        connection.destroy()
-      }
+    function listenForTopic(onTopic) {
+      const timeout = setTimeout(() => { connection.destroy() }, constants.DEFAULT_TIMEOUT)
+      connection.once('data', (data) => {
+        clearTimeout(timeout)
+        const topic = data.toString('hex').substring(0, 64)
+
+        if (topic in self.services) {
+          self.services[topic].onConnection(connection, details)
+          if (onTopic) onTopic(Buffer.from(topic, 'hex'))
+        } else {
+          connection.destroy()
+        }
+      })
     }
   }
 

@@ -16,6 +16,7 @@ const {
 } = require('ara-contracts')
 const { Countdown } = require('./util')
 const { toHexString } = require('ara-util/transform')
+const constants = require('./constants')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
 
@@ -65,7 +66,7 @@ class Requester extends RequesterBase {
   onConnection(connection, details) {
     const self = this
     const peer = details.peer || {}
-    const farmerConnection = new FarmerConnection(peer, connection, { timeout: 6000 })
+    const farmerConnection = new FarmerConnection(peer, connection, { timeout: constants.DEFAULT_TIMEOUT })
     process.nextTick(() => self.addFarmer(farmerConnection))
   }
 
