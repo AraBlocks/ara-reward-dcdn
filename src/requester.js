@@ -5,15 +5,7 @@ const {
   duplex: { FarmerConnection },
   util: { nonceString }
 } = require('ara-farming-protocol')
-
-const {
-  token: { constrainTokenValue },
-  rewards: {
-    submit,
-    allocate,
-    getBudget
-  }
-} = require('ara-contracts')
+const { token, rewards } = require('ara-contracts')
 const { Countdown } = require('./util')
 const { toHexString } = require('ara-util/transform')
 const constants = require('./constants')
@@ -122,13 +114,13 @@ class Requester extends RequesterBase {
   async prepareJob() {
     // TODO: only prepare job if download needed
     const self = this
-    const budget = Number(constrainTokenValue(self.matcher.maxCost.toString()))
+    const budget = Number(token.constrainTokenValue(self.matcher.maxCost.toString()))
 
     debug(`Budgetting ${budget} Ara for AFS ${self.afs.did}`)
     const jobId = toHexString(nonceString(self.sow), { ethify: true })
     let currentBudget = 0
     try {
-      currentBudget = await getBudget({ contentDid: self.afs.did, jobId })
+      currentBudget = await rewards.getBudget({ contentDid: self.afs.did, jobId })
     } catch (err) {
       debug('prepareJob:', err)
       currentBudget = 0
@@ -138,7 +130,7 @@ class Requester extends RequesterBase {
 
     if (diff > 0) {
       debug(`Submitting additional budget: ${diff} Ara.`)
-      await submit({
+      await rewards.submit({
         requesterDid: self.user.did,
         password: self.user.password,
         contentDid: self.afs.did,
@@ -237,7 +229,7 @@ class Requester extends RequesterBase {
   async sendRewards() {
     const self = this
     const farmers = []
-    const rewards = []
+    const rewardAmounts = []
     const rewardMap = new Map()
     const jobId = toHexString(nonceString(self.sow), { ethify: true })
 
@@ -259,11 +251,11 @@ class Requester extends RequesterBase {
       const units = value / total
       const reward = this.generateReward(peerId, units)
       const userId = reward.getAgreement().getQuote().getSignature().getDid()
-      const amount = Number(constrainTokenValue(reward.getAmount().toString()))
+      const amount = Number(token.constrainTokenValue(reward.getAmount().toString()))
 
       if (amount > 0) {
         farmers.push(userId)
-        rewards.push(amount)
+        rewardAmounts.push(amount)
         rewardMap.set(peerId, reward)
         debug(`Farmer ${userId} will be rewarded ${amount} Ara.`)
       } else {
@@ -274,14 +266,14 @@ class Requester extends RequesterBase {
 
     const transaction = async () => {
       debug(`Allocating rewards for job ${jobId}.`)
-      await allocate({
+      await rewards.allocate({
         requesterDid: self.user.did,
         password: self.user.password,
         contentDid: self.afs.did,
         job: {
           jobId,
           farmers,
-          rewards
+          rewards: rewardAmounts
         }
       })
     }
