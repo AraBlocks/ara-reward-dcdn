@@ -3,7 +3,6 @@ const {
   messages
 } = require('ara-farming-protocol')
 const { User, Countdown } = require('../src/util')
-const AutoQueue = require('../src/autoqueue')
 const { Requester } = require('../src/requester')
 
 const {
@@ -27,7 +26,7 @@ const afs = { discoveryKey: 'key', replicate: () => stream }
 const convertedPrice = Number(expandTokenValue('10'))
 const matcher = new matchers.MaxCostMatcher(convertedPrice, 3)
 const swarm = {}
-const queue = { push: async function () { return true } }
+const queue = { async push() { return true } }
 
 sinon.stub(Requester.prototype, '_attachListeners')
 const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
