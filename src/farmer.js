@@ -5,11 +5,7 @@ const {
   duplex: { RequesterConnection },
   util: { nonceString, bytesToGBs }
 } = require('ara-farming-protocol')
-const {
-  library: { hasPurchased },
-  rewards: { getBudget },
-  token: { constrainTokenValue }
-} = require('ara-contracts')
+const { library, rewards, token } = require('ara-contracts')
 const { toHexString } = require('ara-util/transform')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
@@ -59,7 +55,7 @@ class Farmer extends FarmerBase {
     // TODO: move budget and deposit check to validateAgreement to ensure id ownership
     // TODO: validate that requester owns jobId
     const jobId = toHexString(nonceString(sow), { ethify: true })
-    const budget = Number(await getBudget({ contentDid: this.afs.did, jobId })) >= Number(constrainTokenValue(this.price.toString()))
+    const budget = Number(await rewards.getBudget({ contentDid: this.afs.did, jobId })) >= Number(token.constrainTokenValue(this.price.toString()))
     const match = this.topic.toString('hex') === sow.getTopic()
     return match && budget
   }
@@ -89,7 +85,7 @@ class Farmer extends FarmerBase {
    * @returns {boolean}
    */
   async validateAgreement(agreement) {
-    const purchased = await hasPurchased({
+    const purchased = await library.hasPurchased({
       contentDid: this.afs.did,
       purchaserDid: agreement.getSignature().getDid()
     })
