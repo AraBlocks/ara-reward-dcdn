@@ -1,10 +1,10 @@
-## [0.4.1](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.4.1) (2018-11-20)
+## [0.4.2](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.4.2) (2018-11-26)
 
 
 ### Bug Fixes
 
 * **dcdn:** await unjoin on metadata sync ([8bf601f](https://github.com/littlstar/ara-farming-dcdn/commit/8bf601f))
-* **dcdn:** fix for timeouts on dht connections ([e9d5c51](https://github.com/littlstar/ara-farming-dcdn/commit/e9d5c51))
+* **dcdn:** fix for timeouts on dht connections ([3bfb408](https://github.com/littlstar/ara-farming-dcdn/commit/3bfb408))
 * **dcdn:** switch jobs and config ([b0d872c](https://github.com/littlstar/ara-farming-dcdn/commit/b0d872c))
 * **hyperswarm:** enable multiple topics per peer. Allow for 0x in front of jobId ([18488d3](https://github.com/littlstar/ara-farming-dcdn/commit/18488d3))
 * **util:** safely handle no password ([0515798](https://github.com/littlstar/ara-farming-dcdn/commit/0515798))
