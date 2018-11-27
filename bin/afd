@@ -118,7 +118,7 @@ async function onstart(argv) {
     })
 
     const dcdn = await getInstance()
-    attachDownloadVisualizer(dcdn)
+    displayEvents(dcdn)
   } catch (e) {
     error('Error occurred with starting DCDN Node', e)
     process.exit(1)
@@ -160,7 +160,7 @@ async function ondownload(argv) {
     })
 
     const dcdn = await getInstance()
-    attachDownloadVisualizer(dcdn)
+    displayEvents(dcdn)
   } catch (e) {
     error(`Error occurred while downloading ${did}`, e)
     process.exit(1)
@@ -244,8 +244,9 @@ function onfatal(err) {
   process.exit(1)
 }
 
-// Creates a progress visualizer bar in cli
-function attachDownloadVisualizer(dcdn) {
+
+function displayEvents(dcdn) {
+  // Creates a progress visualizer bar in cli
   const visualizers = new Map()
   dcdn.on('start', (did, total) => {
     if (visualizers.has(did)) return
@@ -266,4 +267,23 @@ function attachDownloadVisualizer(dcdn) {
     info(`Download complete for ${did}`)
     visualizers.delete(did)
   })
+
+  dcdn.on('stop', (did) => {
+    info(`Stopping services for ${did}`)
+  })
+  dcdn.on('failedArchiving', (data, message) => {
+    error(`failed to initialize archive with ${data}: ${message}`)
+  })
+  dcdn.on('createAFS', (did) => {
+    info(`initializing afs of did ${did}`)
+  })
+  dcdn.on('closeAFS'), () => {
+    info('closing afs')
+  }
+  dcdn.on('failedUnjoining', (key) => {
+    error(`failed to unjoin a swarm with key ${key}`)
+  })
+  dcdn.on('requestcomplete'), (key) => {
+    info(`request complete for ${key}`)
+  }
 }
