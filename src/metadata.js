@@ -12,25 +12,22 @@ class MetadataService extends EventEmitter {
     this.upload = opts.upload || false
     this.download = opts.download || false
     this.swarm = swarm
-
-    this._attachListeners()
+    debug('Current version:', this.partition.version)
   }
 
-  _attachListeners() {
+  async _download() {
     const self = this
-    debug('Current version:', this.partition.version)
-    // TODO: Handle if no update available
-    this.partition.metadata.once('sync', () => {
-      if (self.download) {
-        self.partition.once('sync', () => {
-          debug('synced version:', self.partition.version)
-          self.emit('complete')
-        })
-      }
+
+    self.partition.metadata.update(() => {
+      self.partition.download('metadata.json', () => {
+        debug('synced version:', self.partition.version)
+        self.emit('complete')
+      })
     })
   }
 
   start() {
+    if (this.download) this._download()
     this.swarm.join(this.topic, { lookup: this.download, announce: this.upload })
     debug('Replicating metadata for: ', this.afs.did)
   }

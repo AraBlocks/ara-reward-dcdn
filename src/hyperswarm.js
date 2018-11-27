@@ -51,6 +51,8 @@ function createHyperswarm() {
     swarm.connect(peer, (err, connection, info) => {
       if (!err) {
         swarm.emit('connection', connection, info)
+      } else {
+        // debug('connection err:', err, peer)
       }
       swarm._connectNext()
     })

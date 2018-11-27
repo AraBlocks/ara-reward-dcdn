@@ -6,7 +6,7 @@ const {
   util: { nonceString }
 } = require('ara-farming-protocol')
 const { token, rewards } = require('ara-contracts')
-const { Countdown } = require('./util')
+const { Countdown, isUpdateAvailable } = require('./util')
 const { toHexString } = require('ara-util/transform')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
@@ -40,16 +40,17 @@ class Requester extends RequesterBase {
     this.afs = afs
     this.topic = this.afs.discoveryKey
     this.queue = queue
-
-    this._attachListeners()
   }
 
   start() {
     const self = this
-    const transaction = () => self.prepareJob()
+    const transaction = () => self._prepareJob()
     this.queue.push(transaction).then(() => {
       debug('Requesting:', self.afs.did)
-      if (self.swarm) self.swarm.join(self.topic, { lookup: true, announce: false })
+      if (self.swarm) {
+        self._download()
+        self.swarm.join(self.topic, { lookup: true, announce: false })
+      }
     }).catch((err) => {
       debug(`failed to start broadcast for ${self.afs.did}`, err)
     })
@@ -66,53 +67,64 @@ class Requester extends RequesterBase {
     if (this.swarm) this.swarm.leave(this.topic)
   }
 
-  _attachListeners() {
+  _download() {
     const self = this
-
     const partition = self.afs.partitions.home
     if (partition.content) {
-      attachDownloadListener(partition.content)
+      waitForLatest(partition.content)
     } else {
       self.afs.once('content', () => {
-        attachDownloadListener(partition.content)
+        waitForLatest(partition.content)
       })
     }
 
     // Handle when the content needs updated
-    function attachDownloadListener(feed) {
-      // Record download data
-      feed.on('download', (index, data, from) => {
-        self.dataReceived(from.stream.stream.peerId, data.length)
+    function waitForLatest(feed) {
+      // Record download data for content
+      feed.on('download', (_, data, from) => {
+        self._dataReceived(from.stream.stream.peerId, data.length)
       })
 
       // Handle when the content finishes downloading
-      feed.once('sync', async () => {
-        debug('Files:', await self.afs.readdir('.'))
-        feed.close(() => {
-          /**
-           * Unpipe the streams attached to the farmer
-           * sockets and resume AFP communication
-           * */
+      feed.on('sync', onSync)
+      let complete = false
+
+      function onSync() {
+        process.nextTick(async () => {
+          if (await isUpdateAvailable(self.afs) || complete) {
+            return
+          }
+          complete = true
+          feed.removeListener('sync', onSync)
+
+          // Close the peer streams so they know to stop sending
+          // TODO: gracefully handle end in farmer.js
+          for (const peer of feed.peers) {
+            peer.end()
+          }
+
           self.hiredFarmers.forEach((value) => {
             const { connection, stream } = value
-            connection.stream.unpipe()
+            connection.stream.unpipe(stream).unpipe(connection.stream)
             stream.destroy()
+
             // TODO: put this somewhere internal to connection
             connection.stream.on('data', connection.onData.bind(connection))
             connection.stream.resume()
           })
 
+          debug('Files:', await self.afs.readdir('.'))
+
           self.stop()
           // TODO: store rewards to send later
-          self.sendRewards()
+          self._sendRewards()
         })
-      })
+      }
     }
   }
 
   // Retrieve or Submit the job to the blockchain
-  async prepareJob() {
-    // TODO: only prepare job if download needed
+  async _prepareJob() {
     const self = this
     const budget = Number(token.constrainTokenValue(self.matcher.maxCost.toString()))
 
@@ -213,11 +225,11 @@ class Requester extends RequesterBase {
     // Expects receipt from all rewarded farmers
     if (receipt && connection) {
       if (this.receiptCountdown) this.receiptCountdown.decrement()
-      connection.stream.destroy()
+      connection.close()
     }
   }
 
-  dataReceived(peerId, units) {
+  _dataReceived(peerId, units) {
     if (this.deliveryMap.has(peerId)) {
       const total = this.deliveryMap.get(peerId) + units
       this.deliveryMap.set(peerId, total)
@@ -226,7 +238,8 @@ class Requester extends RequesterBase {
     }
   }
 
-  async sendRewards() {
+  async _sendRewards() {
+    debug('Calculating rewards...')
     const self = this
     const farmers = []
     const rewardAmounts = []
@@ -241,28 +254,34 @@ class Requester extends RequesterBase {
     let total = 0
     this.deliveryMap.forEach((value) => { total += value })
 
-    if (0 === total) {
-      debug('No bytes received. Not sending rewards.')
-      return
-    }
+    this.hiredFarmers.forEach((value, key) => {
+      const { connection } = value
+      if (0 === total) {
+        connection.close()
+        return
+      }
 
-    this.deliveryMap.forEach((value, key) => {
-      const peerId = key
-      const units = value / total
-      const reward = this.generateReward(peerId, units)
+      const units = self.deliveryMap.get(key) / total
+      const reward = self.generateReward(key, units)
       const userId = reward.getAgreement().getQuote().getSignature().getDid()
       const amount = Number(token.constrainTokenValue(reward.getAmount().toString()))
-
       if (amount > 0) {
         farmers.push(userId)
         rewardAmounts.push(amount)
-        rewardMap.set(peerId, reward)
+        rewardMap.set(key, reward)
         debug(`Farmer ${userId} will be rewarded ${amount} Ara.`)
       } else {
         debug(`Farmer ${userId} will not be rewarded.`)
-        this.receiptCountdown.decrement()
+        connection.close()
+        self.receiptCountdown.decrement()
       }
     })
+
+    // TODO: allow returning of full reward if no download happened
+    if (0 === rewardMap.size) {
+      debug(`No applicable rewards for job ${jobId}.`)
+      return
+    }
 
     const transaction = async () => {
       debug(`Allocating rewards for job ${jobId}.`)
@@ -273,7 +292,8 @@ class Requester extends RequesterBase {
         job: {
           jobId,
           farmers,
-          rewards: rewardAmounts
+          rewards: rewardAmounts,
+          returnBudget: true
         }
       })
     }

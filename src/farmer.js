@@ -32,7 +32,7 @@ class Farmer extends FarmerBase {
 
   start() {
     this.swarm.join(this.topic, { lookup: false, announce: true })
-    debug('Seeding: ', this.afs.did)
+    debug('Seeding: ', this.afs.did, 'version:', this.afs.version)
   }
 
   async onConnection(connection, details) {
@@ -176,7 +176,7 @@ class Farmer extends FarmerBase {
     connection.stream.pipe(stream).pipe(connection.stream, { end: false })
 
     function finish(error) {
-      connection.stream.unpipe()
+      connection.stream.unpipe(stream).unpipe(connection.stream)
       stream.destroy()
 
       if (error) {

@@ -7,6 +7,12 @@ const pify = require('pify')
 const rc = require('ara-runtime-configuration')()
 const ss = require('ara-secret-storage')
 const debug = require('debug')('afd:util')
+const storage = require('ara-contracts/storage')
+const {
+  METADATA_SIGNATURES_INDEX,
+  SIGNATURES_WRITE_LENGTH,
+  HEADER_LENGTH,
+} = require('ara-filesystem/constants')
 
 class User {
   constructor(did, password) {
@@ -62,7 +68,31 @@ class Countdown {
   }
 }
 
+// TODO: migrate to ara-filesystem to be an interal function of an afs
+async function isUpdateAvailable(afs) {
+  if (!afs.proxy) return false
+  let buf
+  try {
+    const localVersion = afs.version || 0
+    const updateVersion = localVersion + 1
+
+    // offset to read from bc to see if update is available
+    const offset = HEADER_LENGTH + (updateVersion * SIGNATURES_WRITE_LENGTH)
+
+    buf = await storage.read({
+      fileIndex: METADATA_SIGNATURES_INDEX,
+      address: afs.proxy,
+      offset
+    })
+  } catch (err) {
+    throw err
+  }
+
+  return null !== buf
+}
+
 module.exports = {
+  isUpdateAvailable,
   Countdown,
   User
 }

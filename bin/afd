@@ -2,7 +2,7 @@
 
 const { start, getInstance } = require('../')
 const { getIdentifier } = require('ara-util')
-const { info, error } = require('ara-console')
+const { info, warn, error } = require('ara-console')
 const { basename } = require('path')
 const inquirer = require('inquirer')
 const program = require('yargs')
@@ -59,6 +59,24 @@ program.option('did', {
   describe:
   `A valid and resolvable Ara identity DID URI
   of an AFS.`,
+})
+
+program.option('reward', {
+  alias: 'r',
+  type: 'number',
+  describe:
+  `The maximum reward you want to receive/give for 
+  uploading/downloading an AFS. The default is 10%
+  of the price of an AFS.`
+})
+
+program.option('peers', {
+  alias: 'p',
+  type: 'number',
+  describe:
+  `The maximum number of peers you want to connect 
+  with when uploading/downloading an AFS.`,
+  default: 10
 })
 
 program.command(
@@ -120,8 +138,7 @@ async function onstart(argv) {
     const dcdn = await getInstance()
     displayEvents(dcdn)
   } catch (e) {
-    error('Error occurred with starting DCDN Node', e)
-    process.exit(1)
+    onfatal(`Error occurred with starting DCDN Node: ${e}`)
   }
 }
 
@@ -132,21 +149,7 @@ async function ondownload(argv) {
 
   const password = await getPassword()
 
-  const { maxCost } = await inquirer.prompt([ {
-    type: 'input',
-    name: 'maxCost',
-    message:
-    '\nPlease enter your max cost in Ara per download.\n' +
-    'Price:'
-  } ])
-
-  const { maxPeers } = await inquirer.prompt([ {
-    type: 'input',
-    name: 'maxPeers',
-    message:
-    '\nPlease enter the maximum number of peers you want to hire.\n' +
-    'Peers:'
-  } ])
+  // TODO: add confirmation about expected price for download, i.e. 10% of price
 
   try {
     await start({
@@ -155,15 +158,14 @@ async function ondownload(argv) {
       did,
       download: true,
       upload: false,
-      price: maxCost,
-      maxPeers
+      reward: argv.reward,
+      peers: argv.peers
     })
 
     const dcdn = await getInstance()
     displayEvents(dcdn)
   } catch (e) {
-    error(`Error occurred while downloading ${did}`, e)
-    process.exit(1)
+    onfatal(`Error occurred while downloading ${did}: ${e}`)
   }
 }
 
@@ -173,13 +175,7 @@ async function onseed(argv) {
 
   const password = await getPassword()
 
-  const { farmingPrice } = await inquirer.prompt([ {
-    type: 'input',
-    name: 'farmingPrice',
-    message:
-    '\nPlease enter your price in Ara per upload.\n' +
-    'Price:'
-  } ])
+  // TODO: add confirmation about expected reward for upload, i.e. 10% of price
 
   try {
     await start({
@@ -188,11 +184,14 @@ async function onseed(argv) {
       did,
       download: false,
       upload: true,
-      price: farmingPrice,
+      reward: argv.reward,
+      peers: argv.peers
     })
+
+    const dcdn = await getInstance()
+    displayEvents(dcdn)
   } catch (e) {
-    error(`Error occurred while seeding DID ${did}`, e)
-    process.exit(1)
+    onfatal(`Error occurred while seeding DID ${did}: ${e}`)
   }
 }
 
@@ -206,11 +205,14 @@ async function onmetadata(argv) {
       did,
       download: true,
       upload: false,
+      peers: argv.peers,
       metaOnly: true
     })
+
+    const dcdn = await getInstance()
+    displayEvents(dcdn)
   } catch (e) {
-    error(`Error occurred while syncing metadata ${did}`, e)
-    process.exit(1)
+    onfatal(`Error occurred while syncing metadata ${did}: ${e}`)
   }
 }
 
@@ -248,6 +250,7 @@ function onfatal(err) {
 function displayEvents(dcdn) {
   // Creates a progress visualizer bar in cli
   const visualizers = new Map()
+
   dcdn.on('start', (did, total) => {
     if (visualizers.has(did)) return
     info(`Download started for ${did}`)
@@ -255,11 +258,13 @@ function displayEvents(dcdn) {
     pBar.start(total, 0)
     visualizers.set(did, pBar)
   })
+
   dcdn.on('progress', (did, value) => {
     if (!visualizers.has(did)) return
     const pBar = visualizers.get(did)
     pBar.update(value)
   })
+
   dcdn.on('complete', (did) => {
     if (!visualizers.has(did)) return
     const pBar = visualizers.get(did)
@@ -273,10 +278,10 @@ function displayEvents(dcdn) {
   })
 
   dcdn.on('warn', (message) => {
-    error(message)
+    warn(message)
   })
 
-  dcdn.on('requestcomplete'), (key) => {
+  dcdn.on('requestcomplete', (key) => {
     info(`request complete for ${key}`)
-  }
+  })
 }

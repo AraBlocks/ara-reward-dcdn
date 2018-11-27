@@ -28,7 +28,7 @@ const matcher = new matchers.MaxCostMatcher(convertedPrice, 3)
 const swarm = {}
 const queue = { async push() { return true } }
 
-sinon.stub(Requester.prototype, '_attachListeners')
+sinon.stub(Requester.prototype, '_download')
 const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
 
 const signature = new Signature()
@@ -79,8 +79,8 @@ test('requester.dataReceived', async (t) => {
   const deliveryMap = new Map()
   deliveryMap.set(id1, 5)
   requester.deliveryMap = deliveryMap
-  requester.dataReceived(id1, 5)
-  requester.dataReceived(id2, 5)
+  requester._dataReceived(id1, 5)
+  requester._dataReceived(id2, 5)
 
   const data = requester.deliveryMap
   t.true(10 == data.get(id1) && 5 == data.get(id2))
@@ -99,7 +99,7 @@ test('requester.prepareJob', async (t) => {
   sinon.stub(rewards, 'getBudget').resolves(5)
   const submitFake = sinon.fake()
   sinon.stub(rewards, 'submit').callsFake(submitFake)
-  await requester.prepareJob()
+  await requester._prepareJob()
 
   t.true(submitFake.calledOnce)
 })
@@ -109,13 +109,11 @@ test('requester.onReceipt', async (t) => {
   requester.receiptCountdown = new Countdown(1, () => { onCompleteFake = true })
   let connectionFake = false
   const connection = {
-    stream: {
-      destroy: () => {
-        connectionFake = true
-      }
+    close: () => {
+      connectionFake = true
     }
   }
-  requester.onReceipt('receipt', connection)
+  await requester.onReceipt('receipt', connection)
   t.true(onCompleteFake && connectionFake && 0 == requester.receiptCountdown.count)
 })
 
@@ -173,6 +171,6 @@ test('requester.sendRewards', async (t) => {
   reward.setAmount(10)
 
   sinon.stub(requester, 'generateReward').returns(reward)
-  await requester.sendRewards()
+  await requester._sendRewards()
   t.true(connectionFake)
 })
