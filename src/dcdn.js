@@ -124,7 +124,7 @@ class FarmDCDN extends EventEmitter {
       const archives = this[$driveCreator].list()
       for (const archive of archives) {
         if (archive instanceof Error) {
-          debug('failed to initialize archive with %j: %s', archive.data, archive.message)
+          self.emit('failedArchiving', archive.data, archive.message)
         } else {
           // eslint-disable-next-line no-await-in-loop
           await self._startServices(archive)
@@ -276,7 +276,7 @@ class FarmDCDN extends EventEmitter {
   }
 
   _stopServices(afs) {
-    debug('Stopping services for', afs.did)
+    self.emit('stop', afs.did)
 
     if (afs.did in this.topics) {
       for (const topic of this.topics[afs.did]) {
@@ -334,7 +334,7 @@ class FarmDCDN extends EventEmitter {
 
     if (this.swarm) {
       if (archive instanceof Error) {
-        debug('failed to initialize archive with %j: %s', archive.data, archive.message)
+        self.emit('failedArchiving', archive.data, archive.message)
         return
       }
       await this._startServices(archive)
@@ -366,13 +366,13 @@ class FarmDCDN extends EventEmitter {
         await pify(this[$driveCreator].close)(key)
       }
     } catch (err) {
-      debug(err)
+      self.emit('failedUnjoining', key)
     }
   }
 
   static async _createAFS(opts, done) {
     const { did } = opts
-    debug(`initializing afs of did ${did}`)
+    self.emit('createAFS', did)
 
     try {
       const { afs } = await createAFS({ did })
@@ -384,7 +384,7 @@ class FarmDCDN extends EventEmitter {
   }
 
   static async _closeAFS(afs, done) {
-    debug('closing afs')
+    self.emit('closeAFS')
     if (afs) await afs.close()
     done()
   }
