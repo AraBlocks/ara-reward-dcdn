@@ -22,8 +22,8 @@ async function start(argv = {}) {
       download: argv.download,
       upload: argv.upload,
       metaOnly: argv.metaOnly,
-      price: argv.price,
-      maxPeers: argv.maxPeers,
+      price: argv.reward,
+      maxPeers: argv.peers,
       jobId: argv.jobId
     })
   } else {

@@ -1,5 +1,5 @@
 /* eslint class-methods-use-this: 1 */
-const { token: { expandTokenValue } } = require('ara-contracts')
+const { token, registry } = require('ara-contracts')
 const { matchers, util: { idify } } = require('ara-farming-protocol')
 const { create: createAFS } = require('ara-filesystem')
 const { getIdentifier } = require('ara-util')
@@ -192,8 +192,7 @@ class FarmDCDN extends EventEmitter {
     let service
     const key = afs.did
 
-    const convertedPrice = (price) ? Number(expandTokenValue(price.toString())) : 0
-
+    const convertedPrice = (price) ? Number(token.expandTokenValue(price.toString())) : 0
     if (download) {
       const partition = afs.partitions.home
       if (partition.content) {
@@ -276,7 +275,7 @@ class FarmDCDN extends EventEmitter {
   }
 
   _stopServices(afs) {
-    self.emit('info', `Stopping services for ${afs.did}`)
+    this.emit('info', `Stopping services for ${afs.did}`)
 
     if (afs.did in this.topics) {
       for (const topic of this.topics[afs.did]) {
@@ -304,8 +303,6 @@ class FarmDCDN extends EventEmitter {
         }
       }
       await pify(this[$driveCreator].disconnect)()
-
-      // TODO: update swarm destruction with hyperswarm v1
       await pify(this.swarm.destroy)()
       this.swarm = null
     }
@@ -334,7 +331,7 @@ class FarmDCDN extends EventEmitter {
 
     if (this.swarm) {
       if (archive instanceof Error) {
-        self.emit('warn', `failed to initialize archive with ${archive.data}: ${archive.message}`)
+        this.emit('warn', `failed to initialize archive with ${archive.data}: ${archive.message}`)
         return
       }
       await this._startServices(archive)
@@ -366,17 +363,24 @@ class FarmDCDN extends EventEmitter {
         await pify(this[$driveCreator].close)(key)
       }
     } catch (err) {
-      self.emit('warn', `failed to unjoin a swarm with key ${key}`)
+      this.emit('warn', `failed during unjoin of did ${key} with error: ${err}`)
     }
   }
 
   static async _createAFS(opts, done) {
     const { did } = opts
-    self.emit('info', `initializing afs of did ${did}`)
-
     try {
+      // TODO: only sync latest
       const { afs } = await createAFS({ did })
       afs.dcdnOpts = opts
+
+      // TODO: factor this into ara-filesystem
+      afs.proxy = await registry.getProxyAddress(did)
+
+      afs.on('error', () => {
+        // TODO: properly handle afs errors
+      })
+
       done(null, afs)
     } catch (err) {
       done(err, null)
@@ -384,8 +388,11 @@ class FarmDCDN extends EventEmitter {
   }
 
   static async _closeAFS(afs, done) {
-    self.emit('info', 'closing afs')
-    if (afs) await afs.close()
+    try {
+      if (afs) await afs.close()
+    } catch (err) {
+      debug('afs close error:', err)
+    }
     done()
   }
 }
