@@ -268,21 +268,14 @@ function displayEvents(dcdn) {
     visualizers.delete(did)
   })
 
-  dcdn.on('stop', (did) => {
-    info(`Stopping services for ${did}`)
+  dcdn.on('info', (message) => {
+    info(message)
   })
-  dcdn.on('failedArchiving', (data, message) => {
-    error(`failed to initialize archive with ${data}: ${message}`)
+
+  dcdn.on('warn', (message) => {
+    error(message)
   })
-  dcdn.on('createAFS', (did) => {
-    info(`initializing afs of did ${did}`)
-  })
-  dcdn.on('closeAFS'), () => {
-    info('closing afs')
-  }
-  dcdn.on('failedUnjoining', (key) => {
-    error(`failed to unjoin a swarm with key ${key}`)
-  })
+
   dcdn.on('requestcomplete'), (key) => {
     info(`request complete for ${key}`)
   }
