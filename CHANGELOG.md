@@ -1,4 +1,4 @@
-## [0.4.2](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.4.2) (2018-11-26)
+## [0.4.3](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.4.3) (2018-11-28)
 
 
 ### Bug Fixes
