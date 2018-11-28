@@ -276,7 +276,7 @@ class FarmDCDN extends EventEmitter {
   }
 
   _stopServices(afs) {
-    self.emit('stop', afs.did)
+    self.emit('info', `Stopping services for ${afs.did}`)
 
     if (afs.did in this.topics) {
       for (const topic of this.topics[afs.did]) {
@@ -334,7 +334,7 @@ class FarmDCDN extends EventEmitter {
 
     if (this.swarm) {
       if (archive instanceof Error) {
-        self.emit('failedArchiving', archive.data, archive.message)
+        self.emit('warn', `failed to initialize archive with ${archive.data}: ${archive.message}`)
         return
       }
       await this._startServices(archive)
@@ -366,13 +366,13 @@ class FarmDCDN extends EventEmitter {
         await pify(this[$driveCreator].close)(key)
       }
     } catch (err) {
-      self.emit('failedUnjoining', key)
+      self.emit('warn', `failed to unjoin a swarm with key ${key}`)
     }
   }
 
   static async _createAFS(opts, done) {
     const { did } = opts
-    self.emit('createAFS', did)
+    self.emit('info', `initializing afs of did ${did}`)
 
     try {
       const { afs } = await createAFS({ did })
@@ -384,7 +384,7 @@ class FarmDCDN extends EventEmitter {
   }
 
   static async _closeAFS(afs, done) {
-    self.emit('closeAFS')
+    self.emit('info', 'closing afs')
     if (afs) await afs.close()
     done()
   }
