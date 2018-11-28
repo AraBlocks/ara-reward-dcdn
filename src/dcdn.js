@@ -124,7 +124,7 @@ class FarmDCDN extends EventEmitter {
       const archives = this[$driveCreator].list()
       for (const archive of archives) {
         if (archive instanceof Error) {
-          self.emit('failedArchiving', archive.data, archive.message)
+          self.emit('warn', `failed to initialize archive with ${archive.data}: ${archive.message}`)
         } else {
           // eslint-disable-next-line no-await-in-loop
           await self._startServices(archive)
