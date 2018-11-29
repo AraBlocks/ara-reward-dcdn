@@ -7,7 +7,7 @@ const { Requester } = require('./requester.js')
 const { toBuffer } = require('ara-util/transform')
 const { resolve } = require('path')
 const { Farmer } = require('./farmer.js')
-const { User } = require('./util')
+const { User, isUpdateAvailable } = require('./util')
 const createHyperswarm = require('./hyperswarm')
 const MetadataService = require('./metadata')
 const EventEmitter = require('events')
@@ -124,7 +124,7 @@ class FarmDCDN extends EventEmitter {
       const archives = this[$driveCreator].list()
       for (const archive of archives) {
         if (archive instanceof Error) {
-          self.emit('warn', `failed to initialize archive with ${archive.data}: ${archive.message}`)
+          self.emit('warn', `failed to initialize archive with ${archive.data.did}: ${archive.message}`)
         } else {
           // eslint-disable-next-line no-await-in-loop
           await self._startServices(archive)
@@ -157,9 +157,7 @@ class FarmDCDN extends EventEmitter {
 
     if (metaOnly) {
       addService(await this._createMetaService(afs))
-    } else if (download) {
-      addService(await this._createContentService(afs))
-    } else if (upload) {
+    } else {
       addService(await this._createMetaService(afs))
       addService(await this._createContentService(afs))
     }
@@ -193,7 +191,13 @@ class FarmDCDN extends EventEmitter {
     const key = afs.did
 
     const convertedPrice = (price) ? Number(token.expandTokenValue(price.toString())) : 0
+
     if (download) {
+      if (!(await isUpdateAvailable(afs))) {
+        this.emit('info', `No content update available for ${afs.did}`)
+        return null
+      }
+
       const partition = afs.partitions.home
       if (partition.content) {
         attachProgressListener(partition.content)
@@ -250,27 +254,7 @@ class FarmDCDN extends EventEmitter {
   }
 
   async _createMetaService(afs) {
-    const self = this
-    const {
-      dcdnOpts: {
-        upload,
-        download
-      },
-      dcdnOpts
-    } = afs
-
     const service = new MetadataService(afs, this.swarm, afs.dcdnOpts)
-    if (download) {
-      service.once('complete', async () => {
-        await self.unjoin(afs.dcdnOpts)
-        if (upload) {
-          dcdnOpts.download = false
-          await self.join(dcdnOpts)
-        }
-        self.emit('requestcomplete', afs.did)
-      })
-    }
-
     return service
   }
 
@@ -331,7 +315,7 @@ class FarmDCDN extends EventEmitter {
 
     if (this.swarm) {
       if (archive instanceof Error) {
-        this.emit('warn', `failed to initialize archive with ${archive.data}: ${archive.message}`)
+        this.emit('warn', `Failed to initialize archive with ${archive.data}: ${archive.message}`)
         return
       }
       await this._startServices(archive)
@@ -363,7 +347,7 @@ class FarmDCDN extends EventEmitter {
         await pify(this[$driveCreator].close)(key)
       }
     } catch (err) {
-      this.emit('warn', `failed during unjoin of did ${key} with error: ${err}`)
+      this.emit('warn', `Failed during unjoin of did ${key} with error: ${err}`)
     }
   }
 
@@ -371,7 +355,14 @@ class FarmDCDN extends EventEmitter {
     const { did } = opts
     try {
       // TODO: only sync latest
-      const { afs } = await createAFS({ did })
+      const { afs } = await createAFS({
+        did,
+        partitions: {
+          etc: {
+            sparse: true
+          }
+        }
+      })
       afs.dcdnOpts = opts
 
       // TODO: factor this into ara-filesystem
@@ -389,7 +380,7 @@ class FarmDCDN extends EventEmitter {
 
   static async _closeAFS(afs, done) {
     try {
-      if (afs) await afs.close()
+      if (afs && afs.close) await afs.close()
     } catch (err) {
       debug('afs close error:', err)
     }

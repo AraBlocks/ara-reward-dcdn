@@ -29,7 +29,6 @@ const swarm = {}
 const queue = { async push() { return true } }
 
 sinon.stub(Requester.prototype, '_download')
-const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
 
 const signature = new Signature()
 sinon.stub(user, 'sign').returns(signature)
@@ -38,6 +37,7 @@ sinon.stub(signature, 'getData').returns('data')
 sinon.stub(signature, 'getDid').returns('id1')
 
 test('requester.validateQuote', async (t) => {
+  const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
   const quote = new Quote()
   const validation = await requester.validateQuote(quote)
   t.true(validation)
@@ -45,6 +45,7 @@ test('requester.validateQuote', async (t) => {
 
 test('requester.generateAgreement', async (t) => {
   const quote = new Quote()
+  const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
   const agreement = await requester.generateAgreement(quote)
   t.true(agreement.getSignature() == signature && agreement.getQuote() == quote)
 })
@@ -53,6 +54,7 @@ test('requester.validateAgreement', async (t) => {
   const agreementNonce = Buffer.from('did', 'hex')
   const agreement = new Agreement()
   agreement.setNonce(agreementNonce)
+  const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
 
   const validation = await requester.validateAgreement(agreement)
   t.true(validation)
@@ -61,6 +63,7 @@ test('requester.validateAgreement', async (t) => {
 test('requester.generateReward', async (t) => {
   const peerId = 'id'
   const units = 5
+  const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
 
   const agreement = new Agreement()
   const quote = new Quote()
@@ -75,6 +78,7 @@ test('requester.generateReward', async (t) => {
 test('requester.dataReceived', async (t) => {
   const id1 = 'id1'
   const id2 = 'id2'
+  const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
 
   const deliveryMap = new Map()
   deliveryMap.set(id1, 5)
@@ -88,6 +92,7 @@ test('requester.dataReceived', async (t) => {
 
 test('requester.stop', async (t) => {
   const leaveFake = sinon.fake()
+  const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
 
   requester.swarm.leave = leaveFake
 
@@ -96,6 +101,8 @@ test('requester.stop', async (t) => {
 })
 
 test('requester.prepareJob', async (t) => {
+  const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
+
   sinon.stub(rewards, 'getBudget').resolves(5)
   const submitFake = sinon.fake()
   sinon.stub(rewards, 'submit').callsFake(submitFake)
@@ -105,6 +112,8 @@ test('requester.prepareJob', async (t) => {
 })
 
 test('requester.onReceipt', async (t) => {
+  const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
+
   let onCompleteFake = false
   requester.receiptCountdown = new Countdown(1, () => { onCompleteFake = true })
   let connectionFake = false
@@ -118,6 +127,8 @@ test('requester.onReceipt', async (t) => {
 })
 
 test('requester.onHireConfirmed', async (t) => {
+  const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
+
   const quote = new Quote()
   quote.setSignature(signature)
   const agreement = new Agreement()
@@ -148,6 +159,8 @@ test('requester.onHireConfirmed', async (t) => {
 })
 
 test('requester.sendRewards', async (t) => {
+  const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
+
   const deliveryMap = new Map()
   deliveryMap.set('id1', 5)
   requester.deliveryMap = deliveryMap
