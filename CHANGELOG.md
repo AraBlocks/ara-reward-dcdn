@@ -1,4 +1,4 @@
-## [0.4.3](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.4.3) (2018-11-28)
+# [0.5.0](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.5.0) (2018-11-29)
 
 
 ### Bug Fixes
@@ -7,6 +7,7 @@
 * **dcdn:** fix for timeouts on dht connections ([3bfb408](https://github.com/littlstar/ara-farming-dcdn/commit/3bfb408))
 * **dcdn:** switch jobs and config ([b0d872c](https://github.com/littlstar/ara-farming-dcdn/commit/b0d872c))
 * **hyperswarm:** enable multiple topics per peer. Allow for 0x in front of jobId ([18488d3](https://github.com/littlstar/ara-farming-dcdn/commit/18488d3))
+* **metadata:** replicate metadata during download ([ea43c80](https://github.com/littlstar/ara-farming-dcdn/commit/ea43c80))
 * **util:** safely handle no password ([0515798](https://github.com/littlstar/ara-farming-dcdn/commit/0515798))
 
 
@@ -16,6 +17,7 @@
 * add userDid to the directory path ([7b435c5](https://github.com/littlstar/ara-farming-dcdn/commit/7b435c5))
 * contract signature ([10377c9](https://github.com/littlstar/ara-farming-dcdn/commit/10377c9))
 * **autoqueue:** synchronous transactions ([80973c0](https://github.com/littlstar/ara-farming-dcdn/commit/80973c0))
+* **dcdn:** default reward to 10% of price ([35548c5](https://github.com/littlstar/ara-farming-dcdn/commit/35548c5))
 * **dcdn:** metadata replication ([053367f](https://github.com/littlstar/ara-farming-dcdn/commit/053367f))
 * **farmer:** check budget ([7b717b3](https://github.com/littlstar/ara-farming-dcdn/commit/7b717b3))
 * **metadata:** debug listeners for metasync ([718acd5](https://github.com/littlstar/ara-farming-dcdn/commit/718acd5))
