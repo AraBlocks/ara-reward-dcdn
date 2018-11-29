@@ -5,6 +5,7 @@ const {
   duplex: { RequesterConnection },
   util: { nonceString, bytesToGBs }
 } = require('ara-farming-protocol')
+const { isJobOwner } = require('./util')
 const { library, rewards, token } = require('ara-contracts')
 const { toHexString } = require('ara-util/transform')
 const constants = require('./constants')
@@ -51,13 +52,7 @@ class Farmer extends FarmerBase {
    * @returns {boolean}
    */
   async validateSow(sow) {
-    // TODO: check deposit once k-swarm
-    // TODO: move budget and deposit check to validateAgreement to ensure id ownership
-    // TODO: validate that requester owns jobId
-    const jobId = toHexString(nonceString(sow), { ethify: true })
-    const budget = Number(await rewards.getBudget({ contentDid: this.afs.did, jobId })) >= Number(token.constrainTokenValue(this.price.toString()))
-    const match = this.topic.toString('hex') === sow.getTopic()
-    return match && budget
+    return this.topic.toString('hex') === sow.getTopic()
   }
 
   /**
@@ -85,15 +80,45 @@ class Farmer extends FarmerBase {
    * @returns {boolean}
    */
   async validateAgreement(agreement) {
-    const purchased = await library.hasPurchased({
-      contentDid: this.afs.did,
-      purchaserDid: agreement.getSignature().getDid()
-    })
-
+    // Verify the requester's identity
+    const requester = agreement.getSignature().getDid()
     const nonce = nonceString(agreement.getQuote())
     const data = this.stateMap.get(nonce)
+    if (!this.user.verify(agreement, data)) {
+      debug('invalid agreement: bad signature')
+      return false
+    }
 
-    return this.user.verify(agreement, data) && purchased
+    // Verify the requester has purchased the content (TODO: or has deposited, once k-swarm)
+    if (!(await library.hasPurchased({
+      contentDid: this.afs.did,
+      purchaserDid: requester
+    }))) {
+      debug('invalid agreement: requester hasn\'t purchased')
+      return false
+    }
+
+    if (this.price) {
+      // Verify there is adequate budget in the job
+      const jobId = toHexString(nonceString(agreement.getQuote().getSow()), { ethify: true })
+      const budget = Number(await rewards.getBudget({ contentDid: this.afs.did, jobId }))
+      if (budget < Number(token.constrainTokenValue(this.price.toString()))) {
+        debug('invalid agreement: job under budget')
+        return false
+      }
+
+      // Verify the requester is the owner of the job
+      if (!(await isJobOwner({
+        contentDid: this.afs.did,
+        jobId,
+        owner: requester
+      }))) {
+        debug('invalid agreement: requester not job owner')
+        return false
+      }
+    }
+
+    return true
   }
 
   /**

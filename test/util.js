@@ -1,6 +1,7 @@
 const sinon = require('sinon')
 const test = require('ava')
-const { User, Countdown } = require('../src/util')
+const { Countdown } = require('../src/util')
+const User = require('../src/user')
 const crypto = require('ara-crypto')
 
 const user = new User('did', 'pass')

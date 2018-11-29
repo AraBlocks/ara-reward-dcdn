@@ -7,7 +7,7 @@ const { Requester } = require('./requester.js')
 const { toBuffer } = require('ara-util/transform')
 const { resolve } = require('path')
 const { Farmer } = require('./farmer.js')
-const { User, isUpdateAvailable } = require('./util')
+const { isUpdateAvailable } = require('./util')
 const createHyperswarm = require('./hyperswarm')
 const MetadataService = require('./metadata')
 const EventEmitter = require('events')
@@ -19,6 +19,7 @@ const toilet = require('toiletdb')
 const mkdirp = require('mkdirp')
 const debug = require('debug')('afd')
 const pify = require('pify')
+const User = require('./user')
 const rc = require('./rc')()
 
 const $driveCreator = Symbol('driveCreator')
@@ -195,6 +196,7 @@ class FarmDCDN extends EventEmitter {
     let service
     const key = afs.did
 
+    // Default reward to a percentage of the content's price
     if (null === price || undefined === price) {
       try {
         price = constants.DEFAULT_REWARD_PERCENTAGE * await getPrice({ did: afs.did })
