@@ -1,7 +1,7 @@
 /* eslint class-methods-use-this: 1 */
 const { token, registry } = require('ara-contracts')
 const { matchers, util: { idify } } = require('ara-farming-protocol')
-const { create: createAFS } = require('ara-filesystem')
+const { create: createAFS, getPrice } = require('ara-filesystem')
 const { getIdentifier } = require('ara-util')
 const { Requester } = require('./requester.js')
 const { toBuffer } = require('ara-util/transform')
@@ -176,11 +176,16 @@ class FarmDCDN extends EventEmitter {
   async _createContentService(afs) {
     const self = this
 
+    let {
+      dcdnOpts: {
+        price
+      }
+    } = afs
+
     const {
       dcdnOpts: {
         upload,
         download,
-        price,
         maxPeers,
         jobId
       },
@@ -190,6 +195,14 @@ class FarmDCDN extends EventEmitter {
     let service
     const key = afs.did
 
+    if (null === price || undefined === price) {
+      try {
+        price = constants.DEFAULT_REWARD_PERCENTAGE * await getPrice({ did: afs.did })
+      } catch (err) {
+        debug(err)
+        price = 0
+      }
+    }
     const convertedPrice = (price) ? Number(token.expandTokenValue(price.toString())) : 0
 
     if (download) {
