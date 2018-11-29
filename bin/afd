@@ -1,20 +1,22 @@
 #!/usr/bin/env node
 
-const { start, getInstance } = require('../')
+const {
+  start, stop, setInstance, getInstance
+} = require('../')
 const { getIdentifier } = require('ara-util')
 const { info, warn, error } = require('ara-console')
 const { basename } = require('path')
 const inquirer = require('inquirer')
 const program = require('yargs')
-const debug = require('debug')('afd')
 const clip = require('cli-progress')
+const DCDN = require('../src/dcdn')
 const rc = require('ara-runtime-configuration')()
 
 const $0 = basename(process.argv[1])
 
 process.title = $0
-process.on('unhandledRejection', onfatal)
-process.on('uncaughtExeption', onfatal)
+process.on('unhandledRejection', onClose)
+process.on('uncaughtExeption', onClose)
 
 // program usage
 program
@@ -126,19 +128,20 @@ if (program.argv.debug) {
 
 async function onstart(argv) {
   info('starting DCDN node')
-
-  const password = await getPassword()
-
   try {
-    await start({
-      password,
-      userID: argv.identity,
-    })
-
-    const dcdn = await getInstance()
-    displayEvents(dcdn)
+    let dcdn = await getInstance()
+    if (!dcdn) {
+      const password = await getPassword()
+      dcdn = new DCDN({
+        password,
+        userID: argv.identity
+      })
+      await setInstance(dcdn)
+      displayEvents(dcdn)
+    }
+    await start()
   } catch (e) {
-    onfatal(`Error occurred with starting DCDN Node: ${e}`)
+    onClose(`Error occurred with starting DCDN Node: ${e}`)
   }
 }
 
@@ -147,25 +150,29 @@ async function ondownload(argv) {
 
   info(`starting DCDN to download ${did}`)
 
-  const password = await getPassword()
-
   // TODO: add confirmation about expected price for download, i.e. 10% of price
 
   try {
+    let dcdn = await getInstance()
+    if (!dcdn) {
+      const password = await getPassword()
+      dcdn = new DCDN({
+        password,
+        userID: argv.identity
+      })
+      await setInstance(dcdn)
+      displayEvents(dcdn)
+    }
+
     await start({
-      password,
-      userID: argv.identity,
       did,
       download: true,
       upload: false,
       reward: argv.reward,
       peers: argv.peers
     })
-
-    const dcdn = await getInstance()
-    displayEvents(dcdn)
   } catch (e) {
-    onfatal(`Error occurred while downloading ${did}: ${e}`)
+    onClose(`Error occurred while downloading ${did}: ${e}`)
   }
 }
 
@@ -173,25 +180,29 @@ async function onseed(argv) {
   const did = getIdentifier(argv.did || await getDid())
   info(`starting DCDN to seed ${did}`)
 
-  const password = await getPassword()
-
   // TODO: add confirmation about expected reward for upload, i.e. 10% of price
 
   try {
+    let dcdn = await getInstance()
+    if (!dcdn) {
+      const password = await getPassword()
+      dcdn = new DCDN({
+        password,
+        userID: argv.identity
+      })
+      await setInstance(dcdn)
+      displayEvents(dcdn)
+    }
+
     await start({
-      password,
-      userID: argv.identity,
       did,
       download: false,
       upload: true,
       reward: argv.reward,
       peers: argv.peers
     })
-
-    const dcdn = await getInstance()
-    displayEvents(dcdn)
   } catch (e) {
-    onfatal(`Error occurred while seeding DID ${did}: ${e}`)
+    onClose(`Error occurred while seeding DID ${did}: ${e}`)
   }
 }
 
@@ -200,19 +211,26 @@ async function onmetadata(argv) {
   info(`starting DCDN to sync metadata for ${did}`)
 
   try {
+    let dcdn = await getInstance()
+    if (!dcdn) {
+      const password = await getPassword()
+      dcdn = new DCDN({
+        password,
+        userID: argv.identity
+      })
+      await setInstance(dcdn)
+      displayEvents(dcdn)
+    }
+
     await start({
-      userID: argv.identity,
       did,
       download: true,
       upload: false,
       peers: argv.peers,
       metaOnly: true
     })
-
-    const dcdn = await getInstance()
-    displayEvents(dcdn)
   } catch (e) {
-    onfatal(`Error occurred while syncing metadata ${did}: ${e}`)
+    onClose(`Error occurred while syncing metadata ${did}: ${e}`)
   }
 }
 
@@ -238,14 +256,20 @@ async function getDid() {
   return did
 }
 
-function onfatal(err) {
+async function onClose(err) {
   if (err) {
-    debug(err)
     error('fatal:', err.message)
+    process.exit(1)
+  } else {
+    try {
+      await stop()
+      process.exit(0)
+    } catch (e) {
+      error('fatal:', e)
+      process.exit(1)
+    }
   }
-  process.exit(1)
 }
-
 
 function displayEvents(dcdn) {
   // Creates a progress visualizer bar in cli
@@ -282,6 +306,6 @@ function displayEvents(dcdn) {
   })
 
   dcdn.on('requestcomplete', (key) => {
-    info(`request complete for ${key}`)
+    info(`Request complete for ${key}`)
   })
 }

@@ -2,12 +2,20 @@ const test = require('ava')
 const DCDN = require('../src/dcdn')
 const aid = require('ara-identity')
 const { create: createAFS } = require('ara-filesystem')
+const { rewards, registry, storage } = require('ara-contracts')
+const sinon = require('sinon')
 const context = require('ara-context')()
 
 const TEST_PASSWORD = 'abcd'
 
 let testUser = null
 let testDid = null
+
+sinon.stub(registry, 'getProxyAddress').resolves('abcd')
+sinon.stub(rewards, 'getBudget').resolves(0)
+sinon.stub(storage, 'read').resolves('abcd')
+sinon.stub(rewards, 'submit').resolves({})
+sinon.stub(rewards, 'allocate').resolves({})
 
 // TODO: more robust testing. Most of this is just sanity check at the moment.
 test.before(async () => {
@@ -114,7 +122,7 @@ test.serial('dcdn.join.upload', async (t) => {
     did: testDid,
     upload: true,
     download: false,
-    price: 1,
+    price: 0,
     maxPeers: 1
   })
 
@@ -134,7 +142,7 @@ test.serial('dcdn.join.uploadanddownload', async (t) => {
     did: testDid,
     upload: true,
     download: true,
-    price: 1,
+    price: 0,
     maxPeers: 1
   })
 
@@ -154,7 +162,7 @@ test.serial('dcdn.join.download', async (t) => {
     did: testDid,
     upload: false,
     download: true,
-    price: 1,
+    price: 0,
     maxPeers: 1
   })
 

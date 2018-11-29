@@ -12,24 +12,31 @@ class MetadataService extends EventEmitter {
     this.upload = opts.upload || false
     this.download = opts.download || false
     this.swarm = swarm
-    debug('Current version:', this.partition.version)
   }
 
   async _download() {
     const self = this
+    debug('Requesting metadata for: ', this.afs.did)
 
-    self.partition.metadata.update(() => {
-      self.partition.download('metadata.json', () => {
-        debug('synced version:', self.partition.version)
-        self.emit('complete')
-      })
+    this.partition.metadata.on('sync', downloadJson)
+    this.on('stop', () => {
+      self.partition.metadata.removeListener('sync', downloadJson)
     })
+
+    downloadJson()
+
+    async function downloadJson() {
+      self.partition.download('metadata.json', () => {
+        debug('synced metadata version:', self.partition.version)
+      })
+    }
   }
 
   start() {
     if (this.download) this._download()
+    if (this.upload) debug('Seeding metadata for: ', this.afs.did, 'version:', this.partition.version)
+
     this.swarm.join(this.topic, { lookup: this.download, announce: this.upload })
-    debug('Replicating metadata for: ', this.afs.did)
   }
 
   onConnection(connection) {
@@ -39,7 +46,7 @@ class MetadataService extends EventEmitter {
       // TODO: what to do with the connection on replication errors?
     })
 
-    this.once('complete', () => {
+    this.once('stop', () => {
       stream.destroy()
     })
 
@@ -48,6 +55,7 @@ class MetadataService extends EventEmitter {
 
   stop() {
     if (this.swarm) this.swarm.leave(this.topic)
+    this.emit('stop')
   }
 }
 
