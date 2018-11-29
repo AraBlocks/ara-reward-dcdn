@@ -16,6 +16,8 @@ sinon.stub(rewards, 'getBudget').resolves(0)
 sinon.stub(storage, 'read').resolves('abcd')
 sinon.stub(rewards, 'submit').resolves({})
 sinon.stub(rewards, 'allocate').resolves({})
+sinon.stub(aid, 'archive').resolves(true)
+sinon.stub(aid, 'resolve').resolves({})
 
 // TODO: more robust testing. Most of this is just sanity check at the moment.
 test.before(async () => {

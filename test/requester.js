@@ -2,8 +2,9 @@ const {
   matchers,
   messages
 } = require('ara-farming-protocol')
-const { User, Countdown } = require('../src/util')
+const { Countdown } = require('../src/util')
 const { Requester } = require('../src/requester')
+const User = require('../src/user')
 
 const {
   Agreement,
