@@ -33,11 +33,19 @@ class User {
       debug('secretKey not loaded')
       return null
     }
-    const signature = crypto.sign(message, this.secretKey)
-    const userSig = new messages.Signature()
-    userSig.setDid(this.did)
-    userSig.setData(signature)
-    return userSig
+
+    let data = null
+    try {
+      data = crypto.sign(message, this.secretKey)
+    } catch (err) {
+      data = null
+      debug(err)
+    }
+
+    const signature = new messages.Signature()
+    signature.setDid(this.did)
+    signature.setData(data)
+    return signature
   }
 
   verify(message, data) {

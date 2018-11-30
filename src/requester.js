@@ -91,7 +91,7 @@ class Requester extends RequesterBase {
 
       function onSync() {
         process.nextTick(async () => {
-          if (await isUpdateAvailable(self.afs) || complete) {
+          if (complete || await isUpdateAvailable(self.afs)) {
             return
           }
           complete = true
@@ -244,32 +244,37 @@ class Requester extends RequesterBase {
     const farmers = []
     const rewardAmounts = []
     const rewardMap = new Map()
-    const jobId = toHexString(nonceString(self.sow), { ethify: true })
+    const jobId = toHexString(nonceString(this.sow), { ethify: true })
 
     // Format rewards for contract
-    this.receiptCountdown = new Countdown(this.deliveryMap.size, () => {
+    this.receiptCountdown = new Countdown(this.hiredFarmers.size, () => {
       // TODO: handle if not enough receipts come back
       self.emit('jobcomplete', jobId)
     })
     let total = 0
     this.deliveryMap.forEach((value) => { total += value })
 
+    // Populate the reward map
     this.hiredFarmers.forEach((value, key) => {
-      const { connection } = value
-      if (0 === total) {
+      const { connection, agreement } = value
+      const userId = agreement.getQuote().getSignature().getDid()
+
+      if (0 === total || !self.deliveryMap.has(key)) {
+        debug(`Farmer ${userId} will not be rewarded.`)
         connection.close()
+        self.receiptCountdown.decrement()
         return
       }
 
       const units = self.deliveryMap.get(key) / total
-      const reward = self.generateReward(key, units)
-      const userId = reward.getAgreement().getQuote().getSignature().getDid()
+      const reward = self.generateReward(agreement, units)
       const amount = Number(token.constrainTokenValue(reward.getAmount().toString()))
+
       if (amount > 0) {
+        debug(`Farmer ${userId} will be rewarded ${amount} Ara.`)
         farmers.push(userId)
         rewardAmounts.push(amount)
         rewardMap.set(key, reward)
-        debug(`Farmer ${userId} will be rewarded ${amount} Ara.`)
       } else {
         debug(`Farmer ${userId} will not be rewarded.`)
         connection.close()
@@ -310,8 +315,7 @@ class Requester extends RequesterBase {
     }
   }
 
-  generateReward(peerId, units) {
-    const { agreement } = this.hiredFarmers.get(peerId)
+  generateReward(agreement, units) {
     const quote = agreement.getQuote()
     const amount = Math.floor(quote.getPerUnitCost() * units)
     const agreementData = Buffer.from(agreement.serializeBinary())

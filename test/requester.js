@@ -8,7 +8,6 @@ const User = require('../src/user')
 
 const {
   Agreement,
-  Reward,
   Quote,
   Signature
 } = messages
@@ -31,11 +30,11 @@ const queue = { async push() { return true } }
 
 sinon.stub(Requester.prototype, '_download')
 
-const signature = new Signature()
-sinon.stub(user, 'sign').returns(signature)
+const requesterSignature = new Signature()
+sinon.stub(requesterSignature, 'getData').returns('data')
+sinon.stub(requesterSignature, 'getDid').returns('id0')
+sinon.stub(user, 'sign').returns(requesterSignature)
 sinon.stub(user, 'verify').returns(true)
-sinon.stub(signature, 'getData').returns('data')
-sinon.stub(signature, 'getDid').returns('id1')
 
 test('requester.validateQuote', async (t) => {
   const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
@@ -48,7 +47,7 @@ test('requester.generateAgreement', async (t) => {
   const quote = new Quote()
   const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
   const agreement = await requester.generateAgreement(quote)
-  t.true(agreement.getSignature() == signature && agreement.getQuote() == quote)
+  t.true(agreement.getSignature() == requesterSignature && agreement.getQuote() == quote)
 })
 
 test('requester.validateAgreement', async (t) => {
@@ -62,18 +61,19 @@ test('requester.validateAgreement', async (t) => {
 })
 
 test('requester.generateReward', async (t) => {
-  const peerId = 'id'
+  const cost = 5
   const units = 5
+  const total = units * cost
+
   const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
 
   const agreement = new Agreement()
   const quote = new Quote()
-  quote.setPerUnitCost(5)
+  quote.setPerUnitCost(cost)
   agreement.setQuote(quote)
-  requester.hiredFarmers.set(peerId, { agreement })
 
-  const reward = requester.generateReward(peerId, units)
-  t.true(reward.getSignature() == signature && 25 == reward.getAmount() && reward.getAgreement() == agreement)
+  const reward = requester.generateReward(agreement, units)
+  t.true(reward.getSignature() == requesterSignature && total == reward.getAmount() && reward.getAgreement() == agreement)
 })
 
 test('requester.dataReceived', async (t) => {
@@ -128,6 +128,10 @@ test('requester.onReceipt', async (t) => {
 })
 
 test('requester.onHireConfirmed', async (t) => {
+  const signature = new Signature()
+  sinon.stub(signature, 'getData').returns('data')
+  sinon.stub(signature, 'getDid').returns('id1')
+
   const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
 
   const quote = new Quote()
@@ -159,32 +163,76 @@ test('requester.onHireConfirmed', async (t) => {
   t.true(connectionFake && 2 == pipe)
 })
 
-test('requester.sendRewards', async (t) => {
+test('requester.sendRewards.valid', async (t) => {
   const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
 
   const deliveryMap = new Map()
-  deliveryMap.set('id1', 5)
+  deliveryMap.set('id1', 2)
+  deliveryMap.set('id2', 3)
+  deliveryMap.set('id3', 0)
   requester.deliveryMap = deliveryMap
 
-  let connectionFake = false
+  const connectionFake = sinon.fake()
+  const closeFake = sinon.fake()
   const connection = {
-    sendReward: () => {
-      connectionFake = true
-    }
+    sendReward: connectionFake,
+    close: closeFake
   }
+
+  const agreement1 = generateAgreement('id1', 2000)
+  const agreement2 = generateAgreement('id2', 4000)
+  const agreement3 = generateAgreement('id3', 6000)
+  const agreement4 = generateAgreement('id4', 4000)
+
   const hiredFarmersMap = new Map()
-  hiredFarmersMap.set('id1', { connection })
+  hiredFarmersMap.set('id1', { connection, agreement: agreement1 })
+  hiredFarmersMap.set('id2', { connection, agreement: agreement2 })
+  hiredFarmersMap.set('id3', { connection, agreement: agreement3 })
+  hiredFarmersMap.set('id4', { connection, agreement: agreement4 })
   requester.hiredFarmers = hiredFarmersMap
 
+  await requester._sendRewards()
+
+  t.true(2 === connectionFake.callCount)
+  t.true(2 === closeFake.callCount)
+})
+
+test('requester.sendRewards.none', async (t) => {
+  const requester = new Requester(jobNonce, matcher, user, afs, swarm, queue)
+
+  const connectionFake = sinon.fake()
+  const closeFake = sinon.fake()
+  const connection = {
+    sendReward: connectionFake,
+    close: closeFake
+  }
+
+  const agreement1 = generateAgreement('id1', 2000)
+  const agreement2 = generateAgreement('id2', 4000)
+  const agreement3 = generateAgreement('id3', 6000)
+  const agreement4 = generateAgreement('id4', 4000)
+
+  const hiredFarmersMap = new Map()
+  hiredFarmersMap.set('id1', { connection, agreement: agreement1 })
+  hiredFarmersMap.set('id2', { connection, agreement: agreement2 })
+  hiredFarmersMap.set('id3', { connection, agreement: agreement3 })
+  hiredFarmersMap.set('id4', { connection, agreement: agreement4 })
+  requester.hiredFarmers = hiredFarmersMap
+
+  await requester._sendRewards()
+
+  t.true(connectionFake.notCalled)
+  t.true(4 === closeFake.callCount)
+})
+
+function generateAgreement(did, price) {
+  const signature = new Signature()
+  signature.setDid(did)
   const quote = new Quote()
   quote.setSignature(signature)
+  quote.setPerUnitCost(price)
   const agreement = new Agreement()
   agreement.setQuote(quote)
-  const reward = new Reward()
-  reward.setAgreement(agreement)
-  reward.setAmount(10)
 
-  sinon.stub(requester, 'generateReward').returns(reward)
-  await requester._sendRewards()
-  t.true(connectionFake)
-})
+  return agreement
+}

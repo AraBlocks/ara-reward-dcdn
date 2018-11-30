@@ -52,7 +52,13 @@ class Farmer extends FarmerBase {
    * @returns {boolean}
    */
   async validateSow(sow) {
-    return this.topic.toString('hex') === sow.getTopic()
+    try {
+      const match = this.topic.toString('hex') === sow.getTopic()
+      return match
+    } catch (err) {
+      debug(err)
+      return false
+    }
   }
 
   /**
