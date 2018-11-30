@@ -16,11 +16,29 @@ const {
 
 const TEST_REQUESTER = 'abcd'
 const TEST_REWARD = 10
+const TEST_DISCOVERY_KEY = 'ab123c'
+const TEST_AFS = {
+  discoveryKey: Buffer.from(TEST_DISCOVERY_KEY, 'hex')
+}
+const TEST_SWARM = { }
 
 sinon.stub(util, 'getAddressFromDID').resolves(TEST_REQUESTER)
 sinon.stub(library, 'hasPurchased').resolves(true)
 sinon.stub(rewards, 'getBudget').resolves(TEST_REWARD)
 sinon.stub(rewards, 'getJobOwner').resolves(TEST_REQUESTER)
+
+test('farmer.validateSow.valid', async (t) => {
+  const user = new User('did', 'pass')
+  const signature = new Signature()
+  sinon.stub(user, 'sign').returns(signature)
+  sinon.stub(user, 'verify').returns(true)
+
+  const farmer = new Farmer(user, TEST_REWARD, TEST_AFS, TEST_SWARM)
+  const sow = new SOW()
+  sow.setTopic(TEST_DISCOVERY_KEY)
+
+  t.true(await farmer.validateSow(sow))
+})
 
 test('farmer.generateQuote', async (t) => {
   const user = new User('did', 'pass')
@@ -28,7 +46,7 @@ test('farmer.generateQuote', async (t) => {
   sinon.stub(user, 'sign').returns(signature)
   sinon.stub(user, 'verify').returns(true)
 
-  const farmer = new Farmer(user, TEST_REWARD, '')
+  const farmer = new Farmer(user, TEST_REWARD, TEST_AFS, TEST_SWARM)
 
   const jobNonce = Buffer.from('did', 'hex')
   const sow = new SOW()
@@ -44,7 +62,7 @@ test('farmer.signAgreement', async (t) => {
   sinon.stub(user, 'sign').returns(signature)
   sinon.stub(user, 'verify').returns(true)
 
-  const farmer = new Farmer(user, TEST_REWARD, '')
+  const farmer = new Farmer(user, TEST_REWARD, TEST_AFS, TEST_SWARM)
 
   const agreementNonce = Buffer.from('did', 'hex')
   const agreement = new Agreement()
@@ -60,7 +78,7 @@ test('farmer.generateReceipt', async (t) => {
   sinon.stub(user, 'sign').returns(signature)
   sinon.stub(user, 'verify').returns(true)
 
-  const farmer = new Farmer(user, TEST_REWARD, '')
+  const farmer = new Farmer(user, TEST_REWARD, TEST_AFS, TEST_SWARM)
 
   const sow = new SOW()
   sow.setNonce(Buffer.from('did', 'hex'))
@@ -81,7 +99,7 @@ test('farmer.validateReward', async (t) => {
   sinon.stub(user, 'sign').returns(signature)
   sinon.stub(user, 'verify').returns(true)
 
-  const farmer = new Farmer(user, TEST_REWARD, '')
+  const farmer = new Farmer(user, TEST_REWARD, TEST_AFS, TEST_SWARM)
 
   const agreement = new Agreement()
   const reward = new Reward()
@@ -96,7 +114,7 @@ test('farmer.validateAgreement.valid', async (t) => {
   sinon.stub(user, 'sign').returns(signature)
   sinon.stub(user, 'verify').returns(true)
 
-  const farmer = new Farmer(user, TEST_REWARD, '')
+  const farmer = new Farmer(user, TEST_REWARD, TEST_AFS, TEST_SWARM)
 
   const sow = new SOW()
   sow.setNonce('abcd')
@@ -115,7 +133,7 @@ test('farmer.validateAgreement.invalidrequester', async (t) => {
   sinon.stub(user, 'sign').returns(signature)
   sinon.stub(user, 'verify').returns(false)
 
-  const farmer = new Farmer(user, TEST_REWARD, '')
+  const farmer = new Farmer(user, TEST_REWARD, TEST_AFS, TEST_SWARM)
 
   const sow = new SOW()
   sow.setNonce('abcd')
@@ -134,17 +152,14 @@ test('farmer.stop', async (t) => {
   sinon.stub(user, 'sign').returns(signature)
   sinon.stub(user, 'verify').returns(true)
 
-  const farmer = new Farmer(user, TEST_REWARD, '')
-
   let leaveFake = false
-  const afs = { discoveryKey: 'key' }
   const swarm = {
     leave: () => {
       leaveFake = true
     }
   }
-  farmer.afs = afs
-  farmer.swarm = swarm
+
+  const farmer = new Farmer(user, TEST_REWARD, TEST_AFS, swarm)
 
   await farmer.stop()
   t.true(leaveFake)
