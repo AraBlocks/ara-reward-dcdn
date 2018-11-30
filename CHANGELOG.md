@@ -1,4 +1,4 @@
-## [0.5.1](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.5.1) (2018-11-29)
+## [0.5.2](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.5.2) (2018-11-30)
 
 
 ### Bug Fixes
@@ -8,6 +8,9 @@
 * **dcdn:** switch jobs and config ([b0d872c](https://github.com/littlstar/ara-farming-dcdn/commit/b0d872c))
 * **hyperswarm:** enable multiple topics per peer. Allow for 0x in front of jobId ([18488d3](https://github.com/littlstar/ara-farming-dcdn/commit/18488d3))
 * **metadata:** replicate metadata during download ([a187c33](https://github.com/littlstar/ara-farming-dcdn/commit/a187c33))
+* **package:** lock ara-filesystem due to contract change without minor bump ([b2c8d12](https://github.com/littlstar/ara-farming-dcdn/commit/b2c8d12))
+* **requester:** handle hire but no data received ([46ca540](https://github.com/littlstar/ara-farming-dcdn/commit/46ca540))
+* **src/hyperswarm.js:** Check for cb in destroy ([ff24cc1](https://github.com/littlstar/ara-farming-dcdn/commit/ff24cc1))
 * **util:** safely handle no password ([0515798](https://github.com/littlstar/ara-farming-dcdn/commit/0515798))
 
 
@@ -20,7 +23,7 @@
 * **dcdn:** default reward to 10% of price ([5dadb09](https://github.com/littlstar/ara-farming-dcdn/commit/5dadb09))
 * **dcdn:** metadata replication ([053367f](https://github.com/littlstar/ara-farming-dcdn/commit/053367f))
 * **farmer:** check budget ([7b717b3](https://github.com/littlstar/ara-farming-dcdn/commit/7b717b3))
-* **farmer:** validate job owner ([2ade293](https://github.com/littlstar/ara-farming-dcdn/commit/2ade293))
+* **farmer:** validate job owner ([b6f4c0c](https://github.com/littlstar/ara-farming-dcdn/commit/b6f4c0c))
 * **metadata:** debug listeners for metasync ([718acd5](https://github.com/littlstar/ara-farming-dcdn/commit/718acd5))
 * **metadata:** signals when metadata sync. Added hyperswarm override for timeout ([7a3e22f](https://github.com/littlstar/ara-farming-dcdn/commit/7a3e22f))
 
