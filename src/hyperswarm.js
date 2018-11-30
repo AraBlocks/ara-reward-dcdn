@@ -66,7 +66,7 @@ function createHyperswarm() {
     function onclose() {
       swarm.server.close()
       swarm.socket.close()
-      callback()
+      if (callback) callback()
     }
   }
 
