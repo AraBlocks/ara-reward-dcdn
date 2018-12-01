@@ -259,9 +259,10 @@ class FarmDCDN extends EventEmitter {
       })
 
       // Handle when the content finishes downloading
-      feed.once('sync', () => {
+      feed.once('sync', async () => {
         self.emit('complete', key)
         debug(`Download ${key} Complete!`)
+        debug('Files:', await afs.readdir('.'))
       })
     }
 

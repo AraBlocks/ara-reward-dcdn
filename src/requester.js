@@ -8,6 +8,7 @@ const {
 const { token, rewards } = require('ara-contracts')
 const { Countdown, isUpdateAvailable } = require('./util')
 const { toHexString } = require('ara-util/transform')
+const AutoQueue = require('./autoqueue')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
 const debug = require('debug')('afd:requester')
@@ -70,6 +71,8 @@ class Requester extends RequesterBase {
   _download() {
     const self = this
     const partition = self.afs.partitions.home
+    let rewardComplete = false
+
     if (partition.content) {
       waitForLatest(partition.content)
     } else {
@@ -86,36 +89,34 @@ class Requester extends RequesterBase {
       })
 
       // Handle when the content finishes downloading
+      const onSyncQueue = new AutoQueue()
       feed.on('sync', onSync)
-      let complete = false
 
       function onSync() {
-        process.nextTick(async () => {
-          if (complete || await isUpdateAvailable(self.afs)) {
-            return
-          }
-          complete = true
-          feed.removeListener('sync', onSync)
+        onSyncQueue.push(checkComplete)
+      }
 
-          // Close the peer streams so they know to stop sending
-          // TODO: gracefully handle end in farmer.js
-          for (const peer of feed.peers) {
-            peer.end()
-          }
+      async function checkComplete() {
+        if (rewardComplete || await isUpdateAvailable(self.afs)) {
+          return
+        }
+        rewardComplete = true
+        self.stop()
+        feed.removeListener('sync', onSync)
 
+        // Close the peer streams so they know to stop sending
+        // TODO: gracefully handle end in farmer.js
+        for (const peer of feed.peers) {
+          peer.end()
+        }
+
+        process.nextTick(() => {
           self.hiredFarmers.forEach((value) => {
             const { connection, stream } = value
             connection.stream.unpipe(stream).unpipe(connection.stream)
             stream.destroy()
-
-            // TODO: put this somewhere internal to connection
-            connection.stream.on('data', connection.onData.bind(connection))
-            connection.stream.resume()
           })
 
-          debug('Files:', await self.afs.readdir('.'))
-
-          self.stop()
           // TODO: store rewards to send later
           self._sendRewards()
         })
@@ -307,6 +308,10 @@ class Requester extends RequesterBase {
       await this.queue.push(transaction)
       rewardMap.forEach((value, key) => {
         const { connection } = self.hiredFarmers.get(key)
+        
+        // TODO: put this somewhere internal to connection
+        connection.stream.on('data', connection.onData.bind(connection))
+        connection.stream.resume()
         connection.sendReward(value)
       })
     } catch (err) {
