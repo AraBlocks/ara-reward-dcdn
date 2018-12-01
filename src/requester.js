@@ -114,7 +114,8 @@ class Requester extends RequesterBase {
           self.hiredFarmers.forEach((value) => {
             const { connection, stream } = value
             connection.stream.unpipe(stream).unpipe(connection.stream)
-            stream.destroy()
+            stream.finalize()
+            connection.stream.resume()
           })
 
           // TODO: store rewards to send later
@@ -226,6 +227,7 @@ class Requester extends RequesterBase {
     // Expects receipt from all rewarded farmers
     if (receipt && connection) {
       if (this.receiptCountdown) this.receiptCountdown.decrement()
+      connection.stream.removeAllListeners('data')
       connection.close()
     }
   }
@@ -240,7 +242,6 @@ class Requester extends RequesterBase {
   }
 
   async _sendRewards() {
-    debug('Calculating rewards...')
     const self = this
     const farmers = []
     const rewardAmounts = []
@@ -250,10 +251,12 @@ class Requester extends RequesterBase {
     // Format rewards for contract
     this.receiptCountdown = new Countdown(this.hiredFarmers.size, () => {
       // TODO: handle if not enough receipts come back
-      self.emit('jobcomplete', jobId)
+      self.emit('rewardsent')
     })
     let total = 0
     this.deliveryMap.forEach((value) => { total += value })
+    debug('delivery map:', this.deliveryMap)
+    debug('content size:', this.afs.partitions.home.content.byteLength, 'downloaded:', total)
 
     // Populate the reward map
     this.hiredFarmers.forEach((value, key) => {
@@ -305,13 +308,14 @@ class Requester extends RequesterBase {
     }
 
     try {
-      await this.queue.push(transaction)
+      // await this.queue.push(transaction)
+      // self.emit('jobcomplete', jobId)
+
       rewardMap.forEach((value, key) => {
         const { connection } = self.hiredFarmers.get(key)
         
         // TODO: put this somewhere internal to connection
         connection.stream.on('data', connection.onData.bind(connection))
-        connection.stream.resume()
         connection.sendReward(value)
       })
     } catch (err) {

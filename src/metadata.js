@@ -47,7 +47,7 @@ class MetadataService extends EventEmitter {
     })
 
     this.once('stop', () => {
-      stream.destroy()
+      stream.finalize()
     })
 
     pump(connection, stream, connection)
