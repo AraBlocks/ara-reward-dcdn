@@ -230,6 +230,8 @@ class FarmDCDN extends EventEmitter {
       service = new Requester(jobNonce, matcher, this.user, afs, this.swarm, this.queue)
       service.once('jobcomplete', async (job) => {
         await pify(self.jobsInProgress.delete)(job.replace(/^0x/, ''))
+      })
+      service.once('rewardsent', async () => {
         await self.unjoin(dcdnOpts)
 
         // If both upload and download are true, then will immediately start seeding
