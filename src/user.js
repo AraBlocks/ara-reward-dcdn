@@ -1,12 +1,12 @@
 /* eslint class-methods-use-this: 1 */
-const { messages } = require('ara-farming-protocol')
+const { messages } = require('ara-reward-protocol')
 const { readFile } = require('fs')
 const { resolve } = require('path')
 const crypto = require('ara-crypto')
 const pify = require('pify')
 const rc = require('ara-runtime-configuration')()
 const ss = require('ara-secret-storage')
-const debug = require('debug')('afd:util')
+const debug = require('debug')('ard:util')
 
 class User {
   constructor(did, password) {

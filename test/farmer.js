@@ -4,7 +4,7 @@ const sinon = require('sinon')
 const User = require('../src/user')
 const util = require('ara-util')
 const test = require('ava')
-const afp = require('ara-farming-protocol')
+const afp = require('ara-reward-protocol')
 
 const {
   Agreement,
