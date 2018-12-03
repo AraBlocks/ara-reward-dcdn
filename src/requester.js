@@ -233,11 +233,8 @@ class Requester extends RequesterBase {
   }
 
   async onReceipt(receipt, connection) {
-    // Expects receipt from all rewarded farmers
-    if (receipt && connection) {
-      connection.close()
-      if (this.receiptCountdown) this.receiptCountdown.decrement()
-    }
+    // TODO: store receipts
+    this.emit('receipt', receipt, connection)
   }
 
   _dataReceived(peerId, units) {
@@ -256,11 +253,12 @@ class Requester extends RequesterBase {
     const rewardMap = new Map()
     const jobId = toHexString(nonceString(this.sow), { ethify: true })
 
-    // Format rewards for contract
-    this.receiptCountdown = new Countdown(this.hiredFarmers.size, () => {
-      // TODO: handle if not enough receipts come back
+    // Expects receipt or closure from all rewarded farmers
+    const receiptCountdown = new Countdown(this.hiredFarmers.size, () => {
       self.emit('rewardsent')
     })
+
+    // Format rewards for contract
     let total = 0
     this.deliveryMap.forEach((value) => { total += value })
     debug('delivery map:', this.deliveryMap)
@@ -271,10 +269,17 @@ class Requester extends RequesterBase {
       const { connection, agreement } = value
       const userId = agreement.getQuote().getSignature().getDid()
 
+      connection.once('close', () => {
+        receiptCountdown.decrement()
+      })
+
+      connection.once('receipt', () => {
+        connection.close()
+      })
+
       if (0 === total || !self.deliveryMap.has(key)) {
         debug(`Farmer ${userId} will not be rewarded.`)
         connection.close()
-        self.receiptCountdown.decrement()
         return
       }
 
@@ -290,7 +295,6 @@ class Requester extends RequesterBase {
       } else {
         debug(`Farmer ${userId} will not be rewarded.`)
         connection.close()
-        self.receiptCountdown.decrement()
       }
     })
 

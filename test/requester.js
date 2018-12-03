@@ -2,7 +2,6 @@ const {
   matchers,
   messages
 } = require('ara-reward-protocol')
-const { Countdown } = require('../src/util')
 const { Requester } = require('../src/requester')
 const User = require('../src/user')
 
@@ -21,14 +20,14 @@ const timeout = ms => new Promise(res => setTimeout(res, ms))
 
 const TEST_USER = new User('did', 'pass')
 const TEST_JOB_NONCE = Buffer.from('did', 'hex')
-const TEST_STREAM = { on: () => true }
 const TEST_AFS = {
   discoveryKey: 'key',
-  replicate: () => TEST_STREAM,
   partitions: {
     home: {
+      _ensureContent: cb => cb(),
       content: {
-        on: () => true
+        on: () => true,
+        replicate: () => true
       }
     }
   }
@@ -48,7 +47,6 @@ sinon.stub(TEST_USER, 'verify').returns(true)
 test('requester.download', async (t) => {
   const afs = {
     discoveryKey: 'key',
-    replicate: () => true,
     partitions: {
       home: {
         content: new EventEmitter(),
@@ -147,55 +145,41 @@ test('requester.prepareJob', async (t) => {
   t.true(submitFake.calledOnce)
 })
 
-test('requester.onReceipt', async (t) => {
-  const requester = new Requester(TEST_JOB_NONCE, TEST_MATCHER, TEST_USER, TEST_AFS, TEST_SWARM, TEST_QUEUE)
-
-  let onCompleteFake = false
-  requester.receiptCountdown = new Countdown(1, () => { onCompleteFake = true })
-  let connectionFake = false
-  const connection = {
-    close: () => {
-      connectionFake = true
+test('requester.onHireConfirmed', async (t) => {
+  const replicateFake = sinon.fake()
+  const afs = {
+    discoveryKey: 'key',
+    partitions: {
+      home: {
+        _ensureContent: cb => cb(),
+        content: {
+          on: () => true,
+          replicate: replicateFake
+        }
+      }
     }
   }
-  await requester.onReceipt('receipt', connection)
-  t.true(onCompleteFake && connectionFake && 0 == requester.receiptCountdown.count)
-})
 
-test('requester.onHireConfirmed', async (t) => {
+  const requester = new Requester(TEST_JOB_NONCE, TEST_MATCHER, TEST_USER, afs, TEST_SWARM, TEST_QUEUE)
+
+  const farmerId = 'id1'
   const signature = new Signature()
   sinon.stub(signature, 'getData').returns('data')
-  sinon.stub(signature, 'getDid').returns('id1')
-
-  const requester = new Requester(TEST_JOB_NONCE, TEST_MATCHER, TEST_USER, TEST_AFS, TEST_SWARM, TEST_QUEUE)
-
+  sinon.stub(signature, 'getDid').returns(farmerId)
   const quote = new Quote()
   quote.setSignature(signature)
   const agreement = new Agreement()
   agreement.setQuote(quote)
 
-  let connectionFake = false
-  let pipe = 0
-  const peerId = 'id1'
   const connection = {
-    peerId,
+    peerId: farmerId,
     stream: {
-      pipe: () => {
-        pipe += 1
-        return {
-          pipe: () => {
-            pipe += 1
-          }
-        }
-      },
-      removeAllListeners: () => {
-        connectionFake = true
-      }
+      destroyed: false
     }
   }
 
   await requester.onHireConfirmed(agreement, connection)
-  t.true(connectionFake && 2 == pipe)
+  t.true(1 === replicateFake.callCount)
 })
 
 test('requester.sendRewards.valid', async (t) => {
@@ -210,6 +194,7 @@ test('requester.sendRewards.valid', async (t) => {
   const connectionFake = sinon.fake()
   const closeFake = sinon.fake()
   const connection = {
+    once: () => true,
     sendReward: connectionFake,
     close: closeFake,
     stream: {
@@ -246,7 +231,8 @@ test('requester.sendRewards.none', async (t) => {
   const closeFake = sinon.fake()
   const connection = {
     sendReward: connectionFake,
-    close: closeFake
+    close: closeFake,
+    once: () => true
   }
 
   const agreement1 = generateAgreement('id1', 2000)
