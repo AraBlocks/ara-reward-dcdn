@@ -4,6 +4,8 @@ const aid = require('ara-identity')
 const { create: createAFS } = require('ara-filesystem')
 const { rewards, registry, storage } = require('ara-contracts')
 const sinon = require('sinon')
+
+// eslint-disable-next-line import/no-extraneous-dependencies
 const context = require('ara-context')()
 
 const TEST_PASSWORD = 'abcd'
@@ -17,7 +19,6 @@ sinon.stub(storage, 'read').resolves('abcd')
 sinon.stub(rewards, 'submit').resolves({})
 sinon.stub(rewards, 'allocate').resolves({})
 sinon.stub(aid, 'archive').resolves(true)
-sinon.stub(aid, 'resolve').resolves({})
 
 // TODO: more robust testing. Most of this is just sanity check at the moment.
 test.before(async () => {

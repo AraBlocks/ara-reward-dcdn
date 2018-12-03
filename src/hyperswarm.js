@@ -41,7 +41,7 @@ function createHyperswarm() {
   function onpeer(peer) {
     swarm.emit('peer', peer)
     swarm.queue.push(peer)
-    if (1 === (swarm.queue.remote.length + swarm.queue.local.length)) this._connectNext()
+    if (1 === (swarm.queue.remote.length + swarm.queue.local.length)) swarm._connectNext()
   }
 
   // Rewrote to synchronize connectNext calls

@@ -258,7 +258,7 @@ async function getDid() {
 
 async function onClose(err) {
   if (err) {
-    error('fatal:', err.message)
+    error('fatal:', err)
     process.exit(1)
   } else {
     try {
