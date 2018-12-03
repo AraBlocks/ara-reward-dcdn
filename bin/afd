@@ -123,7 +123,7 @@ if (0 === program.argv._.length) {
 }
 
 if (program.argv.debug) {
-  require('debug').enable('af*')
+  require('debug').enable('ard*,arp*')
 }
 
 async function onstart(argv) {

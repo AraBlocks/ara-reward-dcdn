@@ -1,7 +1,7 @@
 /* eslint class-methods-use-this: 1 */
 const pump = require('pump')
 const EventEmitter = require('events')
-const debug = require('debug')('afd:metadata')
+const debug = require('debug')('ard:metadata')
 
 class MetadataService extends EventEmitter {
   constructor(afs, swarm, opts = {}) {

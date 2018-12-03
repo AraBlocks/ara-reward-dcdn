@@ -4,13 +4,13 @@ const {
   FarmerBase,
   hypercore: { RequesterConnection, MSG },
   util: { nonceString, bytesToGBs }
-} = require('ara-farming-protocol')
+} = require('ara-reward-protocol')
 const { isJobOwner } = require('./util')
 const { library, rewards, token } = require('ara-contracts')
 const { toHexString } = require('ara-util/transform')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
-const debug = require('debug')('afd:farmer')
+const debug = require('debug')('ard:farmer')
 
 class Farmer extends FarmerBase {
   /**
@@ -54,7 +54,7 @@ class Farmer extends FarmerBase {
     const stream = partition.metadata.replicate({
       live: true,
       expectedFeeds: 2,
-      extensions: [ MSG.AGREEMENT, MSG.QUOTE, MSG.RECEIPT, MSG.REWARD, MSG.SOW]
+      extensions: [ MSG.AGREEMENT, MSG.QUOTE, MSG.RECEIPT, MSG.REWARD, MSG.SOW ]
     })
 
     const feed = stream.feed(partition.metadata.discoveryKey)

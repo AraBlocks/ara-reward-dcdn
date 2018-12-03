@@ -43,7 +43,7 @@
     "ara-context": "arablocks/ara-context#semver:0.4.x",
     "ara-contracts": "arablocks/ara-contracts#semver:0.8.x",
     "ara-crypto": "arablocks/ara-crypto#semver:0.8.x",
-    "ara-farming-protocol": "arablocks/ara-farming-protocol#semver:0.1.x",
+    "ara-reward-protocol": "arablocks/ara-reward-protocol#semver:0.7.x",
     "ara-filesystem": "arablocks/ara-filesystem#semver:0.9.x",
     "ara-identity": "arablocks/ara-identity#semver:0.31.x",
     "ara-runtime-configuration": "arablocks/ara-runtime-configuration#semver:1.1.x",

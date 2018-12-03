@@ -4,14 +4,14 @@ const {
   RequesterBase,
   hypercore: { FarmerConnection, MSG },
   util: { nonceString }
-} = require('ara-farming-protocol')
+} = require('ara-reward-protocol')
 const { token, rewards } = require('ara-contracts')
 const { Countdown, isUpdateAvailable } = require('./util')
 const { toHexString } = require('ara-util/transform')
 const AutoQueue = require('./autoqueue')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
-const debug = require('debug')('afd:requester')
+const debug = require('debug')('ard:requester')
 
 class Requester extends RequesterBase {
   /**
@@ -71,7 +71,7 @@ class Requester extends RequesterBase {
     const stream = partition.metadata.replicate({
       live: true,
       expectedFeeds: 2,
-      extensions: [ MSG.AGREEMENT, MSG.QUOTE, MSG.RECEIPT, MSG.REWARD, MSG.SOW]
+      extensions: [ MSG.AGREEMENT, MSG.QUOTE, MSG.RECEIPT, MSG.REWARD, MSG.SOW ]
     })
 
     const feed = stream.feed(partition.metadata.discoveryKey)

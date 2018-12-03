@@ -1,7 +1,7 @@
 const {
   matchers,
   messages
-} = require('ara-farming-protocol')
+} = require('ara-reward-protocol')
 const { Countdown } = require('../src/util')
 const { Requester } = require('../src/requester')
 const User = require('../src/user')
