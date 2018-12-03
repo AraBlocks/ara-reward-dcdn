@@ -40,7 +40,7 @@ async function isUpdateAvailable(afs) {
 
     let downloaded = false
     const feed = afs.partitions.home.content
-    if (feed) {
+    if (feed && feed.length) {
       downloaded = (feed.downloaded() >= feed.length)
     }
 
