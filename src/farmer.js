@@ -110,42 +110,47 @@ class Farmer extends FarmerBase {
    * @returns {boolean}
    */
   async validateAgreement(agreement) {
-    // Verify the requester's identity
-    const requester = agreement.getSignature().getDid()
-    const nonce = nonceString(agreement.getQuote())
-    const data = this.stateMap.get(nonce)
-    if (!this.user.verify(agreement, data)) {
-      debug('invalid agreement: bad signature')
-      return false
-    }
-
-    // Verify the requester has purchased the content (TODO: or has deposited, once k-swarm)
-    if (!(await library.hasPurchased({
-      contentDid: this.afs.did,
-      purchaserDid: requester
-    }))) {
-      debug('invalid agreement: requester hasn\'t purchased')
-      return false
-    }
-
-    if (this.price) {
-      // Verify there is adequate budget in the job
-      const jobId = toHexString(nonceString(agreement.getQuote().getSow()), { ethify: true })
-      const budget = Number(await rewards.getBudget({ contentDid: this.afs.did, jobId }))
-      if (budget < Number(token.constrainTokenValue(this.price.toString()))) {
-        debug('invalid agreement: job under budget')
+    try {
+      // Verify the requester's identity
+      const requester = agreement.getSignature().getDid()
+      const nonce = nonceString(agreement.getQuote())
+      const data = this.stateMap.get(nonce)
+      if (!this.user.verify(agreement, data)) {
+        debug('invalid agreement: bad signature')
         return false
       }
 
-      // Verify the requester is the owner of the job
-      if (!(await isJobOwner({
+      // Verify the requester has purchased the content (TODO: or has deposited, once k-swarm)
+      if (!(await library.hasPurchased({
         contentDid: this.afs.did,
-        jobId,
-        owner: requester
+        purchaserDid: requester
       }))) {
-        debug('invalid agreement: requester not job owner')
+        debug('invalid agreement: requester hasn\'t purchased')
         return false
       }
+
+      if (this.price) {
+        // Verify there is adequate budget in the job
+        const jobId = toHexString(nonceString(agreement.getQuote().getSow()), { ethify: true })
+        const budget = Number(await rewards.getBudget({ contentDid: this.afs.did, jobId }))
+        if (budget < Number(token.constrainTokenValue(this.price.toString()))) {
+          debug('invalid agreement: job under budget')
+          return false
+        }
+
+        // Verify the requester is the owner of the job
+        if (!(await isJobOwner({
+          contentDid: this.afs.did,
+          jobId,
+          owner: requester
+        }))) {
+          debug('invalid agreement: requester not job owner')
+          return false
+        }
+      }
+    } catch (err) {
+      debug(err)
+      return false
     }
 
     return true
@@ -181,10 +186,15 @@ class Farmer extends FarmerBase {
    * @returns {boolean}
    */
   async validateReward(reward) {
+    try {
     // TODO: need to compare expected and received reward
-    const nonce = nonceString(reward.getAgreement())
-    const data = this.stateMap.get(nonce)
-    return this.user.verify(reward, data)
+      const nonce = nonceString(reward.getAgreement())
+      const data = this.stateMap.get(nonce)
+      return this.user.verify(reward, data)
+    } catch (err) {
+      debug(err)
+      return false
+    }
   }
 
   /**

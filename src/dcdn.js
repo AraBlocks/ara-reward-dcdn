@@ -36,10 +36,6 @@ class FarmDCDN extends EventEmitter {
   constructor(opts = {}) {
     super()
 
-    if (!opts.userID) {
-      throw new Error('FarmDCDN requires User Identity')
-    }
-
     // Map from topic to service
     this.services = {}
 
@@ -121,7 +117,9 @@ class FarmDCDN extends EventEmitter {
     const self = this
 
     if (!this.swarm) {
-      if (!this.user.secretKey) await this.user.loadKey()
+      if (!this.user.secretKey && !(await this.user.loadKey())) {
+        throw new Error('DCDN requires valid User Identity and Password')
+      }
       this.swarm = createHyperswarm()
       this.swarm.on('connection', this._onConnection.bind(this))
 

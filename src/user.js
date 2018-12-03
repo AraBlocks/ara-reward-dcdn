@@ -18,14 +18,20 @@ class User {
   async loadKey() {
     if (!this.did || !this.password) {
       debug('user did or password not found')
-      return
+      return false
     }
-    const password = crypto.blake2b(Buffer.from(this.password))
-    const publicKey = Buffer.from(this.did, 'hex')
-    const hash = crypto.blake2b(publicKey).toString('hex')
-    const path = resolve(rc.network.identity.root, hash, 'keystore/ara')
-    const keystore = JSON.parse(await pify(readFile)(path, 'utf8'))
-    this.secretKey = ss.decrypt(keystore, { key: password.slice(0, 16) })
+    try {
+      const password = crypto.blake2b(Buffer.from(this.password))
+      const publicKey = Buffer.from(this.did, 'hex')
+      const hash = crypto.blake2b(publicKey).toString('hex')
+      const path = resolve(rc.network.identity.root, hash, 'keystore/ara')
+      const keystore = JSON.parse(await pify(readFile)(path, 'utf8'))
+      this.secretKey = ss.decrypt(keystore, { key: password.slice(0, 16) })
+      return true
+    } catch (err) {
+      debug(err)
+      return false
+    }
   }
 
   sign(message) {
