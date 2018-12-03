@@ -5,6 +5,7 @@ const {
 const { Countdown } = require('../src/util')
 const { Requester } = require('../src/requester')
 const User = require('../src/user')
+
 const {
   Agreement,
   Quote,
@@ -21,10 +22,10 @@ const timeout = ms => new Promise(res => setTimeout(res, ms))
 const TEST_USER = new User('did', 'pass')
 const TEST_JOB_NONCE = Buffer.from('did', 'hex')
 const TEST_STREAM = { on: () => true }
-const TEST_AFS = { 
-  discoveryKey: 'key', 
-  replicate: () => TEST_STREAM, 
-  partitions:  {
+const TEST_AFS = {
+  discoveryKey: 'key',
+  replicate: () => TEST_STREAM,
+  partitions: {
     home: {
       content: {
         on: () => true
@@ -45,10 +46,10 @@ sinon.stub(TEST_USER, 'sign').returns(TEST_REQ_SIGNATURE)
 sinon.stub(TEST_USER, 'verify').returns(true)
 
 test('requester.download', async (t) => {
-  const afs = { 
-    discoveryKey: 'key', 
-    replicate: () => stream, 
-    partitions:  {
+  const afs = {
+    discoveryKey: 'key',
+    replicate: () => true,
+    partitions: {
       home: {
         content: new EventEmitter(),
       }
