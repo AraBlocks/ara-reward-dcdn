@@ -2,7 +2,7 @@
 const {
   messages,
   RequesterBase,
-  duplex: { FarmerConnection },
+  hypercore: { FarmerConnection, MSG },
   util: { nonceString }
 } = require('ara-farming-protocol')
 const { token, rewards } = require('ara-contracts')
@@ -58,10 +58,33 @@ class Requester extends RequesterBase {
   }
 
   onConnection(connection, details) {
+    const stream = this._replicate(details)
+    connection.pipe(stream).pipe(connection)
+  }
+
+  _replicate(details) {
     const self = this
     const peer = details.peer || {}
-    const farmerConnection = new FarmerConnection(peer, connection, { timeout: constants.DEFAULT_TIMEOUT })
-    process.nextTick(() => self.addFarmer(farmerConnection))
+    const partition = this.afs.partitions.home
+
+    // Note: hypercore requires extensions array to be sorted
+    const stream = partition.metadata.replicate({
+      live: true,
+      expectedFeeds: 2,
+      extensions: [ MSG.AGREEMENT, MSG.QUOTE, MSG.RECEIPT, MSG.REWARD, MSG.SOW]
+    })
+
+    const feed = stream.feed(partition.metadata.discoveryKey)
+    const farmerConnection = new FarmerConnection(peer, stream, feed, { timeout: constants.DEFAULT_TIMEOUT })
+    farmerConnection.once('close', () => {
+      debug(`Stopping replication for ${self.afs.did} with peer ${farmerConnection.peerId}`)
+    })
+
+    stream.once('handshake', () => {
+      process.nextTick(() => self.addFarmer(farmerConnection))
+    })
+
+    return stream
   }
 
   stop() {
@@ -105,22 +128,12 @@ class Requester extends RequesterBase {
         feed.removeListener('sync', onSync)
 
         // Close the peer streams so they know to stop sending
-        // TODO: gracefully handle end in farmer.js
         for (const peer of feed.peers) {
           peer.end()
         }
 
-        process.nextTick(() => {
-          self.hiredFarmers.forEach((value) => {
-            const { connection, stream } = value
-            connection.stream.unpipe(stream).unpipe(connection.stream)
-            stream.finalize()
-            connection.stream.resume()
-          })
-
-          // TODO: store rewards to send later
-          self._sendRewards()
-        })
+        // TODO: store rewards to send later
+        self._sendRewards()
       }
     }
   }
@@ -197,38 +210,33 @@ class Requester extends RequesterBase {
   }
 
   async onHireConfirmed(agreement, connection) {
-    // TODO: put this somewhere internal to connection
-
-    connection.stream.removeAllListeners('data')
-
-    const { peerId } = connection
-
-    const stream = this.afs.replicate({
-      upload: false,
-      download: true,
-      live: false
-    })
-    stream.peerId = peerId
-
-    stream.on('error', (error) => {
-      debug(error)
-      // TODO: what to do with the connection on replication errors?
-    })
-
     // Store hired farmer
-    this.hiredFarmers.set(peerId, { connection, agreement, stream })
+    this.hiredFarmers.set(connection.peerId, { connection, agreement })
 
     // Start work
-    debug(`Piping stream with ${agreement.getQuote().getSignature().getDid()} from ${peerId}`)
-    connection.stream.pipe(stream).pipe(connection.stream, { end: false })
+    const partition = this.afs.partitions.home
+    partition._ensureContent((err) => {
+      if (err) {
+        connection.onError(err)
+        return
+      }
+      if (connection.stream.destroyed) return
+      debug(`Replicating content with ${agreement.getQuote().getSignature().getDid()} from ${connection.peerId}`)
+
+      partition.content.replicate({
+        live: false,
+        download: true,
+        upload: false,
+        stream: connection.stream
+      })
+    })
   }
 
   async onReceipt(receipt, connection) {
     // Expects receipt from all rewarded farmers
     if (receipt && connection) {
-      if (this.receiptCountdown) this.receiptCountdown.decrement()
-      connection.stream.removeAllListeners('data')
       connection.close()
+      if (this.receiptCountdown) this.receiptCountdown.decrement()
     }
   }
 
@@ -308,14 +316,11 @@ class Requester extends RequesterBase {
     }
 
     try {
-      // await this.queue.push(transaction)
-      // self.emit('jobcomplete', jobId)
+      await this.queue.push(transaction)
+      this.emit('jobcomplete', jobId)
 
       rewardMap.forEach((value, key) => {
         const { connection } = self.hiredFarmers.get(key)
-        
-        // TODO: put this somewhere internal to connection
-        connection.stream.on('data', connection.onData.bind(connection))
         connection.sendReward(value)
       })
     } catch (err) {

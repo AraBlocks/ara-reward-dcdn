@@ -2,7 +2,7 @@
 const {
   messages,
   FarmerBase,
-  duplex: { RequesterConnection },
+  hypercore: { RequesterConnection, MSG },
   util: { nonceString, bytesToGBs }
 } = require('ara-farming-protocol')
 const { isJobOwner } = require('./util')
@@ -37,13 +37,37 @@ class Farmer extends FarmerBase {
   }
 
   async onConnection(connection, details) {
-    const peer = details.peer || {}
-    const requesterConnection = new RequesterConnection(peer, connection, { timeout: constants.DEFAULT_TIMEOUT })
-    this.addRequester(requesterConnection)
+    const stream = this._replicate(details)
+    connection.pipe(stream).pipe(connection)
   }
 
   stop() {
     if (this.swarm) this.swarm.leave(this.topic)
+  }
+
+  _replicate(details) {
+    const self = this
+    const peer = details.peer || {}
+    const partition = this.afs.partitions.home
+
+    // Note: hypercore requires extensions array to be sorted
+    const stream = partition.metadata.replicate({
+      live: true,
+      expectedFeeds: 2,
+      extensions: [ MSG.AGREEMENT, MSG.QUOTE, MSG.RECEIPT, MSG.REWARD, MSG.SOW]
+    })
+
+    const feed = stream.feed(partition.metadata.discoveryKey)
+    const requesterConnection = new RequesterConnection(peer, stream, feed, { timeout: constants.DEFAULT_TIMEOUT })
+    requesterConnection.once('close', () => {
+      debug(`Stopping replication for ${self.afs.did} with peer ${requesterConnection.peerId}`)
+    })
+
+    stream.once('handshake', () => {
+      self.addRequester(requesterConnection)
+    })
+
+    return stream
   }
 
   /**
@@ -185,40 +209,31 @@ class Farmer extends FarmerBase {
   }
 
   async onHireConfirmed(agreement, connection) {
-    // TODO: put this somewhere internal to connection
-    connection.stream.removeAllListeners('data')
     const self = this
     const sow = agreement.getQuote().getSow()
-    debug(`Replicating ${this.afs.did} with requester ${sow.getSignature().getDid()}`)
+    const requester = sow.getSignature().getDid()
+    debug(`Starting replication for ${this.afs.did} with requester ${requester}`)
+
     const sowId = nonceString(sow)
     const { content } = this.afs.partitions.resolve(this.afs.HOME)
     content.on('upload', (_, data) => {
       self.dataTransmitted(sowId, data.length)
     })
 
-    const stream = self.afs.replicate({
-      upload: true,
-      download: false
-    })
-
-    stream.on('end', () => finish())
-    stream.on('error', error => finish(error))
-
-    connection.stream.pipe(stream).pipe(connection.stream, { end: false })
-
-    function finish(error) {
-      connection.stream.unpipe(stream).unpipe(connection.stream)
-      stream.destroy()
-
-      if (error) {
-        connection.close()
-        debug(error)
+    const partition = this.afs.partitions.home
+    partition._ensureContent((err) => {
+      if (err) {
+        connection.onError(err)
         return
       }
-      // TODO: put this somewhere internal to connection
-      connection.stream.on('data', connection.onData.bind(connection))
-      connection.stream.resume()
-    }
+      if (connection.stream.destroyed) return
+      partition.content.replicate({
+        live: false,
+        download: false,
+        upload: true,
+        stream: connection.stream
+      })
+    })
   }
 }
 

@@ -35,12 +35,15 @@ class MetadataService extends EventEmitter {
   start() {
     if (this.download) this._download()
     if (this.upload) debug('Seeding metadata for: ', this.afs.did, 'version:', this.partition.version)
-
     this.swarm.join(this.topic, { lookup: this.download, announce: this.upload })
   }
 
   onConnection(connection) {
-    const stream = this.partition.replicate({ upload: this.upload, download: this.download })
+    const stream = this.partition.replicate({ upload: this.upload, download: this.download, live: false })
+    stream.on('end', () => {
+      stream.destroy()
+    })
+
     stream.on('error', (error) => {
       debug(error)
       // TODO: what to do with the connection on replication errors?

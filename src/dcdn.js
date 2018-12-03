@@ -58,7 +58,7 @@ class FarmDCDN extends EventEmitter {
   _onConnection(connection, details) {
     const self = this
     const peer = details.peer || {}
-    debug('onconnection:', idify(peer.host, peer.port))
+    debug('on connection:', idify(peer.host, peer.port), 'topic:', peer.topic)
     connection.on('error', (err) => {
       debug('connection error:', err)
     })
@@ -75,7 +75,11 @@ class FarmDCDN extends EventEmitter {
     }
 
     function listenForTopic(onTopic) {
-      const timeout = setTimeout(() => { connection.destroy() }, constants.DEFAULT_TIMEOUT)
+      const timeout = setTimeout(() => {
+        debug('closing connection:', idify(peer.host, peer.port), 'topic:', peer.topic)
+        connection.destroy()
+      }, constants.DEFAULT_TIMEOUT)
+
       connection.once('data', (data) => {
         clearTimeout(timeout)
         const topic = data.toString('hex').substring(0, 64)
@@ -84,6 +88,7 @@ class FarmDCDN extends EventEmitter {
           self.services[topic].onConnection(connection, details)
           if (onTopic) onTopic(Buffer.from(topic, 'hex'))
         } else {
+          debug('closing connection:', idify(peer.host, peer.port), 'topic:', peer.topic)
           connection.destroy()
         }
       })
