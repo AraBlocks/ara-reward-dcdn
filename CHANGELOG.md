@@ -1,4 +1,4 @@
-## [0.5.2](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.5.2) (2018-11-30)
+# [0.6.0](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.6.0) (2018-12-03)
 
 
 ### Bug Fixes
@@ -8,8 +8,8 @@
 * **dcdn:** switch jobs and config ([b0d872c](https://github.com/littlstar/ara-farming-dcdn/commit/b0d872c))
 * **hyperswarm:** enable multiple topics per peer. Allow for 0x in front of jobId ([18488d3](https://github.com/littlstar/ara-farming-dcdn/commit/18488d3))
 * **metadata:** replicate metadata during download ([a187c33](https://github.com/littlstar/ara-farming-dcdn/commit/a187c33))
-* **package:** lock ara-filesystem due to contract change without minor bump ([b2c8d12](https://github.com/littlstar/ara-farming-dcdn/commit/b2c8d12))
-* **requester:** handle hire but no data received ([46ca540](https://github.com/littlstar/ara-farming-dcdn/commit/46ca540))
+* **package:** lock ara-filesystem due to contract change without minor bump ([79fac7e](https://github.com/littlstar/ara-farming-dcdn/commit/79fac7e))
+* **requester:** handle hire but no data received ([fc60389](https://github.com/littlstar/ara-farming-dcdn/commit/fc60389))
 * **src/hyperswarm.js:** Check for cb in destroy ([ff24cc1](https://github.com/littlstar/ara-farming-dcdn/commit/ff24cc1))
 * **util:** safely handle no password ([0515798](https://github.com/littlstar/ara-farming-dcdn/commit/0515798))
 
