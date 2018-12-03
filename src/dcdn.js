@@ -54,9 +54,12 @@ class FarmDCDN extends EventEmitter {
   _onConnection(connection, details) {
     const self = this
     const peer = details.peer || {}
-    debug('on connection:', idify(peer.host, peer.port), 'topic:', peer.topic)
+    debug('connection open:', idify(peer.host, peer.port), 'topic:', peer.topic)
     connection.on('error', (err) => {
-      debug('connection error:', err)
+      debug('connection error:', idify(peer.host, peer.port), 'err:', err)
+    })
+    connection.once('close', () => {
+      debug('connection close:', idify(peer.host, peer.port), 'topic:', peer.topic)
     })
 
     if (peer.topic) {
@@ -72,7 +75,6 @@ class FarmDCDN extends EventEmitter {
 
     function listenForTopic(onTopic) {
       const timeout = setTimeout(() => {
-        debug('closing connection:', idify(peer.host, peer.port), 'topic:', peer.topic)
         connection.destroy()
       }, constants.DEFAULT_TIMEOUT)
 
@@ -84,7 +86,6 @@ class FarmDCDN extends EventEmitter {
           self.services[topic].onConnection(connection, details)
           if (onTopic) onTopic(Buffer.from(topic, 'hex'))
         } else {
-          debug('closing connection:', idify(peer.host, peer.port), 'topic:', peer.topic)
           connection.destroy()
         }
       })
@@ -117,8 +118,12 @@ class FarmDCDN extends EventEmitter {
     const self = this
 
     if (!this.swarm) {
-      if (!this.user.secretKey && !(await this.user.loadKey())) {
-        throw new Error('DCDN requires valid User Identity and Password')
+      if (!this.user.secretKey) {
+        try {
+          await this.user.loadKey()
+        } catch (err) {
+          throw (err)
+        }
       }
       this.swarm = createHyperswarm()
       this.swarm.on('connection', this._onConnection.bind(this))
@@ -147,10 +152,10 @@ class FarmDCDN extends EventEmitter {
 
   async _startServices(afs) {
     const self = this
-    if (!afs.dcdnOpts) throw new Error('afs missing dcdn options')
+    if (!afs.dcdn) throw new Error('afs missing dcdn options')
 
     const {
-      dcdnOpts: {
+      dcdn: {
         metaOnly,
         upload,
         download
@@ -160,9 +165,10 @@ class FarmDCDN extends EventEmitter {
     if (!upload && !download) throw new Error('upload or download must be true')
 
     if (metaOnly) {
-      addService(await this._createMetaService(afs))
+      addService(await this._createMetadataService(afs))
     } else {
-      addService(await this._createMetaService(afs))
+      // TODO: sync etc within content service
+      addService(await this._createMetadataService(afs))
       addService(await this._createContentService(afs))
     }
 
@@ -181,19 +187,19 @@ class FarmDCDN extends EventEmitter {
     const self = this
 
     let {
-      dcdnOpts: {
+      dcdn: {
         price
       }
     } = afs
 
     const {
-      dcdnOpts: {
+      dcdn: {
         upload,
         download,
         maxPeers,
         jobId
       },
-      dcdnOpts
+      dcdn: opts
     } = afs
 
     let service
@@ -231,16 +237,23 @@ class FarmDCDN extends EventEmitter {
 
       const matcher = new matchers.MaxCostMatcher(convertedPrice, maxPeers)
       service = new Requester(jobNonce, matcher, this.user, afs, this.swarm, this.queue)
+
+      service.once('downloadcomplete', async () => {
+        debug(`Download ${key} Complete!`)
+        self.emit('complete', key)
+      })
+
       service.once('jobcomplete', async (job) => {
         await pify(self.jobsInProgress.delete)(job.replace(/^0x/, ''))
       })
-      service.once('rewardsent', async () => {
-        await self.unjoin(dcdnOpts)
+
+      service.once('requestcomplete', async () => {
+        await self.unjoin(opts)
 
         // If both upload and download are true, then will immediately start seeding
         if (upload) {
-          dcdnOpts.download = false
-          await self.join(dcdnOpts)
+          opts.download = false
+          await self.join(opts)
         }
 
         /** This is to signify when all farmers have responded
@@ -253,6 +266,7 @@ class FarmDCDN extends EventEmitter {
 
     function attachProgressListener(feed) {
       // Handle when download starts
+      // TODO: handle if length changes, i.e., new update
       feed.once('download', () => {
         debug(`Download ${key} started...`)
         self.emit('start', key, feed.length)
@@ -260,22 +274,15 @@ class FarmDCDN extends EventEmitter {
 
       // Handle when download progress
       feed.on('download', () => {
-        self.emit('progress', key, feed.downloaded())
-      })
-
-      // Handle when the content finishes downloading
-      feed.once('sync', async () => {
-        self.emit('complete', key)
-        debug(`Download ${key} Complete!`)
-        debug('Files:', await afs.readdir('.'))
+        self.emit('progress', key, feed.downloaded(), feed.length)
       })
     }
 
     return service
   }
 
-  async _createMetaService(afs) {
-    const service = new MetadataService(afs, this.swarm, afs.dcdnOpts)
+  async _createMetadataService(afs) {
+    const service = new MetadataService(afs, this.swarm, afs.dcdn)
     return service
   }
 
@@ -384,7 +391,7 @@ class FarmDCDN extends EventEmitter {
           }
         }
       })
-      afs.dcdnOpts = opts
+      afs.dcdn = opts
 
       // TODO: factor this into ara-filesystem
       afs.proxy = await registry.getProxyAddress(did)

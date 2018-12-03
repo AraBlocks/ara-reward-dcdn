@@ -9,6 +9,9 @@ test('util.Countdown.decrement', async (t) => {
   countdown.decrement()
   countdown.decrement()
 
+  t.true(countdownFake.notCalled)
+
+  countdown.start()
   t.true(countdownFake.calledOnce)
 })
 

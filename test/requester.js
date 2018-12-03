@@ -46,6 +46,7 @@ sinon.stub(TEST_USER, 'verify').returns(true)
 
 test('requester.download', async (t) => {
   const afs = {
+    readdir: () => '',
     discoveryKey: 'key',
     partitions: {
       home: {

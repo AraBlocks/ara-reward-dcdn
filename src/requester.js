@@ -58,11 +58,6 @@ class Requester extends RequesterBase {
   }
 
   onConnection(connection, details) {
-    const stream = this._replicate(details)
-    connection.pipe(stream).pipe(connection)
-  }
-
-  _replicate(details) {
     const self = this
     const peer = details.peer || {}
     const partition = this.afs.partitions.home
@@ -70,21 +65,32 @@ class Requester extends RequesterBase {
     // Note: hypercore requires extensions array to be sorted
     const stream = partition.metadata.replicate({
       live: true,
+      download: true,
+      upload: false,
       expectedFeeds: 2,
       extensions: [ MSG.AGREEMENT, MSG.QUOTE, MSG.RECEIPT, MSG.REWARD, MSG.SOW ]
     })
 
-    const feed = stream.feed(partition.metadata.discoveryKey)
-    const farmerConnection = new FarmerConnection(peer, stream, feed, { timeout: constants.DEFAULT_TIMEOUT })
-    farmerConnection.once('close', () => {
-      debug(`Stopping replication for ${self.afs.did} with peer ${farmerConnection.peerId}`)
-    })
+    // Wait for metadata to be ready
+    partition.metadata.ready((err) => {
+      if (err) {
+        connection.destroy()
+        debug('failed to ready metadata:', err)
+        return
+      }
 
-    stream.once('handshake', () => {
-      process.nextTick(() => self.addFarmer(farmerConnection))
-    })
+      const feed = stream.feed(partition.metadata.key)
+      const farmerConnection = new FarmerConnection(peer, stream, feed, { timeout: constants.DEFAULT_TIMEOUT })
+      farmerConnection.once('close', () => {
+        debug(`Stopping replication for ${self.afs.did} with peer ${farmerConnection.peerId}`)
+      })
 
-    return stream
+      stream.once('handshake', () => {
+        process.nextTick(() => self.addFarmer(farmerConnection))
+      })
+
+      connection.pipe(stream).pipe(connection)
+    })
   }
 
   stop() {
@@ -133,6 +139,8 @@ class Requester extends RequesterBase {
         }
 
         // TODO: store rewards to send later
+        debug('Files:', await self.afs.readdir('.'))
+        self.emit('downloadcomplete')
         self._sendRewards()
       }
     }
@@ -255,7 +263,7 @@ class Requester extends RequesterBase {
 
     // Expects receipt or closure from all rewarded farmers
     const receiptCountdown = new Countdown(this.hiredFarmers.size, () => {
-      self.emit('rewardsent')
+      self.emit('requestcomplete')
     })
 
     // Format rewards for contract
@@ -301,6 +309,7 @@ class Requester extends RequesterBase {
     // TODO: allow returning of full reward if no download happened
     if (0 === rewardMap.size) {
       debug(`No applicable rewards for job ${jobId}.`)
+      self.emit('requestcomplete')
       return
     }
 
@@ -323,6 +332,7 @@ class Requester extends RequesterBase {
       await this.queue.push(transaction)
       this.emit('jobcomplete', jobId)
 
+      receiptCountdown.start()
       rewardMap.forEach((value, key) => {
         const { connection } = self.hiredFarmers.get(key)
         connection.sendReward(value)

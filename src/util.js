@@ -11,11 +11,26 @@ class Countdown {
   constructor(count, onComplete) {
     this.count = count
     this.onComplete = onComplete
+    this.started = false
+    this.fired = false
+  }
+
+  start() {
+    this.started = true
+    this._checkComplete()
   }
 
   decrement() {
     this.count--
-    if (0 === this.count) {
+    this._checkComplete()
+  }
+
+  increment() {
+    this.count++
+  }
+
+  _checkComplete() {
+    if (!this.fired && this.started && 0 >= this.count) {
       this.onComplete()
     }
   }

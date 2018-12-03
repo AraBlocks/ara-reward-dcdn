@@ -1,7 +1,7 @@
 /* eslint class-methods-use-this: 1 */
 const pump = require('pump')
 const EventEmitter = require('events')
-const debug = require('debug')('ard:metadata')
+const debug = require('debug')('ard:etc')
 
 class MetadataService extends EventEmitter {
   constructor(afs, swarm, opts = {}) {
@@ -16,18 +16,26 @@ class MetadataService extends EventEmitter {
 
   async _download() {
     const self = this
+    let currentVersion = self.partition.version
     debug('Requesting metadata for: ', this.afs.did)
 
     this.partition.metadata.on('sync', downloadJson)
-    this.on('stop', () => {
+    this.once('stop', () => {
       self.partition.metadata.removeListener('sync', downloadJson)
     })
 
     downloadJson()
 
-    async function downloadJson() {
+    function downloadJson() {
       self.partition.download('metadata.json', () => {
-        debug('synced metadata version:', self.partition.version)
+        if (!self.partition.content || currentVersion === self.partition.version) return
+        currentVersion = self.partition.version
+        debug('Synced metadata version:', currentVersion)
+
+        // Close the peer streams so they know to stop sending
+        for (const peer of self.partition.content.peers) {
+          peer.end()
+        }
       })
     }
   }
@@ -40,8 +48,9 @@ class MetadataService extends EventEmitter {
 
   onConnection(connection) {
     const stream = this.partition.replicate({ upload: this.upload, download: this.download, live: false })
+
     stream.on('end', () => {
-      stream.destroy()
+      stream.finalize()
     })
 
     stream.on('error', (error) => {
@@ -53,7 +62,10 @@ class MetadataService extends EventEmitter {
       stream.finalize()
     })
 
-    pump(connection, stream, connection)
+    this.partition.metadata.ready((err) => {
+      if (err) return
+      pump(connection, stream, connection)
+    })
   }
 
   stop() {

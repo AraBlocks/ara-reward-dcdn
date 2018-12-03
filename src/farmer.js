@@ -36,16 +36,12 @@ class Farmer extends FarmerBase {
     debug('Seeding: ', this.afs.did, 'version:', this.afs.version)
   }
 
-  async onConnection(connection, details) {
-    const stream = this._replicate(details)
-    connection.pipe(stream).pipe(connection)
-  }
-
   stop() {
     if (this.swarm) this.swarm.leave(this.topic)
   }
 
-  _replicate(details) {
+  // TODO: should be able to move most of this out into dcdn.js
+  async onConnection(connection, details) {
     const self = this
     const peer = details.peer || {}
     const partition = this.afs.partitions.home
@@ -57,17 +53,26 @@ class Farmer extends FarmerBase {
       extensions: [ MSG.AGREEMENT, MSG.QUOTE, MSG.RECEIPT, MSG.REWARD, MSG.SOW ]
     })
 
-    const feed = stream.feed(partition.metadata.discoveryKey)
-    const requesterConnection = new RequesterConnection(peer, stream, feed, { timeout: constants.DEFAULT_TIMEOUT })
-    requesterConnection.once('close', () => {
-      debug(`Stopping replication for ${self.afs.did} with peer ${requesterConnection.peerId}`)
-    })
+    // Wait for metadata to be ready
+    partition.metadata.ready((err) => {
+      if (err) {
+        connection.destroy()
+        debug('failed to ready metadata:', err)
+        return
+      }
 
-    stream.once('handshake', () => {
-      self.addRequester(requesterConnection)
-    })
+      const feed = stream.feed(partition.metadata.key)
+      const requesterConnection = new RequesterConnection(peer, stream, feed, { timeout: constants.DEFAULT_TIMEOUT })
+      requesterConnection.once('close', () => {
+        debug(`Stopping replication for ${self.afs.did} with peer ${requesterConnection.peerId}`)
+      })
 
-    return stream
+      stream.once('handshake', () => {
+        self.addRequester(requesterConnection)
+      })
+
+      connection.pipe(stream).pipe(connection)
+    })
   }
 
   /**
