@@ -1,4 +1,4 @@
-# [0.6.0](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.6.0) (2018-12-03)
+# [0.7.0](https://github.com/littlstar/ara-farming-dcdn/compare/0.2.0...0.7.0) (2018-12-04)
 
 
 ### Bug Fixes
@@ -9,14 +9,19 @@
 * **hyperswarm:** enable multiple topics per peer. Allow for 0x in front of jobId ([18488d3](https://github.com/littlstar/ara-farming-dcdn/commit/18488d3))
 * **metadata:** replicate metadata during download ([a187c33](https://github.com/littlstar/ara-farming-dcdn/commit/a187c33))
 * **package:** lock ara-filesystem due to contract change without minor bump ([79fac7e](https://github.com/littlstar/ara-farming-dcdn/commit/79fac7e))
+* **requester:** finalize, rather than destroy feeds ([0f4990d](https://github.com/littlstar/ara-farming-dcdn/commit/0f4990d))
 * **requester:** handle hire but no data received ([fc60389](https://github.com/littlstar/ara-farming-dcdn/commit/fc60389))
+* **requester:** handle receipt timeout ([70e1f97](https://github.com/littlstar/ara-farming-dcdn/commit/70e1f97))
+* **requester:** only try to send rewards once ([dcfb88f](https://github.com/littlstar/ara-farming-dcdn/commit/dcfb88f))
 * **src/hyperswarm.js:** Check for cb in destroy ([ff24cc1](https://github.com/littlstar/ara-farming-dcdn/commit/ff24cc1))
 * **util:** safely handle no password ([0515798](https://github.com/littlstar/ara-farming-dcdn/commit/0515798))
+* handle invalid agreement. handle no password. handle feed.length == 0 ([afeebcc](https://github.com/littlstar/ara-farming-dcdn/commit/afeebcc))
 
 
 ### Features
 
 * add signing and verifying utilities ([ee02a74](https://github.com/littlstar/ara-farming-dcdn/commit/ee02a74))
+* **metadata:** signals when metadata sync. Added hyperswarm override for timeout ([7a3e22f](https://github.com/littlstar/ara-farming-dcdn/commit/7a3e22f))
 * add userDid to the directory path ([7b435c5](https://github.com/littlstar/ara-farming-dcdn/commit/7b435c5))
 * contract signature ([10377c9](https://github.com/littlstar/ara-farming-dcdn/commit/10377c9))
 * **autoqueue:** synchronous transactions ([80973c0](https://github.com/littlstar/ara-farming-dcdn/commit/80973c0))
@@ -25,7 +30,7 @@
 * **farmer:** check budget ([7b717b3](https://github.com/littlstar/ara-farming-dcdn/commit/7b717b3))
 * **farmer:** validate job owner ([b6f4c0c](https://github.com/littlstar/ara-farming-dcdn/commit/b6f4c0c))
 * **metadata:** debug listeners for metasync ([718acd5](https://github.com/littlstar/ara-farming-dcdn/commit/718acd5))
-* **metadata:** signals when metadata sync. Added hyperswarm override for timeout ([7a3e22f](https://github.com/littlstar/ara-farming-dcdn/commit/7a3e22f))
+* **user:** better logs for missing/incorrect passwords ([5e97f1f](https://github.com/littlstar/ara-farming-dcdn/commit/5e97f1f))
 
 
 
