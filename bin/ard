@@ -90,6 +90,17 @@ program.command(
   , ondownload
 )
 
+program.option('job-id', {
+  type: 'string',
+  describe: `The job Id for downloading the AFS.`,
+  default: null
+})
+
+program.option('meta-only', {
+  describe: `Whether to only upload/download the metadata`,
+  default: false
+})
+
 program.command(
   'seed',
   'Host AFS for network',
@@ -97,15 +108,6 @@ program.command(
   program => program
     .usage('usage: $0 [-D] seed [options]')
   , onseed
-)
-
-program.command(
-  'metadata',
-  'Sync metadata with the network',
-  // eslint-disable-next-line no-shadow
-  program => program
-    .usage('usage: $0 [-D] metadata [options]')
-  , onmetadata
 )
 
 program.command(
@@ -169,7 +171,9 @@ async function ondownload(argv) {
       download: true,
       upload: false,
       reward: argv.reward,
-      peers: argv.peers
+      peers: argv.peers,
+      'job-id': argv['job-id'],
+      'meta-only': argv['meta-only']
     })
   } catch (e) {
     onClose(`Error occurred while downloading ${did}: ${e}`)
@@ -199,38 +203,11 @@ async function onseed(argv) {
       download: false,
       upload: true,
       reward: argv.reward,
-      peers: argv.peers
+      peers: argv.peers,
+      'meta-only': argv['meta-only']
     })
   } catch (e) {
     onClose(`Error occurred while seeding DID ${did}: ${e}`)
-  }
-}
-
-async function onmetadata(argv) {
-  const did = getIdentifier(argv.did || await getDid())
-  info(`starting DCDN to sync metadata for ${did}`)
-
-  try {
-    let dcdn = await getInstance()
-    if (!dcdn) {
-      const password = await getPassword()
-      dcdn = new DCDN({
-        password,
-        userID: argv.identity
-      })
-      await setInstance(dcdn)
-      displayEvents(dcdn)
-    }
-
-    await start({
-      did,
-      download: true,
-      upload: false,
-      peers: argv.peers,
-      metaOnly: true
-    })
-  } catch (e) {
-    onClose(`Error occurred while syncing metadata ${did}: ${e}`)
   }
 }
 

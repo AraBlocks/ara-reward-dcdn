@@ -21,10 +21,10 @@ async function start(argv = {}) {
       did: argv.did,
       download: argv.download,
       upload: argv.upload,
-      metaOnly: argv.metaOnly,
+      metaOnly: argv['meta-only'],
       price: argv.reward,
       maxPeers: argv.peers,
-      jobId: argv.jobId
+      jobId: argv['job-id']
     })
   } else {
     await instance.start()
@@ -89,11 +89,11 @@ async function configure(argv, program) {
         describe: 'The maximum number of simulataneous peers per AFS',
         default: null
       })
-      .option('jobId', {
-        describe: 'The jobId for the AFS',
+      .option('job-id', {
+        describe: 'The job Id for the AFS',
         default: null
       })
-      .option('metaOnly', {
+      .option('meta-only', {
         describe: 'Whether to only upload/download the metadata',
         default: false
       })
