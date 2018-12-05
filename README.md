@@ -1,7 +1,7 @@
-<img src="https://github.com/arablocks/ara-module-template/blob/master/ara.png" width="30" height="30" />  ara-farming-dcdn
+<img src="https://github.com/arablocks/ara-module-template/blob/master/ara.png" width="30" height="30" />  ara-reward-dcdn
 ====================
 
-[![Build Status](https://travis-ci.com/AraBlocks/ara-farming-dcdn.svg?token=r6p7pesHZ9MRJsVsrYFe&branch=master)](https://travis-ci.com/AraBlocks/ara-farming-dcdn)
+[![Build Status](https://travis-ci.com/AraBlocks/ara-reward-dcdn.svg?token=r6p7pesHZ9MRJsVsrYFe&branch=master)](https://travis-ci.com/AraBlocks/ara-reward-dcdn)
 
 An Ara Network node that runs a rewardable decentralized content distribution node.
 
@@ -12,12 +12,12 @@ An Ara Network node that runs a rewardable decentralized content distribution no
 ## Dependencies
 - [Node](https://nodejs.org/en/download/)
 - [ara-network][ara-network]
-- [ara-farming-protocol](ara-farming-protocol)
+- [ara-reward-protocol](ara-reward-protocol)
 - [ara-contracts](ara-contracts)
 
 ## Installation
 ```sh
-$ npm install --save ara-farming-dcdn
+$ npm install --save ara-reward-dcdn
 ```
 
 ## Usage
@@ -25,22 +25,22 @@ $ npm install --save ara-farming-dcdn
 ### Start
 
 ```sh
-$ afd start -i <userDID>
+$ ard start -i <userDID>
 ```
 
 ### Download
 ```sh
-$ afd download -d <contentDID> -i <userDID>
+$ ard download -d <contentDID> -i <userDID>
 ```
 
 ### Seed
 ```sh
-$ afd seed -d <contentDID> -i <userDID>
+$ ard seed -d <contentDID> -i <userDID>
 ```
 
 ### Metadata
 ```sh
-$ afd metadata -d <contentDID> -i <userDID>
+$ ard metadata -d <contentDID> -i <userDID>
 ```
 
 ## API
@@ -106,6 +106,6 @@ LGPL-3.0
 
 [ara-network]: https://github.com/arablocks/ara-network
 [ara-runtime-configuration]: https://github.com/arablocks/ara-runtime-configuration
-[ara-farming-protocol]:https://github.com/littlstar/farming-protocol
+[ara-reward-protocol]:https://github.com/arablocks/ara-reward-protocol
 [ara-contracts]:https://github.com/arablocks/ara-contracts
 [ara-filesystem]:https://github.com/arablocks/ara-filesystem

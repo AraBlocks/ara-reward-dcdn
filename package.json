@@ -1,10 +1,10 @@
 {
-  "name": "ara-farming-dcdn",
+  "name": "ara-reward-dcdn",
   "version": "0.7.0",
   "description": "An Ara Network node that runs a rewardable DCDN",
   "main": "index.js",
   "bin": {
-    "afd": "bin/afd"
+    "ard": "bin/ard"
   },
   "scripts": {
     "test": "sh scripts/test.sh",
@@ -14,11 +14,11 @@
     "nyc": "nyc npm test",
     "changelog": "conventional-changelog --same-file --preset angular --release-count 0 --infile CHANGELOG.md",
     "version": "npm run changelog && git add CHANGELOG.md",
-    "cli-readme": "node ./scripts/generate-cli-readme AFD > CLI.md"
+    "cli-readme": "node ./scripts/generate-cli-readme ARD > CLI.md"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/littlstar/ara-farming-dcdn.git"
+    "url": "git+https://github.com/arablocks/ara-reward-dcdn.git"
   },
   "keywords": [
     "ara",
@@ -33,9 +33,9 @@
   ],
   "license": "LGPL-3.0",
   "bugs": {
-    "url": "https://github.com/littlstar/ara-farming-dcdn/issues"
+    "url": "https://github.com/arablocks/ara-reward-dcdn/issues"
   },
-  "homepage": "https://github.com/littlstar/ara-farming-dcdn#readme",
+  "homepage": "https://github.com/arablocks/ara-reward-dcdn#readme",
   "dependencies": {
     "@hyperswarm/network": "^0.0.4",
     "ara-console": "arablocks/ara-console#semver:0.2.x",
