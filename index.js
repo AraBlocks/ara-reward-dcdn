@@ -13,7 +13,7 @@ let instance = null
  */
 
 async function start(argv = {}) {
-  if (!instance) instance = new DCDN(argv)
+  if (!instance) instance = new DCDN({ userID: argv.identity, password: argv.password })
 
   const { did } = argv
   if (did) {
@@ -63,7 +63,6 @@ async function stop(argv = {}) {
  * @param {Object} opts
  * @return Object
  */
-// TODO: Update configure for Farming
 async function configure(argv, program) {
   if (program) {
     const { argv: _argv } = program
@@ -77,40 +76,38 @@ async function configure(argv, program) {
       })
       .option('did', {
         alias: 'd',
-        describe: 'A static DID to advertise',
+        describe: 'The identity of the AFS of interest',
         default: null
       })
-      .option('port', {
-        alias: 'port',
-        describe: 'Port to advertise on',
-        default: 5000
+      .option('reward', {
+        alias: 'r',
+        describe: '`The maximum reward for the AFS',
+        default: null
       })
-      .option('upload', {
-        describe: 'Where the node should upload',
+      .option('peers', {
+        alias: 'p',
+        describe: 'The maximum number of simulataneous peers per AFS',
+        default: null
+      })
+      .option('jobId', {
+        describe: 'The jobId for the AFS',
+        default: null
+      })
+      .option('metaOnly', {
+        describe: 'Whether to only upload/download the metadata',
         default: false
       })
       .option('download', {
         describe: 'Whether the node should download',
         default: false
       })
-      .option('secret', {
-        alias: 's',
-        describe: 'Network key secret',
-        default: null
-      })
-      .option('name', {
-        alias: 'n',
-        describe: 'Network key name',
-        default: null
-      })
-      .option('keyring', {
-        alias: 'k',
-        describe: 'Path to keyring',
-        default: rc.network.identity.keyring
+      .option('upload', {
+        describe: 'Whether the node should upload',
+        default: false
       })
       .option('identity', {
         alias: 'i',
-        describe: 'Your Ara identity, to be used in a handshake',
+        describe: 'Your Ara identity',
         default: rc.network.identity.whoami
       })
 

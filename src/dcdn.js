@@ -196,7 +196,7 @@ class FarmDCDN extends EventEmitter {
       dcdn: {
         upload,
         download,
-        maxPeers,
+        maxPeers = constants.DEFAULT_MAX_PEERS,
         jobId
       },
       dcdn: opts
