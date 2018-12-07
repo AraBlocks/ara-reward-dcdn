@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-const { onClose } = require('../lib/util')
 const { error } = require('ara-console')
 
 const debug = require('debug')('ard:cli')
@@ -11,8 +10,8 @@ const { kFromARDParentFlag, createProgram } = require('../lib/program')
 
 const kOriginalProgramArguments = Object.freeze(Object.seal(Object.assign([], process.argv.slice(2))))
 
-process.on('unhandledRejection', onClose)
-process.on('uncaughtExeption', onClose)
+process.on('unhandledRejection', onFatal)
+process.on('uncaughtExeption', onFatal)
 
 // yargs program command line interface instance
 const program = createProgram({
@@ -114,4 +113,11 @@ function spawnChild(arg, commandName) {
       commandName
     )
   })
+}
+
+function onFatal(err) {
+  if (err) {
+    error('fatal: %s', err.message)
+  }
+  process.exit(1)
 }
