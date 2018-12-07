@@ -1,0 +1,116 @@
+#!/usr/bin/env node
+
+const {
+  start, setInstance, getInstance
+} = require('..')
+const {
+  promptForPassword,
+  promptForDid,
+  displayEvents,
+  onClose
+} = require('../lib/util')
+const { getIdentifier } = require('ara-util')
+const { info } = require('ara-console')
+const { createProgram } = require('../lib/program')
+const DCDN = require('../src/dcdn')
+const rc = require('ara-runtime-configuration')()
+
+process.on('unhandledRejection', onClose)
+process.on('uncaughtExeption', onClose)
+
+// yargs program command line interface instance
+const program = createProgram({
+  usage: 'usage: ard download [-hDV] [<args>]',
+})
+
+const { argv } = program
+  .version()
+  .recommendCommands()
+  .option('identity', {
+    alias: 'i',
+    type: 'string',
+    required: true,
+    default: rc.network.identity.whoami,
+    describe:
+  `A valid, local, and resolvable Ara identity DID
+  URI of the owner of the AFS. You will be
+  prompted for the associated passphrase`,
+  })
+
+  .option('did', {
+    alias: 'd',
+    type: 'string',
+    describe:
+  `A valid and resolvable Ara identity DID URI
+  of an AFS.`,
+  })
+
+  .option('reward', {
+    alias: 'r',
+    type: 'number',
+    describe:
+  `The maximum reward you want to receive/give for 
+  uploading/downloading an AFS. The default is 10%
+  of the price of an AFS.`
+  })
+
+  .option('peers', {
+    alias: 'p',
+    type: 'number',
+    describe:
+  `The maximum number of peers you want to connect 
+  with when uploading/downloading an AFS.`,
+    default: 10
+  })
+
+program.option('job-id', {
+  type: 'string',
+  describe: 'The job Id for downloading the AFS.',
+  default: null
+})
+
+program.option('meta-only', {
+  describe: 'Whether to only upload/download the metadata',
+  default: false
+})
+
+// Emit program usage help
+if (argv.help) {
+  program.showHelp()
+  process.exit(0)
+}
+
+ondownload(argv)
+
+async function ondownload(arg) {
+  const did = getIdentifier(arg.did || await promptForDid())
+
+  info(`starting DCDN to download ${did}`)
+
+  // TODO: add confirmation about expected price for download, i.e. 10% of price
+
+  try {
+    let dcdn = await getInstance()
+    if (!dcdn) {
+      const { password } = await promptForPassword()
+      dcdn = new DCDN({
+        password,
+        userID: arg.identity
+      })
+      await setInstance(dcdn)
+      displayEvents(dcdn)
+    }
+
+    await start({
+      did,
+      download: true,
+      upload: false,
+      reward: arg.reward,
+      peers: arg.peers,
+      'job-id': arg['job-id'],
+      'meta-only': arg['meta-only']
+    })
+  } catch (e) {
+    onClose(`Error occurred while downloading ${did}: ${e}`)
+  }
+}

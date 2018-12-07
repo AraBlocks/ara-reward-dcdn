@@ -1,0 +1,114 @@
+#!/usr/bin/env node
+
+const {
+  start, setInstance, getInstance
+} = require('..')
+const { getIdentifier } = require('ara-util')
+const {
+  promptForPassword,
+  promptForDid,
+  displayEvents,
+  onClose
+} = require('../lib/util')
+const { info } = require('ara-console')
+const { createProgram } = require('../lib/program')
+const DCDN = require('../src/dcdn')
+const rc = require('ara-runtime-configuration')()
+
+process.on('unhandledRejection', onClose)
+process.on('uncaughtExeption', onClose)
+
+// yargs program command line interface instance
+const program = createProgram({
+  usage: 'usage: ard seed [-hDV] [<args>]',
+})
+
+const { argv } = program
+  .version()
+  .recommendCommands()
+  .option('identity', {
+    alias: 'i',
+    type: 'string',
+    required: true,
+    default: rc.network.identity.whoami,
+    describe:
+  `A valid, local, and resolvable Ara identity DID
+  URI of the owner of the AFS. You will be
+  prompted for the associated passphrase`,
+  })
+
+  .option('did', {
+    alias: 'd',
+    type: 'string',
+    describe:
+  `A valid and resolvable Ara identity DID URI
+  of an AFS.`,
+  })
+
+  .option('reward', {
+    alias: 'r',
+    type: 'number',
+    describe:
+  `The maximum reward you want to receive/give for 
+  uploading/downloading an AFS. The default is 10%
+  of the price of an AFS.`
+  })
+
+  .option('peers', {
+    alias: 'p',
+    type: 'number',
+    describe:
+  `The maximum number of peers you want to connect 
+  with when uploading/downloading an AFS.`,
+    default: 10
+  })
+
+  .option('job-id', {
+    type: 'string',
+    describe: 'The job Id for downloading the AFS.',
+    default: null
+  })
+
+  .option('meta-only', {
+    describe: 'Whether to only upload/download the metadata',
+    default: false
+  })
+
+// Emit program usage help
+if (argv.help) {
+  program.showHelp()
+  process.exit(0)
+}
+
+onseed(argv)
+
+async function onseed(arg) {
+  const did = getIdentifier(arg.did || await promptForDid())
+  info(`starting DCDN to seed ${did}`)
+
+  // TODO: add confirmation about expected reward for upload, i.e. 10% of price
+
+  try {
+    let dcdn = await getInstance()
+    if (!dcdn) {
+      const { password } = await promptForPassword()
+      dcdn = new DCDN({
+        password,
+        userID: arg.identity
+      })
+      await setInstance(dcdn)
+      displayEvents(dcdn)
+    }
+
+    await start({
+      did,
+      download: false,
+      upload: true,
+      reward: arg.reward,
+      peers: arg.peers,
+      'meta-only': arg['meta-only']
+    })
+  } catch (e) {
+    onClose(`Error occurred while seeding DID ${did}: ${e}`)
+  }
+}

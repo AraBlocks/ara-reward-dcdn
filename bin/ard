@@ -1,288 +1,117 @@
 #!/usr/bin/env node
 
-const {
-  start, stop, setInstance, getInstance
-} = require('../')
-const { getIdentifier } = require('ara-util')
-const { info, warn, error } = require('ara-console')
-const { basename } = require('path')
-const inquirer = require('inquirer')
-const program = require('yargs')
-const clip = require('cli-progress')
-const DCDN = require('../src/dcdn')
+const { onClose } = require('../lib/util')
+const { error } = require('ara-console')
+
+const debug = require('debug')('ard:cli')
+const spawn = require('cross-spawn')
 const rc = require('ara-runtime-configuration')()
 
-const $0 = basename(process.argv[1])
+const { kFromARDParentFlag, createProgram } = require('../lib/program')
 
-process.title = $0
+const kOriginalProgramArguments = Object.freeze(Object.seal(Object.assign([], process.argv.slice(2))))
+
 process.on('unhandledRejection', onClose)
 process.on('uncaughtExeption', onClose)
 
-// program usage
-program
-  .usage('usage: $0 [-hDV] <command> [options]')
-  .wrap(null)
+// yargs program command line interface instance
+const program = createProgram({
+  usage: 'usage: ard [-hDV] <command> [<args>]'
+})
 
-// booleans
-program
-  .group([ 'help', 'version', 'debug' ], 'General Options:')
+const { argv } = program
+  .version()
+  .recommendCommands()
+  .command(
+    'start',
+    'Start DCDN in last configuration',
+    // eslint-disable-next-line no-shadow
+    program => program
+      .usage('usage: $0 [-hDV] start [<args>]')
+    , onstart
+  )
+  .command(
+    'download',
+    'Download AFS from network',
+    // eslint-disable-next-line no-shadow
+    program => program
+      .usage('usage: $0 [-hDV] download [<args>]')
+    , ondownload
+  )
+  .command(
+    'seed',
+    'Host AFS for network',
+    // eslint-disable-next-line no-shadow
+    program => program
+      .usage('usage: $0 [-hDV] seed [<args>]')
+    , onseed
+  )
   .option('debug', {
-    type: 'boolean',
     alias: 'D',
-    describe: 'Enable debug output'
+    describe: "Enable debug output (Sets 'DEBUG+=ard:*,arp*')",
   })
-  .option('help', {
-    alias: 'h',
-    describe: 'Show this help message'
-  })
-  .option('version', {
-    alias: 'V',
-    describe: 'Show program version'
-  })
-
-// parameters
-program
-  .group([ 'identity', 'did' ], 'Command Options:')
-
-program.option('identity', {
-  alias: 'i',
-  type: 'string',
-  required: true,
-  default: rc.network.identity.whoami,
-  describe:
+  .option('identity', {
+    alias: 'i',
+    type: 'string',
+    required: true,
+    default: rc.network.identity.whoami,
+    describe:
   `A valid, local, and resolvable Ara identity DID
   URI of the owner of the AFS. You will be
   prompted for the associated passphrase`,
-})
+  })
 
-program.option('did', {
-  alias: 'd',
-  type: 'string',
-  describe:
-  `A valid and resolvable Ara identity DID URI
-  of an AFS.`,
-})
+// Emit program usage help
+if ((0 == argv._.length && argv.help) || 0 == kOriginalProgramArguments.length) {
+  program.showHelp()
+  process.exit(0)
+}
 
-program.option('reward', {
-  alias: 'r',
-  type: 'number',
-  describe:
-  `The maximum reward you want to receive/give for 
-  uploading/downloading an AFS. The default is 10%
-  of the price of an AFS.`
-})
-
-program.option('peers', {
-  alias: 'p',
-  type: 'number',
-  describe:
-  `The maximum number of peers you want to connect 
-  with when uploading/downloading an AFS.`,
-  default: 10
-})
-
-program.command(
-  'download',
-  'Download AFS from network',
-  // eslint-disable-next-line no-shadow
-  program => program
-    .usage('usage: $0 [-D] download [options]')
-  , ondownload
-)
-
-program.option('job-id', {
-  type: 'string',
-  describe: `The job Id for downloading the AFS.`,
-  default: null
-})
-
-program.option('meta-only', {
-  describe: `Whether to only upload/download the metadata`,
-  default: false
-})
-
-program.command(
-  'seed',
-  'Host AFS for network',
-  // eslint-disable-next-line no-shadow
-  program => program
-    .usage('usage: $0 [-D] seed [options]')
-  , onseed
-)
-
-program.command(
-  'start',
-  'Start the DCDN Node with the most recent configuration',
-  // eslint-disable-next-line no-shadow
-  program => program
-    .usage('usage: $0 [-D] start [options]')
-  , onstart
-)
-
-if (0 === program.argv._.length) {
+// if debug given, but nothing else show help and bail
+if (true == argv.debug && 0 == argv._.length) {
   program.showHelp()
   process.exit(1)
 }
 
-if (program.argv.debug) {
-  require('debug').enable('ard*,arp*')
+async function onstart(arg) {
+  spawnChild(arg, 'start')
 }
 
-async function onstart(argv) {
-  info('starting DCDN node')
-  try {
-    let dcdn = await getInstance()
-    if (!dcdn) {
-      const password = await getPassword()
-      dcdn = new DCDN({
-        password,
-        userID: argv.identity
-      })
-      await setInstance(dcdn)
-      displayEvents(dcdn)
+async function ondownload(arg) {
+  spawnChild(arg, 'download')
+}
+
+async function onseed(arg) {
+  spawnChild(arg, 'seed')
+}
+
+function spawnChild(arg, commandName) {
+  const canonicalCommandName = `ard-${commandName}`
+
+  // Spawn child program with command line arguments given inheriting
+  // this processes stdio (stdin, stdout, stderr)
+  const child = spawn(
+    canonicalCommandName,
+    // Flags to pass to child process
+    [ kFromARDParentFlag ].concat(commandName, kOriginalProgramArguments.slice(1)),
+    {
+      stdio: 'inherit',
+      env: Object.assign({}, process.env, {
+        DEBUG: String(process.env.DEBUG) + (arg.debug ? ',ard*,arp*' : '')
+      }),
     }
-    await start()
-  } catch (e) {
-    onClose(`Error occurred with starting DCDN Node: ${e}`)
-  }
-}
+  )
 
-async function ondownload(argv) {
-  const did = getIdentifier(argv.did || await getDid())
-
-  info(`starting DCDN to download ${did}`)
-
-  // TODO: add confirmation about expected price for download, i.e. 10% of price
-
-  try {
-    let dcdn = await getInstance()
-    if (!dcdn) {
-      const password = await getPassword()
-      dcdn = new DCDN({
-        password,
-        userID: argv.identity
-      })
-      await setInstance(dcdn)
-      displayEvents(dcdn)
-    }
-
-    await start({
-      did,
-      download: true,
-      upload: false,
-      reward: argv.reward,
-      peers: argv.peers,
-      'job-id': argv['job-id'],
-      'meta-only': argv['meta-only']
-    })
-  } catch (e) {
-    onClose(`Error occurred while downloading ${did}: ${e}`)
-  }
-}
-
-async function onseed(argv) {
-  const did = getIdentifier(argv.did || await getDid())
-  info(`starting DCDN to seed ${did}`)
-
-  // TODO: add confirmation about expected reward for upload, i.e. 10% of price
-
-  try {
-    let dcdn = await getInstance()
-    if (!dcdn) {
-      const password = await getPassword()
-      dcdn = new DCDN({
-        password,
-        userID: argv.identity
-      })
-      await setInstance(dcdn)
-      displayEvents(dcdn)
-    }
-
-    await start({
-      did,
-      download: false,
-      upload: true,
-      reward: argv.reward,
-      peers: argv.peers,
-      'meta-only': argv['meta-only']
-    })
-  } catch (e) {
-    onClose(`Error occurred while seeding DID ${did}: ${e}`)
-  }
-}
-
-async function getPassword() {
-  const { password } = await inquirer.prompt([ {
-    type: 'password',
-    name: 'password',
-    message:
-    'Please enter the passphrase associated with the node identity.\n' +
-    'Passphrase:'
-  } ])
-  return password
-}
-
-async function getDid() {
-  const { did } = await inquirer.prompt([ {
-    type: 'string',
-    name: 'did',
-    message:
-    'Please enter the DID associated with the AFS.\n' +
-    'DID:'
-  } ])
-  return did
-}
-
-async function onClose(err) {
-  if (err) {
-    error('fatal:', err)
-    process.exit(1)
-  } else {
-    try {
-      await stop()
-      process.exit(0)
-    } catch (e) {
-      error('fatal:', e)
-      process.exit(1)
-    }
-  }
-}
-
-function displayEvents(dcdn) {
-  // Creates a progress visualizer bar in cli
-  const visualizers = new Map()
-
-  dcdn.on('start', (did, total) => {
-    if (visualizers.has(did)) return
-    info(`Download started for ${did}`)
-    const pBar = new clip.Bar({}, clip.Presets.shades_classic)
-    pBar.start(total, 0)
-    visualizers.set(did, pBar)
+  child.on('exit', (code, signal) => {
+    debug('%s exited with code %s and signal %s', code, signal)
+    process.nextTick(() => process.exit(code))
   })
 
-  dcdn.on('progress', (did, value) => {
-    if (!visualizers.has(did)) return
-    const pBar = visualizers.get(did)
-    pBar.update(value)
-  })
-
-  dcdn.on('complete', (did) => {
-    if (!visualizers.has(did)) return
-    const pBar = visualizers.get(did)
-    pBar.stop()
-    info(`Download complete for ${did}`)
-    visualizers.delete(did)
-  })
-
-  dcdn.on('info', (message) => {
-    info(message)
-  })
-
-  dcdn.on('warn', (message) => {
-    warn(message)
-  })
-
-  dcdn.on('requestcomplete', (key) => {
-    info(`Request complete for ${key}`)
+  // Emit child program error and exit
+  child.on('error', () => {
+    error(
+      "An error occured when invoking '%s' command. See 'ard --help'.",
+      commandName
+    )
   })
 }

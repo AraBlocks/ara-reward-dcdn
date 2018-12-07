@@ -43,11 +43,15 @@ class Requester extends RequesterBase {
     this.queue = queue
   }
 
+  _info(message) {
+    this.emit('info', message)
+  }
+
   start() {
     const self = this
     const transaction = () => self._prepareJob()
     this.queue.push(transaction).then(() => {
-      debug('Requesting:', self.afs.did)
+      self._info(`Requesting content for: ${self.afs.did}`)
       if (self.swarm) {
         self._download()
         self.swarm.join(self.topic, { lookup: true, announce: false })

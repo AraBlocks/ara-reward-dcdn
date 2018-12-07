@@ -1,0 +1,64 @@
+#!/usr/bin/env node
+
+const {
+  start, setInstance, getInstance
+} = require('..')
+const {
+  promptForPassword,
+  displayEvents,
+  onClose
+} = require('../lib/util')
+const { info } = require('ara-console')
+const { createProgram } = require('../lib/program')
+const DCDN = require('../src/dcdn')
+const rc = require('ara-runtime-configuration')()
+
+process.on('unhandledRejection', onClose)
+process.on('uncaughtExeption', onClose)
+
+// yargs program command line interface instance
+const program = createProgram({
+  usage: 'usage: ard start [-hDV]',
+})
+
+const { argv } = program
+  .version()
+  .recommendCommands()
+  .option('identity', {
+    alias: 'i',
+    type: 'string',
+    required: true,
+    default: rc.network.identity.whoami,
+    describe:
+  `A valid, local, and resolvable Ara identity DID
+  URI of the owner of the AFS. You will be
+  prompted for the associated passphrase`,
+  })
+
+// Emit program usage help
+if (argv.help) {
+  program.showHelp()
+  process.exit(0)
+}
+
+onstart(argv)
+
+async function onstart(arg) {
+  info('starting DCDN node')
+  try {
+    let dcdn = await getInstance()
+    if (!dcdn) {
+      const { password } = await promptForPassword()
+      dcdn = new DCDN({
+        password,
+        userID: arg.identity
+      })
+      await setInstance(dcdn)
+      displayEvents(dcdn)
+    }
+
+    await start()
+  } catch (e) {
+    onClose(`Error occurred with starting DCDN Node: ${e}`)
+  }
+}
