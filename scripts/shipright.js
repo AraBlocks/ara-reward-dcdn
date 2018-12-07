@@ -126,10 +126,10 @@ module.exports = (async function main() {
    */
   const executeCommandHelp = async ({ path, command, subCommand }) => {
     const cmdPath = resolve(path, command)
-    const commands = [ subCommand || null, '--help' ].filter(Boolean)
+    const commands = [ cmdPath, subCommand || null, '--help' ].filter(Boolean)
 
     try {
-      const [ stdout, stderr ] = await pify(execFile, { multiArgs: true })(cmdPath, commands)
+      const [ stdout, stderr ] = await pify(execFile, { multiArgs: true })('node', commands)
       return (stdout || stderr).split('\n\n')
     } catch (e) {
       console.error('Error occurred reading command: ', e)
