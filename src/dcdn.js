@@ -51,6 +51,14 @@ class FarmDCDN extends EventEmitter {
     this.config = resolve(rc.network.dcdn.root, this.user.did, constants.DEFAULT_CONFIG_STORE)
   }
 
+  _info(message) {
+    this.emit('info', message)
+  }
+
+  _warn(message) {
+    this.emit('warn', message)
+  }
+
   _onConnection(connection, details) {
     const self = this
     const peer = details.peer || {}
@@ -116,7 +124,6 @@ class FarmDCDN extends EventEmitter {
    */
   async start() {
     const self = this
-
     if (!this.swarm) {
       if (!this.user.secretKey) {
         try {
@@ -131,6 +138,12 @@ class FarmDCDN extends EventEmitter {
       if (!this[$driveCreator]) await this._loadDrive()
 
       const archives = this[$driveCreator].list()
+
+      if (0 === archives.length) {
+        this._info('no previous config')
+        return
+      }
+
       for (const archive of archives) {
         if (archive instanceof Error) {
           self.emit('warn', `failed to initialize archive with ${archive.data.did}: ${archive.message}`)
@@ -178,6 +191,7 @@ class FarmDCDN extends EventEmitter {
         const topic = service.topic.toString('hex')
         self.services[topic] = service
         self.topics[afs.did].push(topic)
+        service.on('info', self._info.bind(self))
         service.start()
       }
     }
@@ -218,7 +232,7 @@ class FarmDCDN extends EventEmitter {
 
     if (download) {
       if (!(await isUpdateAvailable(afs))) {
-        this.emit('info', `No content update available for ${afs.did}`)
+        this._info(`No content update available for ${afs.did}`)
         return null
       }
 
@@ -287,11 +301,11 @@ class FarmDCDN extends EventEmitter {
   }
 
   _stopServices(afs) {
-    this.emit('info', `Stopping services for ${afs.did}`)
-
+    this._info(`Stopping services for: ${afs.did}`)
     if (afs.did in this.topics) {
       for (const topic of this.topics[afs.did]) {
         this.services[topic].stop()
+        this.services[topic].removeAllListeners()
         delete this.services[topic]
       }
       delete this.topics[afs.did]

@@ -14,10 +14,14 @@ class MetadataService extends EventEmitter {
     this.swarm = swarm
   }
 
+  _info(message) {
+    this.emit('info', message)
+  }
+
   async _download() {
     const self = this
     let currentVersion = self.partition.version
-    debug('Requesting metadata for: ', this.afs.did)
+    this._info(`Requesting metadata for:  ${this.afs.did}`)
 
     this.partition.metadata.on('sync', downloadJson)
     this.once('stop', () => {
@@ -42,7 +46,7 @@ class MetadataService extends EventEmitter {
 
   start() {
     if (this.download) this._download()
-    if (this.upload) debug('Seeding metadata for: ', this.afs.did, 'version:', this.partition.version)
+    if (this.upload) this._info(`Seeding metadata for: ${this.afs.did} version: ${this.partition.version}`)
     this.swarm.join(this.topic, { lookup: this.download, announce: this.upload })
   }
 

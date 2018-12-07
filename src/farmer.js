@@ -31,9 +31,13 @@ class Farmer extends FarmerBase {
     this.user = user
   }
 
+  _info(message) {
+    this.emit('info', message)
+  }
+
   start() {
     this.swarm.join(this.topic, { lookup: false, announce: true })
-    debug('Seeding: ', this.afs.did, 'version:', this.afs.version)
+    this._info(`Seeding content for: ${this.afs.did} version: ${this.afs.version}`)
   }
 
   stop() {
