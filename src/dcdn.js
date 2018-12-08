@@ -222,13 +222,14 @@ class FarmDCDN extends EventEmitter {
     // Default reward to a percentage of the content's price
     if (null === price || undefined === price) {
       try {
-        price = constants.DEFAULT_REWARD_PERCENTAGE * await getPrice({ did: afs.did })
+        price = Number(token.expandTokenValue(await getPrice({ did: afs.did }))) * constants.DEFAULT_REWARD_PERCENTAGE
       } catch (err) {
         debug(err)
         price = 0
       }
+    } else {
+      price = Number(token.expandTokenValue(price))
     }
-    const convertedPrice = (price) ? Number(token.expandTokenValue(price.toString())) : 0
 
     if (download) {
       if (!(await isUpdateAvailable(afs))) {
@@ -249,7 +250,7 @@ class FarmDCDN extends EventEmitter {
       if ('string' === typeof jobNonce) jobNonce = toBuffer(jobNonce.replace(/^0x/, ''), 'hex')
       await pify(self.jobsInProgress.write)(jobNonce, key)
 
-      const matcher = new matchers.MaxCostMatcher(convertedPrice, maxPeers)
+      const matcher = new matchers.MaxCostMatcher(price, maxPeers)
       service = new Requester(jobNonce, matcher, this.user, afs, this.swarm, this.queue)
 
       service.once('downloadcomplete', async () => {
@@ -275,7 +276,7 @@ class FarmDCDN extends EventEmitter {
         self.emit('requestcomplete', key)
       })
     } else if (upload) {
-      service = new Farmer(this.user, convertedPrice, afs, this.swarm)
+      service = new Farmer(this.user, price, afs, this.swarm)
     }
 
     function attachProgressListener(feed) {
