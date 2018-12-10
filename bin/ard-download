@@ -92,7 +92,7 @@ async function ondownload(arg) {
   try {
     let dcdn = await getInstance()
     if (!dcdn) {
-      const { password } = await promptForPassword()
+      const password = await promptForPassword()
       dcdn = new DCDN({
         password,
         userID: arg.identity
