@@ -1,22 +1,26 @@
-<a name="0.8.0"></a>
-# [0.8.0](https://github.com/arablocks/ara-reward-dcdn/compare/0.2.0...0.8.0) (2018-12-07)
+# [0.9.0](https://github.com/arablocks/ara-reward-dcdn/compare/0.2.0...0.9.0) (2018-12-10)
 
 
 ### Bug Fixes
 
+* **ard:** removed onClose from base ard ([7712db3](https://github.com/arablocks/ara-reward-dcdn/commit/7712db3))
+* **bin:** fix passing in did ([2139a09](https://github.com/arablocks/ara-reward-dcdn/commit/2139a09))
 * **dcdn:** await unjoin on metadata sync ([8bf601f](https://github.com/arablocks/ara-reward-dcdn/commit/8bf601f))
 * **dcdn:** fix for timeouts on dht connections ([3bfb408](https://github.com/arablocks/ara-reward-dcdn/commit/3bfb408))
+* **dcdn:** rounding error ([52b14e0](https://github.com/arablocks/ara-reward-dcdn/commit/52b14e0))
 * **dcdn:** switch jobs and config ([b0d872c](https://github.com/arablocks/ara-reward-dcdn/commit/b0d872c))
 * **hyperswarm:** enable multiple topics per peer. Allow for 0x in front of jobId ([18488d3](https://github.com/arablocks/ara-reward-dcdn/commit/18488d3))
 * **metadata:** replicate metadata during download ([a187c33](https://github.com/arablocks/ara-reward-dcdn/commit/a187c33))
 * **package:** lock ara-filesystem due to contract change without minor bump ([79fac7e](https://github.com/arablocks/ara-reward-dcdn/commit/79fac7e))
+* handle invalid agreement. handle no password. handle feed.length == 0 ([37bfc0e](https://github.com/arablocks/ara-reward-dcdn/commit/37bfc0e))
 * **requester:** finalize, rather than destroy feeds ([3f19e33](https://github.com/arablocks/ara-reward-dcdn/commit/3f19e33))
 * **requester:** handle hire but no data received ([fc60389](https://github.com/arablocks/ara-reward-dcdn/commit/fc60389))
 * **requester:** handle receipt timeout ([50777df](https://github.com/arablocks/ara-reward-dcdn/commit/50777df))
 * **requester:** only try to send rewards once ([4bcbc5b](https://github.com/arablocks/ara-reward-dcdn/commit/4bcbc5b))
+* **shipright:** fix for windows ([a796a55](https://github.com/arablocks/ara-reward-dcdn/commit/a796a55))
 * **src/hyperswarm.js:** Check for cb in destroy ([ff24cc1](https://github.com/arablocks/ara-reward-dcdn/commit/ff24cc1))
+* **tests:** removed need for network ([ee37195](https://github.com/arablocks/ara-reward-dcdn/commit/ee37195))
 * **util:** safely handle no password ([0515798](https://github.com/arablocks/ara-reward-dcdn/commit/0515798))
-* handle invalid agreement. handle no password. handle feed.length == 0 ([37bfc0e](https://github.com/arablocks/ara-reward-dcdn/commit/37bfc0e))
 
 
 ### Features
@@ -35,7 +39,6 @@
 
 
 
-<a name="0.2.0"></a>
 # [0.2.0](https://github.com/arablocks/ara-reward-dcdn/compare/0.1.0...0.2.0) (2018-11-07)
 
 
@@ -51,17 +54,14 @@
 
 
 
-<a name="0.1.0"></a>
 # [0.1.0](https://github.com/arablocks/ara-reward-dcdn/compare/0.0.2...0.1.0) (2018-10-23)
 
 
 
-<a name="0.0.2"></a>
 ## [0.0.2](https://github.com/arablocks/ara-reward-dcdn/compare/0.0.1...0.0.2) (2018-10-23)
 
 
 
-<a name="0.0.1"></a>
 ## [0.0.1](https://github.com/arablocks/ara-reward-dcdn/compare/0844928...0.0.1) (2018-10-09)
 
 

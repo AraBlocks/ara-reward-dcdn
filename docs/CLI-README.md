@@ -3,7 +3,7 @@
 All other commands prepended with `ard-` execute as a child of this command
 #### Usage
 ```sh
-usage: ard [-hDV] <command> [<args>]
+usage: ard <command> [-hDV] [<args>]
 ```
 #### Options
 | Flag(s) | Description | Type |
