@@ -1,2 +1,18 @@
 [data]
 root = ./test/.ara
+
+[network.dns]
+server = ''
+
+[network.dht]
+bootstrap = ''
+
+[network.identity.resolver]
+secret = ''
+keyring = ''
+network = ''
+
+[network.identity.archiver]
+secret = ''
+keyring = ''
+network = ''

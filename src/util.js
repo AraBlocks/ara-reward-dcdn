@@ -46,7 +46,6 @@ async function isUpdateAvailable(afs) {
 
     // offset to read from bc to see if update is available
     const offset = HEADER_LENGTH + (updateVersion * SIGNATURES_WRITE_LENGTH)
-
     const buf = await storage.read({
       fileIndex: METADATA_SIGNATURES_INDEX,
       address: afs.proxy,
