@@ -1,22 +1,22 @@
 /* eslint class-methods-use-this: 1 */
 const { token, registry } = require('ara-contracts')
 const { matchers, util: { idify } } = require('ara-reward-protocol')
-const { create: createAFS, getPrice } = require('ara-filesystem')
 const { getIdentifier } = require('ara-util')
 const { Requester } = require('./requester.js')
 const { toBuffer } = require('ara-util/transform')
 const { resolve } = require('path')
 const { Farmer } = require('./farmer.js')
 const { isUpdateAvailable } = require('./util')
-const createHyperswarm = require('./hyperswarm')
 const MetadataService = require('./metadata')
 const EventEmitter = require('events')
+const hyperswarm = require('./hyperswarm')
 const multidrive = require('multidrive')
 const AutoQueue = require('./autoqueue')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
 const toilet = require('toiletdb')
 const mkdirp = require('mkdirp')
+const araFS = require('ara-filesystem')
 const debug = require('debug')('ard')
 const pify = require('pify')
 const User = require('./user')
@@ -45,6 +45,7 @@ class FarmDCDN extends EventEmitter {
     this.queue = opts.queue || new AutoQueue()
     this.swarm = null
     this.user = new User(getIdentifier(opts.userID), opts.password)
+    this.jobsInProgress = null
 
     this.root = resolve(rc.network.dcdn.root, this.user.did)
     this.jobs = resolve(rc.network.dcdn.root, this.user.did, constants.DEFAULT_JOB_STORE)
@@ -132,7 +133,8 @@ class FarmDCDN extends EventEmitter {
           throw (err)
         }
       }
-      this.swarm = createHyperswarm()
+
+      this.swarm = hyperswarm.create()
       this.swarm.on('connection', this._onConnection.bind(this))
 
       if (!this[$driveCreator]) await this._loadDrive()
@@ -143,7 +145,6 @@ class FarmDCDN extends EventEmitter {
         this._info('no previous config')
         return
       }
-
       for (const archive of archives) {
         if (archive instanceof Error) {
           self.emit('warn', `failed to initialize archive with ${archive.data.did}: ${archive.message}`)
@@ -222,13 +223,13 @@ class FarmDCDN extends EventEmitter {
     // Default reward to a percentage of the content's price
     if (null === price || undefined === price) {
       try {
-        price = Number(token.expandTokenValue(await getPrice({ did: afs.did }))) * constants.DEFAULT_REWARD_PERCENTAGE
+        price = Number(token.expandTokenValue(await araFS.getPrice({ did: afs.did }))) * constants.DEFAULT_REWARD_PERCENTAGE
       } catch (err) {
         debug(err)
         price = 0
       }
     } else {
-      price = Number(token.expandTokenValue(price))
+      price = Number(token.expandTokenValue(price.toString()))
     }
 
     if (download) {
@@ -247,6 +248,7 @@ class FarmDCDN extends EventEmitter {
       }
 
       let jobNonce = jobId || await this._getJobInProgress(key) || crypto.randomBytes(32)
+
       if ('string' === typeof jobNonce) jobNonce = toBuffer(jobNonce.replace(/^0x/, ''), 'hex')
       await pify(self.jobsInProgress.write)(jobNonce, key)
 
@@ -352,7 +354,6 @@ class FarmDCDN extends EventEmitter {
       throw new TypeError('Expecting `opts` to be an object')
     }
     opts.key = opts.key || getIdentifier(opts.did)
-
     await this.unjoin(opts)
     const archive = await pify(this[$driveCreator].create)(opts)
 
@@ -398,7 +399,7 @@ class FarmDCDN extends EventEmitter {
     const { did } = opts
     try {
       // TODO: only sync latest
-      const { afs } = await createAFS({
+      const { afs } = await araFS.create({
         did,
         partitions: {
           etc: {

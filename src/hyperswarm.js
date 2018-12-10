@@ -2,7 +2,7 @@ const network = require('@hyperswarm/network')
 const debug = require('debug')('ard:hyperswarm')
 const utp = require('utp-native')
 
-function createHyperswarm() {
+function create() {
   const socket = utp()
   socket.on('error', (error) => {
     debug(error)
@@ -73,4 +73,6 @@ function createHyperswarm() {
   return swarm
 }
 
-module.exports = createHyperswarm
+module.exports = {
+  create
+}

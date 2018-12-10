@@ -20,11 +20,17 @@ class User {
       throw new Error('Missing ara identity or password')
     }
 
-    const publicKey = Buffer.from(this.did, 'hex')
-    const hash = crypto.blake2b(publicKey).toString('hex')
-    const path = resolve(rc.network.identity.root, hash, 'keystore/ara')
-    const keystore = JSON.parse(await pify(readFile)(path, 'utf8'))
-    const password = crypto.blake2b(Buffer.from(this.password))
+    let keystore
+    let password
+    try {
+      const publicKey = Buffer.from(this.did, 'hex')
+      const hash = crypto.blake2b(publicKey).toString('hex')
+      const path = resolve(rc.network.identity.root, hash, 'keystore/ara')
+      keystore = JSON.parse(await pify(readFile)(path, 'utf8'))
+      password = crypto.blake2b(Buffer.from(this.password))
+    } catch (err) {
+      throw new Error('Failed to load keystore')
+    }
 
     try {
       this.secretKey = ss.decrypt(keystore, { key: password.slice(0, 16) })
