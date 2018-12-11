@@ -92,13 +92,13 @@ sandbox.stub(fs, 'mkdir').callsFake((_, __, cb) => cb(null))
 test.serial('dcdn.constructor', (t) => {
   /* eslint-disable-next-line no-new */
   t.true(Boolean(new DCDN({
-    userID: TEST_USER.did,
+    userId: TEST_USER.did,
     password: TEST_USER.password
   })))
 
   /* eslint-disable-next-line no-new */
   t.true(Boolean(new DCDN({
-    userID: TEST_USER.did,
+    userId: TEST_USER.did,
     password: TEST_USER.password
   })))
 
@@ -111,7 +111,7 @@ test.serial('dcdn.constructor', (t) => {
 
 test.serial('dcdn.start', async (t) => {
   const dcdn = new DCDN({
-    userID: TEST_USER.did,
+    userId: TEST_USER.did,
     password: TEST_USER.password
   })
   dcdn.user = TEST_USER
@@ -127,7 +127,7 @@ test.serial('dcdn.start', async (t) => {
 
 test.serial('dcdn.stop', async (t) => {
   const dcdn = new DCDN({
-    userID: TEST_USER.did,
+    userId: TEST_USER.did,
     password: TEST_USER.password
   })
   dcdn.user = TEST_USER
@@ -143,7 +143,7 @@ test.serial('dcdn.stop', async (t) => {
 
 test.serial('dcdn.join.invalid', async (t) => {
   const dcdn = new DCDN({
-    userID: TEST_USER.did,
+    userId: TEST_USER.did,
     password: TEST_USER.password
   })
   dcdn.user = TEST_USER
@@ -167,7 +167,7 @@ test.serial('dcdn.join.invalid', async (t) => {
 
 test.serial('dcdn.unjoin', async (t) => {
   const dcdn = new DCDN({
-    userID: TEST_USER.did,
+    userId: TEST_USER.did,
     password: TEST_USER.password
   })
   dcdn.user = TEST_USER
@@ -182,7 +182,7 @@ test.serial('dcdn.unjoin', async (t) => {
 
 test.serial('dcdn.join.upload', async (t) => {
   const dcdn = new DCDN({
-    userID: TEST_USER.did,
+    userId: TEST_USER.did,
     password: TEST_USER.password
   })
   dcdn.user = TEST_USER
@@ -204,7 +204,7 @@ test.serial('dcdn.join.upload', async (t) => {
 
 test.serial('dcdn.join.uploadanddownload', async (t) => {
   const dcdn = new DCDN({
-    userID: TEST_USER.did,
+    userId: TEST_USER.did,
     password: TEST_USER.password
   })
   dcdn.user = TEST_USER
@@ -226,7 +226,7 @@ test.serial('dcdn.join.uploadanddownload', async (t) => {
 
 test.serial('dcdn.join.download', async (t) => {
   const dcdn = new DCDN({
-    userID: TEST_USER.did,
+    userId: TEST_USER.did,
     password: TEST_USER.password
   })
   dcdn.user = TEST_USER
@@ -248,7 +248,7 @@ test.serial('dcdn.join.download', async (t) => {
 
 test.serial('dcdn.join.download.metaOnly', async (t) => {
   const dcdn = new DCDN({
-    userID: TEST_USER.did,
+    userId: TEST_USER.did,
     password: TEST_USER.password
   })
   dcdn.user = TEST_USER
@@ -268,7 +268,7 @@ test.serial('dcdn.join.download.metaOnly', async (t) => {
 
 test.serial('dcdn.join.upload.metaOnly', async (t) => {
   const dcdn = new DCDN({
-    userID: TEST_USER.did,
+    userId: TEST_USER.did,
     password: TEST_USER.password
   })
   dcdn.user = TEST_USER
