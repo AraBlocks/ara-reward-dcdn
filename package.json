@@ -15,9 +15,10 @@
     "lint-fix": "eslint . --fix && eslint bin/* --fix",
     "coverage": "npm run nyc",
     "nyc": "nyc npm test",
-    "shipright": "node ./scripts/shipright",
+    "api-readme": "jsdoc2md src/dcdn.js > docs/API-README.md",
+    "cli-readme": "node ./scripts/shipright",
     "changelog": "conventional-changelog --same-file --preset angular --release-count 0 --infile CHANGELOG.md",
-    "version": "npm run changelog && git add CHANGELOG.md && npm run shipright && git add docs/CLI-README.md"
+    "version": "npm run changelog && git add CHANGELOG.md && npm run api-readme && git add docs/API-README.md && npm run cli-readme && git add docs/CLI-README.md"
   },
   "repository": {
     "type": "git",
@@ -72,6 +73,7 @@
     "eslint-config-ara": "arablocks/eslint-config-ara#semver:2.1.x",
     "eslint-plugin-import": "^2.12.0",
     "jsdoc": "^3.5.5",
+    "jsdoc-to-markdown": "^4.0.1",
     "sinon": "^6.0.1"
   }
 }
