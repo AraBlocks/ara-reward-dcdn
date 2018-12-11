@@ -27,7 +27,7 @@ Constructs a new dcdn instance
 
 | Param | Type | Description |
 | --- | --- | --- |
-| opts.userID | <code>String</code> | The user's `did` |
+| opts.userId | <code>String</code> | The user's `did` |
 | opts.password | <code>String</code> | The user's password |
 | [opts.queue] | <code>Object</code> | The transaction queue |
 
@@ -48,9 +48,9 @@ Stop running the DCDN node
 <a name="DCDN+join"></a>
 
 ### dcdN.join() ⇒ <code>null</code>
-Joins a hyperswarm for a given AFS and replicates for a reward. 
-Adds the interested details to the node's configuration. 
-**Note**: this will also start the node and load the previous configuration.
+Joins a hyperswarm for a given AFS and replicates for a reward.
+Adds the options to the node's configuration. **Note**: this will
+also start the node and load the previous configuration.
 
 **Kind**: instance method of [<code>DCDN</code>](#DCDN)  
 **Access**: public  
@@ -60,15 +60,16 @@ Adds the interested details to the node's configuration.
 | opts.did | <code>String</code> | The `did` of the AFS |
 | opts.upload | <code>boolean</code> | Whether to seed the AFS |
 | opts.download | <code>boolean</code> | Whether to download the AFS |
-| opts.metaOnly | <code>boolean</code> | Whether to only replicate the metadata |
-| opts.price | <code>float</code> | Price to distribute AFS |
+| [opts.metaOnly] | <code>boolean</code> | Whether to only replicate the metadata |
+| [opts.price] | <code>float</code> | Price to distribute AFS |
 | [opts.maxPeers] | <code>int</code> | The maximum peers for the AFS |
 | [opts.jobId] | <code>String</code> | A job id for the AFS |
 
 <a name="DCDN+unjoin"></a>
 
 ### dcdN.unjoin() ⇒ <code>null</code>
-Leaves a hyperswarm for a given AFS and removes interest from the node's configuration
+Leaves a hyperswarm for a given AFS and removes its options
+from the node's configuration
 
 **Kind**: instance method of [<code>DCDN</code>](#DCDN)  
 **Access**: public  

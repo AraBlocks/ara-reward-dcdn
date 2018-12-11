@@ -38,16 +38,34 @@ $ ard download -d <contentDID> -i <userDID>
 $ ard seed -d <contentDID> -i <userDID>
 ```
 
-### Metadata
-```sh
-$ ard metadata -d <contentDID> -i <userDID>
-```
-
 ## CLI
 See [CLI docs](/docs/CLI-README.md)
 
 ## API
 See [API docs](/docs/API-README.md)
+
+`index.js` is an [ANN-compliant](https://github.com/arablocks/ara-network) interface and *does not* give direct access to the DCDN class. For access to the DCDN class, use `require('ara-reward-dcdn/dcdn')`.
+
+
+Example download:
+```js
+const DCDN = require('ara-reward-dcdn/dcdn')
+
+const dcdn = new DCDN({
+  password: 'password',
+  userId: '0a98c8305035dcbb1e8fa0826965200269e232e45ac572d26a45db9581986e67'
+})
+
+dcdn.join({
+  did: '1b23c8305035dcbb1e8fa0826965200269e232e45ac572d26a45db95819abcd1',
+  download: true,
+  upload: false,
+  metaOnly: false,
+  price: 1,
+  maxPeers: 10,
+  jobId: 'ac23c8305035dcbb1e8fa0826965200269e232e45ac572d26a45db95819aef24'
+})
+```
 
 ## Configuration
 [ara-runtime-configuration][ara-runtime-configuration] is a dependency of [ara-network][ara-network] and will read from the nearest `.ararc`.  Install [ara-runtime-configuration][ara-runtime-configuration] separately to specify default values not present in an `.ararc`.

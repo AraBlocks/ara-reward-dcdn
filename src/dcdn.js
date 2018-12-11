@@ -36,7 +36,7 @@ const $driveCreator = Symbol('driveCreator')
 class DCDN extends EventEmitter {
   /**
    * Constructs a new dcdn instance
-   * @param {String} opts.userID The user's `did`
+   * @param {String} opts.userId The user's `did`
    * @param {String} opts.password The user's password
    * @param {Object} [opts.queue] The transaction queue
    * @return {Object}
@@ -52,7 +52,7 @@ class DCDN extends EventEmitter {
 
     this.queue = opts.queue || new AutoQueue()
     this.swarm = null
-    this.user = new User(getIdentifier(opts.userID), opts.password)
+    this.user = new User(getIdentifier(opts.userId), opts.password)
     this.jobsInProgress = null
 
     this.root = resolve(rc.network.dcdn.root, this.user.did)
@@ -379,14 +379,14 @@ class DCDN extends EventEmitter {
 
   /**
    * Joins a hyperswarm for a given AFS and replicates for a reward.
-   * Adds the interested details to the node's configuration.
-   * **Note**: this will also start the node and load the previous configuration.
+   * Adds the options to the node's configuration. **Note**: this will
+   * also start the node and load the previous configuration.
    * @public
    * @param  {String} opts.did The `did` of the AFS
    * @param  {boolean} opts.upload Whether to seed the AFS
    * @param  {boolean} opts.download Whether to download the AFS
-   * @param  {boolean} opts.metaOnly Whether to only replicate the metadata
-   * @param  {float} opts.price Price to distribute AFS
+   * @param  {boolean} [opts.metaOnly] Whether to only replicate the metadata
+   * @param  {float} [opts.price] Price to distribute AFS
    * @param  {int} [opts.maxPeers] The maximum peers for the AFS
    * @param  {String} [opts.jobId] A job id for the AFS
    * @return {null}
@@ -411,7 +411,8 @@ class DCDN extends EventEmitter {
   }
 
   /**
-   * Leaves a hyperswarm for a given AFS and removes interest from the node's configuration
+   * Leaves a hyperswarm for a given AFS and removes its options
+   * from the node's configuration
    * @public
    * @param  {String} opts.did The `did` of the AFS
    * @return {null}
