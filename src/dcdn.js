@@ -25,14 +25,22 @@ const rc = require('./rc')()
 const $driveCreator = Symbol('driveCreator')
 
 /**
- * @class Creates a DCDN node
+ * @class A rewardable DCDN node on the Ara Network
+ * @fires DCDN#info
+ * @fires DCDN#warn
+ * @fires DCDN#peer-update
+ * @fires DCDN#download-progress
+ * @fires DCDN#download-complete
+ * @fires DCDN#request-complete
  */
-class FarmDCDN extends EventEmitter {
+class DCDN extends EventEmitter {
   /**
-   * @param {String} opts.userID user DID
+   * Constructs a new dcdn instance
+   * @param {String} opts.userID The user's `did`
+   * @param {String} opts.password The user's password
+   * @param {Object} [opts.queue] The transaction queue
    * @return {Object}
    */
-
   constructor(opts = {}) {
     super()
 
@@ -53,10 +61,20 @@ class FarmDCDN extends EventEmitter {
   }
 
   _info(message) {
+    /**
+     * Informational event
+     * @event DCDN#info
+     * @param {string} message Helpful information about the state of the DCDN Node
+     */
     this.emit('info', message)
   }
 
   _warn(message) {
+    /**
+     * Warning event
+     * @event DCDN#warn
+     * @param {string} message Warning information about the state of the DCDN Node
+     */
     this.emit('warn', message)
   }
 
@@ -113,13 +131,13 @@ class FarmDCDN extends EventEmitter {
     const store = toilet(this.config)
     this[$driveCreator] = await pify(multidrive)(
       store,
-      FarmDCDN._createAFS,
-      FarmDCDN._closeAFS
+      DCDN._createAFS,
+      DCDN._closeAFS
     )
   }
 
   /**
-   * Start running the DCDN node
+   * Start running the DCDN node in the latest configuration
    * @public
    * @return {null}
    */
@@ -238,15 +256,6 @@ class FarmDCDN extends EventEmitter {
         return null
       }
 
-      const partition = afs.partitions.home
-      if (partition.content) {
-        attachProgressListener(partition.content)
-      } else {
-        partition.once('content', () => {
-          attachProgressListener(partition.content)
-        })
-      }
-
       let jobNonce = jobId || await this._getJobInProgress(key) || crypto.randomBytes(32)
 
       if ('string' === typeof jobNonce) jobNonce = toBuffer(jobNonce.replace(/^0x/, ''), 'hex')
@@ -257,6 +266,11 @@ class FarmDCDN extends EventEmitter {
 
       service.once('download-complete', async () => {
         debug(`Download ${key} Complete!`)
+        /**
+         * Emitted when the download is complete and the data is ready
+         * @event DCDN#download-complete
+         * @param {string} did The `did` of the downloaded AFS
+         */
         self.emit('download-complete', key)
       })
 
@@ -273,21 +287,46 @@ class FarmDCDN extends EventEmitter {
           await self.join(opts)
         }
 
-        /** This is to signify when all farmers have responded
-        with receipts and it's safe to publish the afs * */
+        /**
+         * Emitted when the peers have been rewarded and the job is complete
+         * @event DCDN#request-complete
+         * @param {string} did The `did` of the downloaded AFS
+         */
         self.emit('request-complete', key)
       })
     } else if (upload) {
       service = new Farmer(this.user, price, afs, this.swarm)
     }
 
+    const partition = afs.partitions.home
+    if (partition.content) {
+      attachProgressListener(partition.content)
+    } else {
+      partition.once('content', () => {
+        attachProgressListener(partition.content)
+      })
+    }
+
     function attachProgressListener(feed) {
       // Handle when download progress
       feed.on('download', () => {
-        self.emit('progress', key, feed.downloaded(), feed.length)
+        /**
+         * Emitted when a new data block has been downloaded
+         * @event DCDN#download-progress
+         * @param {string} did The `did` of the AFS
+         * @param {int} downloaded The current number of downloaded blocks
+         * @param {int} total The total number of blocks
+         */
+        self.emit('download-progress', key, feed.downloaded(), feed.length)
       })
 
       feed.on('peer-add', () => {
+        /**
+         * Emitted when a peer has been added or removed from an AFS
+         * @event DCDN#peer-update
+         * @param {string} did The `did` of the AFS
+         * @param {int} count The current number of peers
+         */
         self.emit('peer-update', key, feed.peers.length)
       })
 
@@ -317,7 +356,7 @@ class FarmDCDN extends EventEmitter {
   }
 
   /**
-   * Stop the DCDN node
+   * Stop running the DCDN node
    * @public
    * @return {null}
    */
@@ -339,15 +378,17 @@ class FarmDCDN extends EventEmitter {
   }
 
   /**
-   * Join a discovery swarm described by the passed opts
+   * Joins a hyperswarm for a given AFS and replicates for a reward.
+   * Adds the interested details to the node's configuration.
+   * **Note**: this will also start the node and load the previous configuration.
    * @public
-   * @param  {String} opts.did
-   * @param  {boolean} opts.upload
-   * @param  {boolean} opts.download
-   * @param  {boolean} opts.metaOnly
+   * @param  {String} opts.did The `did` of the AFS
+   * @param  {boolean} opts.upload Whether to seed the AFS
+   * @param  {boolean} opts.download Whether to download the AFS
+   * @param  {boolean} opts.metaOnly Whether to only replicate the metadata
    * @param  {float} opts.price Price to distribute AFS
-   * @param  {int} opts.maxPeers
-   * @param  {String} [opts.jobId]
+   * @param  {int} [opts.maxPeers] The maximum peers for the AFS
+   * @param  {String} [opts.jobId] A job id for the AFS
    * @return {null}
    */
   async join(opts) {
@@ -370,10 +411,9 @@ class FarmDCDN extends EventEmitter {
   }
 
   /**
-   * Unjoin a discovery swarm described by the passed opts
+   * Leaves a hyperswarm for a given AFS and removes interest from the node's configuration
    * @public
-   * @param  {String} opts.did
-   *
+   * @param  {String} opts.did The `did` of the AFS
    * @return {null}
    */
   async unjoin(opts) {
@@ -433,4 +473,4 @@ class FarmDCDN extends EventEmitter {
   }
 }
 
-module.exports = FarmDCDN
+module.exports = DCDN
