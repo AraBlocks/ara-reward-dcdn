@@ -6,6 +6,7 @@ const hyperswarm = require('../src/hyperswarm')
 const { rewards, registry, storage } = require('ara-contracts')
 const sinon = require('sinon')
 const EventEmitter = require('events')
+const ardUtil = require('../src/util')
 const fs = require('fs')
 
 const TEST_OWNER = '0a98c8305035dcbb1e8fa0826965200269e232e45ac572d26a45db9581986e67'
@@ -22,6 +23,9 @@ const TEST_USER = {
 
 const stubbedAFS = {
   afs: {
+    ddo: {
+      proof: true
+    },
     on: () => true,
     version: 1,
     did: TEST_DID,
@@ -78,6 +82,7 @@ sandbox.stub(storage, 'read').resolves('abcd')
 sandbox.stub(rewards, 'submit').resolves({})
 sandbox.stub(rewards, 'allocate').resolves({})
 sandbox.stub(aid, 'archive').resolves(true)
+sandbox.stub(ardUtil, 'verify').resolves(true)
 
 // Stub fs functions because we can't stub toiletdb
 sandbox.stub(fs, 'writeFile').callsFake((_, __, cb) => cb(null))

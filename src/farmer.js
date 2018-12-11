@@ -12,23 +12,29 @@ const constants = require('./constants')
 const crypto = require('ara-crypto')
 const debug = require('debug')('ard:farmer')
 
+/**
+ * @class An Ara-reward-protocol FarmerBase extension for AFS replication
+ */
 class Farmer extends FarmerBase {
   /**
-   * Farmer replicates an AFS for a min price
-   * @param {String} user.did did of the farmer
-   * @param {String} user.password password of the farmer's did
-   * @param {int} price Desired price in Ara^-18/upload
-   * @param {AFS} afs Instance of AFS
+   * Constructs a new farmer instance
+   * @param {User} opts.user user object of the farmer
+   * @param {AFS} opts.afs Instance of AFS
+   * @param {Object} opts.swarm Instance of AFS
+   * @param {int} opts.price Desired price in Ara^-18/upload
+   * @param {bool} [opts.metaOnly] Whether to only replicate the metadata
    */
-  constructor(user, price, afs, swarm) {
+  constructor(opts) {
     super()
-    this.price = price
+    this.user = opts.user
+    this.afs = opts.afs
+    this.price = opts.price
+    this.swarm = opts.swarm
+    this.metaOnly = opts.metaOnly || false
+
     this.deliveryMap = new Map()
     this.stateMap = new Map()
-    this.afs = afs
-    this.topic = afs.discoveryKey
-    this.swarm = swarm
-    this.user = user
+    this.topic = this.afs.discoveryKey
   }
 
   _info(message) {
@@ -37,7 +43,7 @@ class Farmer extends FarmerBase {
 
   start() {
     this.swarm.join(this.topic, { lookup: false, announce: true })
-    this._info(`Seeding content for: ${this.afs.did} version: ${this.afs.version}`)
+    this._info(`Seeding ${this.afs.did} content version: ${this.afs.version} etc version: ${this.afs.partitions.etc.version}`)
   }
 
   stop() {
@@ -48,34 +54,84 @@ class Farmer extends FarmerBase {
   async onConnection(connection, details) {
     const self = this
     const peer = details.peer || {}
-    const partition = this.afs.partitions.home
+    const homePartition = this.afs.partitions.home
+    const etcPartition = this.afs.partitions.etc
 
     // Note: hypercore requires extensions array to be sorted
-    const stream = partition.metadata.replicate({
-      live: true,
-      expectedFeeds: 2,
-      extensions: [ MSG.AGREEMENT, MSG.QUOTE, MSG.RECEIPT, MSG.REWARD, MSG.SOW ]
+    // Home partition metadata replication
+    const stream = homePartition.metadata.replicate({
+      live: !(self.metaOnly),
+      download: false,
+      upload: true,
+      expectedFeeds: (self.metaOnly) ? 3 : 4,
+      extensions: (self.metaOnly) ? null : [ MSG.AGREEMENT, MSG.QUOTE, MSG.RECEIPT, MSG.REWARD, MSG.SOW ]
     })
 
-    // Wait for metadata to be ready
-    partition.metadata.ready((err) => {
+    // Etc partition metadata replication
+    etcPartition.metadata.replicate({
+      download: false,
+      upload: true,
+      stream
+    })
+
+    // Etc partition content replication
+    self._replicateContent(etcPartition, stream, (err) => {
       if (err) {
-        connection.destroy()
-        debug('failed to ready metadata:', err)
+        debug('error on readying etc partition')
+        connection.onError(err)
+      }
+    })
+
+    // Home partition content replication
+    if (!this.metaOnly) {
+      homePartition.metadata.ready((err) => {
+        if (err) {
+          debug('error on readying home partition')
+          connection.onError(err)
+          return
+        }
+
+        const feed = stream.feed(homePartition.metadata.key)
+        const requesterConnection = new RequesterConnection(peer, stream, feed, { timeout: constants.DEFAULT_TIMEOUT })
+        requesterConnection.once('close', () => {
+          debug(`Stopping replication for ${self.afs.did} with peer ${requesterConnection.peerId}`)
+        })
+
+        if (stream.remoteId) {
+          self.addRequester(requesterConnection)
+        } else {
+          stream.once('handshake', () => {
+            self.addRequester(requesterConnection)
+          })
+        }
+      })
+    }
+
+    connection.pipe(stream).pipe(connection)
+  }
+
+  _replicateContent(partition, stream, callback) {
+    partition.metadata.ready((e) => {
+      if (e) {
+        callback(e)
         return
       }
+      partition._ensureContent((err) => {
+        if (err) {
+          callback(err)
+          return
+        }
+        if (stream.destroyed) return
 
-      const feed = stream.feed(partition.metadata.key)
-      const requesterConnection = new RequesterConnection(peer, stream, feed, { timeout: constants.DEFAULT_TIMEOUT })
-      requesterConnection.once('close', () => {
-        debug(`Stopping replication for ${self.afs.did} with peer ${requesterConnection.peerId}`)
+        partition.content.replicate({
+          live: false,
+          download: false,
+          upload: true,
+          stream
+        })
+
+        callback()
       })
-
-      stream.once('handshake', () => {
-        self.addRequester(requesterConnection)
-      })
-
-      connection.pipe(stream).pipe(connection)
     })
   }
 
@@ -240,18 +296,10 @@ class Farmer extends FarmerBase {
     })
 
     const partition = this.afs.partitions.home
-    partition._ensureContent((err) => {
+    self._replicateContent(partition, connection.stream, (err) => {
       if (err) {
         connection.onError(err)
-        return
       }
-      if (connection.stream.destroyed) return
-      partition.content.replicate({
-        live: false,
-        download: false,
-        upload: true,
-        stream: connection.stream
-      })
     })
   }
 }

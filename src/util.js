@@ -6,6 +6,12 @@ const {
   SIGNATURES_WRITE_LENGTH,
   HEADER_LENGTH,
 } = require('ara-filesystem/constants')
+const { Ed25519VerificationKey2018 } = require('ld-cryptosuite-registry')
+const { DID } = require('did-uri')
+const crypto = require('ara-crypto')
+const { DIDDocument } = require('did-document')
+
+const OWNER = 'owner'
 
 class Countdown {
   constructor(count, onComplete) {
@@ -77,8 +83,58 @@ async function isJobOwner(opts) {
   return queryAddress.toUpperCase() === responseAddress.toUpperCase()
 }
 
+// Note: Modified from ara-identity-resolver. Consider adding to ara-identity or ara-util
+/**
+ * Verifies the integrity of a DDO.
+ * @private
+ * @param {Object} ddo
+ * @return {Boolean}
+ */
+function verify(obj) {
+  const ddo = new DIDDocument(obj)
+
+  const proof = ddo.proof()
+  const owner = ddo.id
+  const creator = new DID(proof.creator)
+
+  if (!proof || !proof.type || !proof.signatureValue) {
+    return false
+  }
+
+  if (OWNER !== creator.fragment) {
+    return false
+  }
+
+  if (creator.did !== owner.did) {
+    return false
+  }
+
+  if (Ed25519VerificationKey2018 !== proof.type) {
+    return false
+  }
+
+  let publicKey = null
+  for (const { id, publicKeyHex } of ddo.publicKey) {
+    if (id && publicKeyHex) {
+      const did = new DID(id)
+      if (OWNER === did.fragment && did.did === owner.did) {
+        publicKey = Buffer.from(publicKeyHex, 'hex')
+      }
+    }
+  }
+
+  if (!publicKey) {
+    return false
+  }
+
+  const signature = Buffer.from(proof.signatureValue, 'hex')
+  const digest = ddo.digest(crypto.blake2b)
+  return crypto.ed25519.verify(signature, digest, publicKey)
+}
+
 module.exports = {
   isUpdateAvailable,
   isJobOwner,
-  Countdown
+  Countdown,
+  verify
 }
