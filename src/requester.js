@@ -144,7 +144,7 @@ class Requester extends RequesterBase {
 
         // TODO: store rewards to send later
         debug('Files:', await self.afs.readdir('.'))
-        self.emit('downloadcomplete')
+        self.emit('download-complete')
         self._sendRewards()
       }
     }
@@ -267,7 +267,7 @@ class Requester extends RequesterBase {
 
     // Expects receipt or closure from all rewarded farmers
     const receiptCountdown = new Countdown(this.hiredFarmers.size, () => {
-      self.emit('requestcomplete')
+      self.emit('request-complete')
     })
 
     // Format rewards for contract
@@ -313,7 +313,7 @@ class Requester extends RequesterBase {
     // TODO: allow returning of full reward if no download happened
     if (0 === rewardMap.size) {
       debug(`No applicable rewards for job ${jobId}.`)
-      self.emit('requestcomplete')
+      self.emit('request-complete')
       return
     }
 
@@ -334,7 +334,7 @@ class Requester extends RequesterBase {
 
     try {
       await this.queue.push(transaction)
-      this.emit('jobcomplete', jobId)
+      this.emit('job-complete', jobId)
 
       receiptCountdown.start()
       rewardMap.forEach((value, key) => {

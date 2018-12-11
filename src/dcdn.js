@@ -255,16 +255,16 @@ class FarmDCDN extends EventEmitter {
       const matcher = new matchers.MaxCostMatcher(price, maxPeers)
       service = new Requester(jobNonce, matcher, this.user, afs, this.swarm, this.queue)
 
-      service.once('downloadcomplete', async () => {
+      service.once('download-complete', async () => {
         debug(`Download ${key} Complete!`)
-        self.emit('complete', key)
+        self.emit('download-complete', key)
       })
 
-      service.once('jobcomplete', async (job) => {
+      service.once('job-complete', async (job) => {
         await pify(self.jobsInProgress.delete)(job.replace(/^0x/, ''))
       })
 
-      service.once('requestcomplete', async () => {
+      service.once('request-complete', async () => {
         await self.unjoin(opts)
 
         // If both upload and download are true, then will immediately start seeding
@@ -275,23 +275,24 @@ class FarmDCDN extends EventEmitter {
 
         /** This is to signify when all farmers have responded
         with receipts and it's safe to publish the afs * */
-        self.emit('requestcomplete', key)
+        self.emit('request-complete', key)
       })
     } else if (upload) {
       service = new Farmer(this.user, price, afs, this.swarm)
     }
 
     function attachProgressListener(feed) {
-      // Handle when download starts
-      // TODO: handle if length changes, i.e., new update
-      feed.once('download', () => {
-        debug(`Download ${key} started...`)
-        self.emit('start', key, feed.length)
-      })
-
       // Handle when download progress
       feed.on('download', () => {
         self.emit('progress', key, feed.downloaded(), feed.length)
+      })
+
+      feed.on('peer-add', () => {
+        self.emit('peer-update', key, feed.peers.length)
+      })
+
+      feed.on('peer-remove', () => {
+        self.emit('peer-update', key, feed.peers.length)
       })
     }
 
