@@ -1,6 +1,6 @@
 {
   "name": "ara-reward-dcdn",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "An Ara Network node that runs a rewardable DCDN",
   "main": "index.js",
   "bin": {
