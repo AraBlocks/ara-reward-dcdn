@@ -44,7 +44,7 @@ sinon.stub(TEST_REQ_SIGNATURE, 'getDid').returns('id0')
 sinon.stub(TEST_USER, 'sign').returns(TEST_REQ_SIGNATURE)
 sinon.stub(TEST_USER, 'verify').returns(true)
 
-test('requester.download', async (t) => {
+test('requester.waitForContent', async (t) => {
   const afs = {
     readdir: () => '',
     discoveryKey: 'key',
@@ -57,10 +57,17 @@ test('requester.download', async (t) => {
   afs.partitions.home.content.peers = []
 
   const sendRewardsFake = sinon.fake()
-  const requester = new Requester(TEST_JOB_NONCE, TEST_MATCHER, TEST_USER, afs, TEST_SWARM, TEST_QUEUE)
+  const requester = new Requester({
+    jobId: TEST_JOB_NONCE,
+    matcher: TEST_MATCHER,
+    user: TEST_USER,
+    afs,
+    swarm: TEST_SWARM,
+    queue: TEST_QUEUE
+  })
   sinon.stub(requester, '_sendRewards').callsFake(sendRewardsFake)
 
-  requester._download()
+  requester._waitForContent()
   afs.partitions.home.content.emit('sync')
   afs.partitions.home.content.emit('sync')
   afs.partitions.home.content.emit('sync')
@@ -71,7 +78,14 @@ test('requester.download', async (t) => {
 })
 
 test('requester.validateQuote', async (t) => {
-  const requester = new Requester(TEST_JOB_NONCE, TEST_MATCHER, TEST_USER, TEST_AFS, TEST_SWARM, TEST_QUEUE)
+  const requester = new Requester({
+    jobId: TEST_JOB_NONCE,
+    matcher: TEST_MATCHER,
+    user: TEST_USER,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM,
+    queue: TEST_QUEUE
+  })
   const quote = new Quote()
   const validation = await requester.validateQuote(quote)
   t.true(validation)
@@ -79,7 +93,14 @@ test('requester.validateQuote', async (t) => {
 
 test('requester.generateAgreement', async (t) => {
   const quote = new Quote()
-  const requester = new Requester(TEST_JOB_NONCE, TEST_MATCHER, TEST_USER, TEST_AFS, TEST_SWARM, TEST_QUEUE)
+  const requester = new Requester({
+    jobId: TEST_JOB_NONCE,
+    matcher: TEST_MATCHER,
+    user: TEST_USER,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM,
+    queue: TEST_QUEUE
+  })
   const agreement = await requester.generateAgreement(quote)
   t.true(agreement.getSignature() == TEST_REQ_SIGNATURE && agreement.getQuote() == quote)
 })
@@ -88,7 +109,14 @@ test('requester.validateAgreement', async (t) => {
   const agreementNonce = Buffer.from('did', 'hex')
   const agreement = new Agreement()
   agreement.setNonce(agreementNonce)
-  const requester = new Requester(TEST_JOB_NONCE, TEST_MATCHER, TEST_USER, TEST_AFS, TEST_SWARM, TEST_QUEUE)
+  const requester = new Requester({
+    jobId: TEST_JOB_NONCE,
+    matcher: TEST_MATCHER,
+    user: TEST_USER,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM,
+    queue: TEST_QUEUE
+  })
 
   const validation = await requester.validateAgreement(agreement)
   t.true(validation)
@@ -99,7 +127,14 @@ test('requester.generateReward', async (t) => {
   const units = 5
   const total = units * cost
 
-  const requester = new Requester(TEST_JOB_NONCE, TEST_MATCHER, TEST_USER, TEST_AFS, TEST_SWARM, TEST_QUEUE)
+  const requester = new Requester({
+    jobId: TEST_JOB_NONCE,
+    matcher: TEST_MATCHER,
+    user: TEST_USER,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM,
+    queue: TEST_QUEUE
+  })
 
   const agreement = new Agreement()
   const quote = new Quote()
@@ -113,7 +148,14 @@ test('requester.generateReward', async (t) => {
 test('requester.dataReceived', async (t) => {
   const id1 = 'id1'
   const id2 = 'id2'
-  const requester = new Requester(TEST_JOB_NONCE, TEST_MATCHER, TEST_USER, TEST_AFS, TEST_SWARM, TEST_QUEUE)
+  const requester = new Requester({
+    jobId: TEST_JOB_NONCE,
+    matcher: TEST_MATCHER,
+    user: TEST_USER,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM,
+    queue: TEST_QUEUE
+  })
 
   const deliveryMap = new Map()
   deliveryMap.set(id1, 5)
@@ -127,7 +169,14 @@ test('requester.dataReceived', async (t) => {
 
 test('requester.stop', async (t) => {
   const leaveFake = sinon.fake()
-  const requester = new Requester(TEST_JOB_NONCE, TEST_MATCHER, TEST_USER, TEST_AFS, TEST_SWARM, TEST_QUEUE)
+  const requester = new Requester({
+    jobId: TEST_JOB_NONCE,
+    matcher: TEST_MATCHER,
+    user: TEST_USER,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM,
+    queue: TEST_QUEUE
+  })
 
   requester.swarm.leave = leaveFake
 
@@ -136,7 +185,14 @@ test('requester.stop', async (t) => {
 })
 
 test('requester.prepareJob', async (t) => {
-  const requester = new Requester(TEST_JOB_NONCE, TEST_MATCHER, TEST_USER, TEST_AFS, TEST_SWARM, TEST_QUEUE)
+  const requester = new Requester({
+    jobId: TEST_JOB_NONCE,
+    matcher: TEST_MATCHER,
+    user: TEST_USER,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM,
+    queue: TEST_QUEUE
+  })
 
   sinon.stub(rewards, 'getBudget').resolves(5)
   const submitFake = sinon.fake()
@@ -161,7 +217,14 @@ test('requester.onHireConfirmed', async (t) => {
     }
   }
 
-  const requester = new Requester(TEST_JOB_NONCE, TEST_MATCHER, TEST_USER, afs, TEST_SWARM, TEST_QUEUE)
+  const requester = new Requester({
+    jobId: TEST_JOB_NONCE,
+    matcher: TEST_MATCHER,
+    user: TEST_USER,
+    afs,
+    swarm: TEST_SWARM,
+    queue: TEST_QUEUE
+  })
 
   const farmerId = 'id1'
   const signature = new Signature()
@@ -180,11 +243,18 @@ test('requester.onHireConfirmed', async (t) => {
   }
 
   await requester.onHireConfirmed(agreement, connection)
-  t.true(1 === replicateFake.callCount)
+  t.true(requester.hiredFarmers.has(farmerId))
 })
 
 test('requester.sendRewards.valid', async (t) => {
-  const requester = new Requester(TEST_JOB_NONCE, TEST_MATCHER, TEST_USER, TEST_AFS, TEST_SWARM, TEST_QUEUE)
+  const requester = new Requester({
+    jobId: TEST_JOB_NONCE,
+    matcher: TEST_MATCHER,
+    user: TEST_USER,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM,
+    queue: TEST_QUEUE
+  })
 
   const deliveryMap = new Map()
   deliveryMap.set('id1', 2)
@@ -226,7 +296,14 @@ test('requester.sendRewards.valid', async (t) => {
 })
 
 test('requester.sendRewards.none', async (t) => {
-  const requester = new Requester(TEST_JOB_NONCE, TEST_MATCHER, TEST_USER, TEST_AFS, TEST_SWARM, TEST_QUEUE)
+  const requester = new Requester({
+    jobId: TEST_JOB_NONCE,
+    matcher: TEST_MATCHER,
+    user: TEST_USER,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM,
+    queue: TEST_QUEUE
+  })
 
   const connectionFake = sinon.fake()
   const closeFake = sinon.fake()

@@ -33,7 +33,12 @@ test('farmer.validateSow.valid', async (t) => {
   sinon.stub(user, 'sign').returns(signature)
   sinon.stub(user, 'verify').returns(true)
 
-  const farmer = new Farmer(user, TEST_REWARD, TEST_AFS, TEST_SWARM)
+  const farmer = new Farmer({
+    user,
+    price: TEST_REWARD,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM
+  })
   const sow = new SOW()
   sow.setTopic(TEST_DISCOVERY_KEY)
 
@@ -46,8 +51,12 @@ test('farmer.generateQuote', async (t) => {
   sinon.stub(user, 'sign').returns(signature)
   sinon.stub(user, 'verify').returns(true)
 
-  const farmer = new Farmer(user, TEST_REWARD, TEST_AFS, TEST_SWARM)
-
+  const farmer = new Farmer({
+    user,
+    price: TEST_REWARD,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM
+  })
   const jobNonce = Buffer.from('did', 'hex')
   const sow = new SOW()
   sow.setNonce(jobNonce)
@@ -62,8 +71,12 @@ test('farmer.signAgreement', async (t) => {
   sinon.stub(user, 'sign').returns(signature)
   sinon.stub(user, 'verify').returns(true)
 
-  const farmer = new Farmer(user, TEST_REWARD, TEST_AFS, TEST_SWARM)
-
+  const farmer = new Farmer({
+    user,
+    price: TEST_REWARD,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM
+  })
   const agreementNonce = Buffer.from('did', 'hex')
   const agreement = new Agreement()
   agreement.setNonce(agreementNonce)
@@ -78,8 +91,12 @@ test('farmer.generateReceipt', async (t) => {
   sinon.stub(user, 'sign').returns(signature)
   sinon.stub(user, 'verify').returns(true)
 
-  const farmer = new Farmer(user, TEST_REWARD, TEST_AFS, TEST_SWARM)
-
+  const farmer = new Farmer({
+    user,
+    price: TEST_REWARD,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM
+  })
   const sow = new SOW()
   sow.setNonce(Buffer.from('did', 'hex'))
   const quote = new Quote()
@@ -99,8 +116,12 @@ test('farmer.validateReward', async (t) => {
   sinon.stub(user, 'sign').returns(signature)
   sinon.stub(user, 'verify').returns(true)
 
-  const farmer = new Farmer(user, TEST_REWARD, TEST_AFS, TEST_SWARM)
-
+  const farmer = new Farmer({
+    user,
+    price: TEST_REWARD,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM
+  })
   const agreement = new Agreement()
   const reward = new Reward()
   reward.setAgreement(agreement)
@@ -114,8 +135,12 @@ test('farmer.validateAgreement.valid', async (t) => {
   sinon.stub(user, 'sign').returns(signature)
   sinon.stub(user, 'verify').returns(true)
 
-  const farmer = new Farmer(user, TEST_REWARD, TEST_AFS, TEST_SWARM)
-
+  const farmer = new Farmer({
+    user,
+    price: TEST_REWARD,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM
+  })
   const sow = new SOW()
   sow.setNonce('abcd')
   const quote = new Quote()
@@ -133,8 +158,12 @@ test('farmer.validateAgreement.invalidrequester', async (t) => {
   sinon.stub(user, 'sign').returns(signature)
   sinon.stub(user, 'verify').returns(false)
 
-  const farmer = new Farmer(user, TEST_REWARD, TEST_AFS, TEST_SWARM)
-
+  const farmer = new Farmer({
+    user,
+    price: TEST_REWARD,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM
+  })
   const sow = new SOW()
   sow.setNonce('abcd')
   const quote = new Quote()
@@ -159,8 +188,12 @@ test('farmer.stop', async (t) => {
     }
   }
 
-  const farmer = new Farmer(user, TEST_REWARD, TEST_AFS, swarm)
-
+  const farmer = new Farmer({
+    user,
+    price: TEST_REWARD,
+    afs: TEST_AFS,
+    swarm
+  })
   await farmer.stop()
   t.true(leaveFake)
 })

@@ -6,13 +6,12 @@ const { Requester } = require('./requester.js')
 const { toBuffer } = require('ara-util/transform')
 const { resolve } = require('path')
 const { Farmer } = require('./farmer.js')
-const { isUpdateAvailable } = require('./util')
-const MetadataService = require('./metadata')
 const EventEmitter = require('events')
 const hyperswarm = require('./hyperswarm')
 const multidrive = require('multidrive')
 const AutoQueue = require('./autoqueue')
 const constants = require('./constants')
+const ardUtil = require('./util')
 const crypto = require('ara-crypto')
 const toilet = require('toiletdb')
 const mkdirp = require('mkdirp')
@@ -188,7 +187,6 @@ class DCDN extends EventEmitter {
 
     const {
       dcdn: {
-        metaOnly,
         upload,
         download
       }
@@ -196,13 +194,7 @@ class DCDN extends EventEmitter {
 
     if (!upload && !download) throw new Error('upload or download must be true')
 
-    if (metaOnly) {
-      addService(await this._createMetadataService(afs))
-    } else {
-      // TODO: sync etc within content service
-      addService(await this._createMetadataService(afs))
-      addService(await this._createContentService(afs))
-    }
+    addService(await this._createContentService(afs))
 
     function addService(service) {
       if (service) {
@@ -230,6 +222,7 @@ class DCDN extends EventEmitter {
         upload,
         download,
         maxPeers = constants.DEFAULT_MAX_PEERS,
+        metaOnly,
         jobId
       },
       dcdn: opts
@@ -251,7 +244,7 @@ class DCDN extends EventEmitter {
     }
 
     if (download) {
-      if (!(await isUpdateAvailable(afs))) {
+      if (!metaOnly && !(await ardUtil.isUpdateAvailable(afs))) {
         this._info(`No content update available for ${afs.did}`)
         return null
       }
@@ -262,7 +255,15 @@ class DCDN extends EventEmitter {
       await pify(self.jobsInProgress.write)(jobNonce, key)
 
       const matcher = new matchers.MaxCostMatcher(price, maxPeers)
-      service = new Requester(jobNonce, matcher, this.user, afs, this.swarm, this.queue)
+      service = new Requester({
+        jobId: jobNonce,
+        matcher,
+        user: this.user,
+        afs,
+        swarm: this.swarm,
+        queue: this.queue,
+        metaOnly
+      })
 
       service.once('download-complete', async () => {
         debug(`Download ${key} Complete!`)
@@ -295,7 +296,13 @@ class DCDN extends EventEmitter {
         self.emit('request-complete', key)
       })
     } else if (upload) {
-      service = new Farmer(this.user, price, afs, this.swarm)
+      service = new Farmer({
+        user: this.user,
+        price,
+        afs,
+        swarm: this.swarm,
+        metaOnly
+      })
     }
 
     const partition = afs.partitions.home
@@ -335,11 +342,6 @@ class DCDN extends EventEmitter {
       })
     }
 
-    return service
-  }
-
-  async _createMetadataService(afs) {
-    const service = new MetadataService(afs, this.swarm, afs.dcdn)
     return service
   }
 
@@ -449,10 +451,20 @@ class DCDN extends EventEmitter {
           }
         }
       })
-      afs.dcdn = opts
 
       // TODO: factor this into ara-filesystem
       afs.proxy = await registry.getProxyAddress(did)
+      if (!afs.proxy) {
+        await afs.close()
+        throw new Error(`No proxy found for AFS ${did}`)
+      }
+
+      if (!(afs.ddo.proof && await ardUtil.verify(afs.ddo))) {
+        await afs.close()
+        throw new Error(`DDO unverified for AFS ${did}`)
+      }
+
+      afs.dcdn = opts
 
       afs.on('error', () => {
         // TODO: properly handle afs errors

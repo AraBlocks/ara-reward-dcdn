@@ -13,34 +13,44 @@ const constants = require('./constants')
 const crypto = require('ara-crypto')
 const debug = require('debug')('ard:requester')
 
+/**
+ * @class An Ara-reward-protocol RequesterBase extension for AFS replication
+ */
 class Requester extends RequesterBase {
   /**
-   * Requester replicates an AFS for a sow
-   * @param {String} user.did did of the requester
-   * @param {String} user.password password of the requester's did
-   * @param {AFS} afs Instance of AFS
+   * Constructs a new requester instance
+   * @param {Matcher} opts.matcher A matcher
+   * @param {User} opts.user A User object of the farmer
+   * @param {AFS} opts.afs Instance of AFS
+   * @param {Object} opts.swarm Instance of AFS
+   * @param {int} opts.price Desired price in Ara^-18/upload
+   * @param {String} opts.jobId Nonce for the Sow
+   * @param {AutoQueue} [opts.queue] A transaction queue
+   * @param {bool} [opts.metaOnly] Whether to only replicate the metadata
    */
-  constructor(jobNonce, matcher, user, afs, swarm, queue) {
+  constructor(opts) {
     const signature = new messages.Signature()
-    signature.setDid(user.did)
+    signature.setDid(opts.user.did)
 
     const sow = new messages.SOW()
-    sow.setNonce(jobNonce)
-    sow.setTopic(afs.discoveryKey.toString('hex'))
+    sow.setNonce(opts.jobId)
+    sow.setTopic(opts.afs.discoveryKey.toString('hex'))
     sow.setWorkUnit('AFS')
     sow.setCurrencyUnit('Ara^-18')
     sow.setSignature(signature)
 
-    super(sow, matcher)
+    super(sow, opts.matcher)
+
+    this.user = opts.user
+    this.swarm = opts.swarm
+    this.afs = opts.afs
+    this.queue = opts.queue || new AutoQueue()
+    this.metaOnly = opts.metaOnly || false
 
     this.hiredFarmers = new Map()
     this.deliveryMap = new Map()
     this.stateMap = new Map()
-    this.user = user
-    this.swarm = swarm
-    this.afs = afs
     this.topic = this.afs.discoveryKey
-    this.queue = queue
   }
 
   _info(message) {
@@ -49,11 +59,16 @@ class Requester extends RequesterBase {
 
   start() {
     const self = this
-    const transaction = () => self._prepareJob()
+    const transaction = (this.metaOnly) ? () => {} : () => self._prepareJob()
     this.queue.push(transaction).then(() => {
-      self._info(`Requesting content for: ${self.afs.did}`)
       if (self.swarm) {
-        self._download()
+        if (self.metaOnly) {
+          self._info(`Requesting metadata for: ${self.afs.did}`)
+          // TODO: when to stop requesting?
+        } else {
+          self._info(`Requesting content for: ${self.afs.did}`)
+          self._waitForContent()
+        }
         self.swarm.join(self.topic, { lookup: true, announce: false })
       }
     }).catch((err) => {
@@ -64,36 +79,104 @@ class Requester extends RequesterBase {
   onConnection(connection, details) {
     const self = this
     const peer = details.peer || {}
-    const partition = this.afs.partitions.home
+    const homePartition = this.afs.partitions.home
+    const etcPartition = this.afs.partitions.etc
+    const currEtcVersion = etcPartition.version
 
     // Note: hypercore requires extensions array to be sorted
-    const stream = partition.metadata.replicate({
-      live: true,
+    // Home partition metadata replication
+    const stream = homePartition.metadata.replicate({
+      live: !(self.metaOnly),
       download: true,
       upload: false,
-      expectedFeeds: 2,
-      extensions: [ MSG.AGREEMENT, MSG.QUOTE, MSG.RECEIPT, MSG.REWARD, MSG.SOW ]
+      expectedFeeds: (self.metaOnly) ? 3 : 4,
+      extensions: (self.metaOnly) ? null : [ MSG.AGREEMENT, MSG.QUOTE, MSG.RECEIPT, MSG.REWARD, MSG.SOW ]
     })
 
-    // Wait for metadata to be ready
-    partition.metadata.ready((err) => {
+    // Etc partition metadata replication
+    etcPartition.metadata.replicate({
+      download: true,
+      upload: false,
+      stream
+    })
+
+    // Etc partition content replication
+    this._replicateContent(etcPartition, stream, (err) => {
       if (err) {
-        connection.destroy()
-        debug('failed to ready metadata:', err)
+        debug('error on readying etc partition')
+        connection.onError(err)
+      }
+    })
+
+    // Note: once the etc metadata feed ends, trigger etc content download
+    etcPartition.metadata.on('peer-remove', onEtcMetaSync)
+    connection.once('close', () => {
+      etcPartition.metadata.removeListener('peer-remove', onEtcMetaSync)
+    })
+
+    // Home partition content replication
+    if (!this.metaOnly) {
+      this._replicateContent(homePartition, stream, (err) => {
+        if (err) {
+          debug('error on readying home partition')
+          connection.onError(err)
+          return
+        }
+
+        const feed = stream.feed(homePartition.metadata.key)
+        const farmerConnection = new FarmerConnection(peer, stream, feed, { timeout: constants.DEFAULT_TIMEOUT })
+        farmerConnection.once('close', () => {
+          debug(`Stopping replication for ${self.afs.did} with peer ${farmerConnection.peerId}`)
+        })
+
+        // TODO: retry at least once on timeout
+        // TODO: if replication starts without agreement, don't timeout
+        if (stream.remoteId) {
+          process.nextTick(() => self.addFarmer(farmerConnection))
+        } else {
+          stream.once('handshake', () => {
+            process.nextTick(() => self.addFarmer(farmerConnection))
+          })
+        }
+      })
+    }
+
+    connection.pipe(stream).pipe(connection)
+
+    function onEtcMetaSync(removed) {
+      if (removed.remoteId === stream.remoteId) {
+        etcPartition.download('metadata.json', () => {
+          if (etcPartition.version > currEtcVersion) {
+            self._info(`Synced metadata version: ${etcPartition.version}`)
+          }
+          if (self.metaOnly) stream.finalize()
+        })
+      }
+    }
+  }
+
+  _replicateContent(partition, stream, callback) {
+    partition.metadata.ready((e) => {
+      if (e) {
+        callback(e)
         return
       }
+      partition._ensureContent((err) => {
+        if (err) {
+          callback(err)
+          return
+        }
+        if (stream.destroyed) return
 
-      const feed = stream.feed(partition.metadata.key)
-      const farmerConnection = new FarmerConnection(peer, stream, feed, { timeout: constants.DEFAULT_TIMEOUT })
-      farmerConnection.once('close', () => {
-        debug(`Stopping replication for ${self.afs.did} with peer ${farmerConnection.peerId}`)
+        partition.content.replicate({
+          live: false,
+          download: true,
+          upload: false,
+          stream
+        })
+
+        callback()
       })
-
-      stream.once('handshake', () => {
-        process.nextTick(() => self.addFarmer(farmerConnection))
-      })
-
-      connection.pipe(stream).pipe(connection)
     })
   }
 
@@ -101,7 +184,7 @@ class Requester extends RequesterBase {
     if (this.swarm) this.swarm.leave(this.topic)
   }
 
-  _download() {
+  _waitForContent() {
     const self = this
     const partition = self.afs.partitions.home
     let rewardComplete = false
@@ -224,24 +307,7 @@ class Requester extends RequesterBase {
   async onHireConfirmed(agreement, connection) {
     // Store hired farmer
     this.hiredFarmers.set(connection.peerId, { connection, agreement })
-
-    // Start work
-    const partition = this.afs.partitions.home
-    partition._ensureContent((err) => {
-      if (err) {
-        connection.onError(err)
-        return
-      }
-      if (connection.stream.destroyed) return
-      debug(`Replicating content with ${agreement.getQuote().getSignature().getDid()} from ${connection.peerId}`)
-
-      partition.content.replicate({
-        live: false,
-        download: true,
-        upload: false,
-        stream: connection.stream
-      })
-    })
+    debug(`Replicating content with ${agreement.getQuote().getSignature().getDid()} from ${connection.peerId}`)
   }
 
   async onReceipt(receipt, connection) {

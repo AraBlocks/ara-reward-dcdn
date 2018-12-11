@@ -17,3 +17,4 @@ test('util.Countdown.decrement', async (t) => {
 
 test.todo('util.isUpdateAvailable')
 test.todo('util.isJobOwner')
+test.todo('util.verify')
