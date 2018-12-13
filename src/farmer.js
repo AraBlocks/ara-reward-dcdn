@@ -42,7 +42,7 @@ class Farmer extends FarmerBase {
   }
 
   start() {
-    this.swarm.join(this.topic, { lookup: false, announce: true })
+    this.swarm._join(this.topic, { ephemeral: true, lookup: false, announce: true })
     this._info(`Seeding ${this.afs.did} content version: ${this.afs.version} etc version: ${this.afs.partitions.etc.version}`)
   }
 
@@ -290,12 +290,12 @@ class Farmer extends FarmerBase {
     debug(`Starting replication for ${this.afs.did} with requester ${requester}`)
 
     const sowId = nonceString(sow)
-    const { content } = this.afs.partitions.resolve(this.afs.HOME)
-    content.on('upload', (_, data) => {
+    const partition = this.afs.partitions.home
+
+    partition.content.on('upload', (_, data) => {
       self.dataTransmitted(sowId, data.length)
     })
 
-    const partition = this.afs.partitions.home
     self._replicateContent(partition, connection.stream, (err) => {
       if (err) {
         connection.onError(err)

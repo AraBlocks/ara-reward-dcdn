@@ -63,7 +63,7 @@ const stubbedAFS = {
 }
 
 const stubbedSwarm = {
-  join: () => true,
+  _join: () => true,
   leave: () => true,
   on: () => true,
   destroy: (cb) => { cb() }
