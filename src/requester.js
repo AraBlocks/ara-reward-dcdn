@@ -69,7 +69,7 @@ class Requester extends RequesterBase {
           self._info(`Requesting content for: ${self.afs.did}`)
           self._waitForContent()
         }
-        self.swarm.join(self.topic, { lookup: true, announce: false })
+        self.swarm._join(self.topic, { ephemeral: true, lookup: true, announce: false })
       }
     }).catch((err) => {
       debug(`failed to start broadcast for ${self.afs.did}`, err)
@@ -147,7 +147,7 @@ class Requester extends RequesterBase {
       if (removed.remoteId === stream.remoteId) {
         etcPartition.download('metadata.json', () => {
           if (etcPartition.version > currEtcVersion) {
-            self._info(`Synced metadata version: ${etcPartition.version}`)
+            self._info(`Synced metadata version: ${etcPartition.version} for afs ${self.afs.did}`)
           }
           if (self.metaOnly) stream.finalize()
         })

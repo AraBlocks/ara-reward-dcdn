@@ -15,6 +15,7 @@ function create() {
   swarm._onpeer = onpeer
   swarm._connectNext = connectNext
   swarm.destroy = destroy
+  swarm._join = _join
   swarm._bind()
 
   // Function overrides. Note: ideally we get @hyperswarm/network to incorporate these.
@@ -37,11 +38,26 @@ function create() {
     else swarm.queue.remote.push(peer)
   }
 
-  // Rewrote to synchronize connectNext calls
+  // Override to store lookup value
+  function _join(key, opts) {
+    swarm.join(key, opts)
+
+    // Store the lookup value
+    const hex = key.toString('hex')
+    const topic = swarm._topics.get(hex)
+    topic.lookup = opts.lookup
+    this._topics.set(hex, topic)
+  }
+
+  // Rewrote to synchronize connectNext calls and only connect on lookup
   function onpeer(peer) {
-    swarm.emit('peer', peer)
-    swarm.queue.push(peer)
-    if (1 === (swarm.queue.remote.length + swarm.queue.local.length)) swarm._connectNext()
+    const hex = peer.topic.toString('hex')
+    const topic = swarm._topics.get(hex)
+    if (topic.lookup) {
+      swarm.emit('peer', peer)
+      swarm.queue.push(peer)
+      if (1 === (swarm.queue.remote.length + swarm.queue.local.length)) swarm._connectNext()
+    }
   }
 
   // Rewrote to synchronize connectNext calls
