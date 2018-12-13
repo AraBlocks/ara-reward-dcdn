@@ -1,9 +1,9 @@
-# [0.10.0](https://github.com/arablocks/ara-reward-dcdn/compare/0.9.0...0.10.0) (2018-12-11)
+# [0.11.0](https://github.com/arablocks/ara-reward-dcdn/compare/0.9.0...0.11.0) (2018-12-13)
 
 
 ### Features
 
-* **dcdn:** emit peer-update ([7745276](https://github.com/arablocks/ara-reward-dcdn/commit/7745276))
+* **dcdn:** emit peer-update ([7e1f82b](https://github.com/arablocks/ara-reward-dcdn/commit/7e1f82b))
 
 
 
