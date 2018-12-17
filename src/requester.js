@@ -12,6 +12,7 @@ const AutoQueue = require('./autoqueue')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
 const debug = require('debug')('ard:requester')
+const aid = require('ara-identity')
 
 /**
  * @class An Ara-reward-protocol RequesterBase extension for AFS replication
@@ -271,8 +272,20 @@ class Requester extends RequesterBase {
    * @returns {boolean}
    */
   async validateQuote(quote) {
-    const data = Buffer.from(this.sow.serializeBinary())
-    return this.user.verify(quote, data)
+    try {
+      // Validate user
+      const data = Buffer.from(this.sow.serializeBinary())
+      if (!this.user.verify(quote, data)) return false
+
+      // Resolve user
+      const farmer = quote.getSignature().getDid()
+      const ddo = await aid.resolve(farmer)
+      if (!ddo) return false
+    } catch (err) {
+      debug(err)
+      return false
+    }
+    return true
   }
 
   /**
@@ -299,9 +312,17 @@ class Requester extends RequesterBase {
    * @returns {boolean}
    */
   async validateAgreement(agreement) {
-    const nonce = nonceString(agreement)
-    const data = this.stateMap.get(nonce)
-    return this.user.verify(agreement, data)
+    try {
+      // Verify signature
+      const nonce = nonceString(agreement)
+      const data = this.stateMap.get(nonce)
+      if (!this.user.verify(agreement, data)) return false
+    } catch (err) {
+      debug(err)
+      return false
+    }
+
+    return true
   }
 
   async onHireConfirmed(agreement, connection) {
