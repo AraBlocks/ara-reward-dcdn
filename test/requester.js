@@ -15,6 +15,7 @@ const { rewards } = require('ara-contracts')
 const sinon = require('sinon')
 const test = require('ava')
 const EventEmitter = require('events')
+const aid = require('ara-identity')
 
 const timeout = ms => new Promise(res => setTimeout(res, ms))
 
@@ -78,6 +79,9 @@ test('requester.waitForContent', async (t) => {
 })
 
 test('requester.validateQuote', async (t) => {
+  const sandbox = sinon.createSandbox()
+  sandbox.stub(aid, 'resolve').resolves(true)
+
   const requester = new Requester({
     jobId: TEST_JOB_NONCE,
     matcher: TEST_MATCHER,
@@ -86,9 +90,15 @@ test('requester.validateQuote', async (t) => {
     swarm: TEST_SWARM,
     queue: TEST_QUEUE
   })
+
+  const signature = new Signature()
+  signature.setDid('id1')
   const quote = new Quote()
+  quote.setSignature(signature)
+
   const validation = await requester.validateQuote(quote)
   t.true(validation)
+  sandbox.restore()
 })
 
 test('requester.generateAgreement', async (t) => {
