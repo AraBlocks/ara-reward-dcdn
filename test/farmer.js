@@ -4,7 +4,7 @@ const sinon = require('sinon')
 const User = require('../src/user')
 const util = require('ara-util')
 const test = require('ava')
-const afp = require('ara-reward-protocol')
+const arp = require('ara-reward-protocol')
 
 const {
   Agreement,
@@ -12,15 +12,32 @@ const {
   Quote,
   SOW,
   Signature
-} = afp.messages
+} = arp.messages
 
 const TEST_REQUESTER = 'abcd'
 const TEST_REWARD = 10
 const TEST_DISCOVERY_KEY = 'ab123c'
 const TEST_AFS = {
-  discoveryKey: Buffer.from(TEST_DISCOVERY_KEY, 'hex')
+  discoveryKey: Buffer.from(TEST_DISCOVERY_KEY, 'hex'),
+  partitions: {
+    home: {
+      content: {
+        on: () => true,
+        replicate: () => true
+      },
+      metadata: {
+        ready: (cb) => { cb() },
+      },
+      _ensureContent: (cb) => { cb() }
+    }
+  },
 }
 const TEST_SWARM = { }
+const TEST_USER = new User('did', 'pass')
+const TEST_SIGNATURE = new Signature()
+
+sinon.stub(TEST_USER, 'sign').returns(TEST_SIGNATURE)
+sinon.stub(TEST_USER, 'verify').returns(true)
 
 sinon.stub(util, 'getAddressFromDID').resolves(TEST_REQUESTER)
 sinon.stub(library, 'hasPurchased').resolves(true)
@@ -28,13 +45,8 @@ sinon.stub(rewards, 'getBudget').resolves(TEST_REWARD)
 sinon.stub(rewards, 'getJobOwner').resolves(TEST_REQUESTER)
 
 test('farmer.validateSow.valid', async (t) => {
-  const user = new User('did', 'pass')
-  const signature = new Signature()
-  sinon.stub(user, 'sign').returns(signature)
-  sinon.stub(user, 'verify').returns(true)
-
   const farmer = new Farmer({
-    user,
+    user: TEST_USER,
     price: TEST_REWARD,
     afs: TEST_AFS,
     swarm: TEST_SWARM
@@ -46,13 +58,8 @@ test('farmer.validateSow.valid', async (t) => {
 })
 
 test('farmer.generateQuote', async (t) => {
-  const user = new User('did', 'pass')
-  const signature = new Signature()
-  sinon.stub(user, 'sign').returns(signature)
-  sinon.stub(user, 'verify').returns(true)
-
   const farmer = new Farmer({
-    user,
+    user: TEST_USER,
     price: TEST_REWARD,
     afs: TEST_AFS,
     swarm: TEST_SWARM
@@ -62,17 +69,12 @@ test('farmer.generateQuote', async (t) => {
   sow.setNonce(jobNonce)
 
   const quote = await farmer.generateQuote(sow)
-  t.true(quote.getSignature() == signature && TEST_REWARD == quote.getPerUnitCost() && quote.getSow() == sow)
+  t.true(quote.getSignature() == TEST_SIGNATURE && TEST_REWARD == quote.getPerUnitCost() && quote.getSow() == sow)
 })
 
 test('farmer.signAgreement', async (t) => {
-  const user = new User('did', 'pass')
-  const signature = new Signature()
-  sinon.stub(user, 'sign').returns(signature)
-  sinon.stub(user, 'verify').returns(true)
-
   const farmer = new Farmer({
-    user,
+    user: TEST_USER,
     price: TEST_REWARD,
     afs: TEST_AFS,
     swarm: TEST_SWARM
@@ -82,17 +84,12 @@ test('farmer.signAgreement', async (t) => {
   agreement.setNonce(agreementNonce)
 
   const signAgreement = await farmer.signAgreement(agreement)
-  t.true(signAgreement.getSignature() == signature && afp.util.nonceString(signAgreement) == agreementNonce)
+  t.true(signAgreement.getSignature() == TEST_SIGNATURE && arp.util.nonceString(signAgreement) == agreementNonce)
 })
 
 test('farmer.generateReceipt', async (t) => {
-  const user = new User('did', 'pass')
-  const signature = new Signature()
-  sinon.stub(user, 'sign').returns(signature)
-  sinon.stub(user, 'verify').returns(true)
-
   const farmer = new Farmer({
-    user,
+    user: TEST_USER,
     price: TEST_REWARD,
     afs: TEST_AFS,
     swarm: TEST_SWARM
@@ -107,17 +104,12 @@ test('farmer.generateReceipt', async (t) => {
   reward.setAgreement(agreement)
 
   const receipt = await farmer.generateReceipt(reward)
-  t.true(receipt.getSignature() == signature && receipt.getReward() == reward)
+  t.true(receipt.getSignature() == TEST_SIGNATURE && receipt.getReward() == reward)
 })
 
 test('farmer.validateReward', async (t) => {
-  const user = new User('did', 'pass')
-  const signature = new Signature()
-  sinon.stub(user, 'sign').returns(signature)
-  sinon.stub(user, 'verify').returns(true)
-
   const farmer = new Farmer({
-    user,
+    user: TEST_USER,
     price: TEST_REWARD,
     afs: TEST_AFS,
     swarm: TEST_SWARM
@@ -130,13 +122,8 @@ test('farmer.validateReward', async (t) => {
 })
 
 test('farmer.validateAgreement.valid', async (t) => {
-  const user = new User('did', 'pass')
-  const signature = new Signature()
-  sinon.stub(user, 'sign').returns(signature)
-  sinon.stub(user, 'verify').returns(true)
-
   const farmer = new Farmer({
-    user,
+    user: TEST_USER,
     price: TEST_REWARD,
     afs: TEST_AFS,
     swarm: TEST_SWARM
@@ -146,7 +133,7 @@ test('farmer.validateAgreement.valid', async (t) => {
   const quote = new Quote()
   quote.setSow(sow)
   const agreement = new Agreement()
-  agreement.setSignature(signature)
+  agreement.setSignature(TEST_SIGNATURE)
   agreement.setQuote(quote)
 
   t.true(await farmer.validateAgreement(agreement))
@@ -176,11 +163,6 @@ test('farmer.validateAgreement.invalidrequester', async (t) => {
 })
 
 test('farmer.stop', async (t) => {
-  const user = new User('did', 'pass')
-  const signature = new Signature()
-  sinon.stub(user, 'sign').returns(signature)
-  sinon.stub(user, 'verify').returns(true)
-
   let leaveFake = false
   const swarm = {
     leave: () => {
@@ -189,11 +171,61 @@ test('farmer.stop', async (t) => {
   }
 
   const farmer = new Farmer({
-    user,
+    user: TEST_USER,
     price: TEST_REWARD,
     afs: TEST_AFS,
     swarm
   })
   await farmer.stop()
   t.true(leaveFake)
+})
+
+test('farmer.onHireConfirmed', async (t) => {
+  const replicateFake = sinon.fake()
+  const afs = {
+    discoveryKey: Buffer.from(TEST_DISCOVERY_KEY, 'hex'),
+    partitions: {
+      home: {
+        content: {
+          on: () => true,
+          replicate: replicateFake
+        },
+        metadata: {
+          ready: (cb) => { cb() },
+        },
+        _ensureContent: (cb) => { cb() }
+      }
+    },
+  }
+
+  const farmer = new Farmer({
+    user: TEST_USER,
+    price: TEST_REWARD,
+    afs,
+    swarm: TEST_SWARM
+  })
+
+  const signature = new Signature()
+  signature.setDid('ab123')
+  const sow = new SOW()
+  sow.setNonce('abcd')
+  sow.setSignature(signature)
+  const quote = new Quote()
+  quote.setSow(sow)
+  const agreement = new Agreement()
+  agreement.setQuote(quote)
+
+  const fakeError = sinon.fake()
+
+  const connection = {
+    onError: fakeError,
+    stream: {
+      destroyed: false
+    }
+  }
+
+  await farmer.onHireConfirmed(agreement, connection)
+
+  t.true(fakeError.notCalled)
+  t.true(replicateFake.calledOnce)
 })

@@ -400,7 +400,6 @@ class DCDN extends EventEmitter {
     opts.key = opts.key || getIdentifier(opts.did)
     await this.unjoin(opts)
     const archive = await pify(this[$driveCreator].create)(opts)
-
     if (this.swarm) {
       if (archive instanceof Error) {
         this.emit('warn', `Failed to initialize archive with ${archive.data}: ${archive.message}`)
@@ -458,7 +457,6 @@ class DCDN extends EventEmitter {
         await afs.close()
         throw new Error(`No proxy found for AFS ${did}`)
       }
-
       if (!(afs.ddo.proof && await ardUtil.verify(afs.ddo))) {
         await afs.close()
         throw new Error(`DDO unverified for AFS ${did}`)
