@@ -1,14 +1,15 @@
-## [0.11.1](https://github.com/arablocks/ara-reward-dcdn/compare/0.9.0...0.11.1) (2018-12-13)
+# [0.12.0](https://github.com/arablocks/ara-reward-dcdn/compare/0.9.0...0.12.0) (2018-12-17)
 
 
 ### Bug Fixes
 
-* **hyperswarm:** don't connect unless looking up ([845f33c](https://github.com/arablocks/ara-reward-dcdn/commit/845f33c))
+* **hyperswarm:** don't connect unless looking up ([b85a75d](https://github.com/arablocks/ara-reward-dcdn/commit/b85a75d))
 
 
 ### Features
 
 * **dcdn:** emit peer-update ([7e1f82b](https://github.com/arablocks/ara-reward-dcdn/commit/7e1f82b))
+* **requester:** resolve peer ([720df1b](https://github.com/arablocks/ara-reward-dcdn/commit/720df1b))
 
 
 
