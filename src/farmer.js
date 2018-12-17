@@ -252,7 +252,7 @@ class Farmer extends FarmerBase {
    */
   async validateReward(reward) {
     try {
-    // TODO: need to compare expected and received reward
+      // TODO: need to compare expected and received reward
       const nonce = nonceString(reward.getAgreement())
       const data = this.stateMap.get(nonce)
       return this.user.verify(reward, data)
