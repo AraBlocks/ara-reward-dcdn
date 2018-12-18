@@ -11,10 +11,10 @@ class AutoQueue {
   }
 
   async _shift() {
-    const { transaction, resolve, reject } = this.queue[0]
+    const [{ transaction, resolve, reject }] = this.queue
     try {
-      await transaction()
-      resolve()
+      const load = await transaction()
+      resolve(load)
     } catch (err) {
       reject(err)
     }
