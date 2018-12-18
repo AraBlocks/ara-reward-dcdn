@@ -5,9 +5,9 @@ const {
   hypercore: { RequesterConnection, MSG },
   util: { nonceString, bytesToGBs }
 } = require('ara-reward-protocol')
-const { isJobOwner } = require('./util')
 const { library, rewards, token } = require('ara-contracts')
 const { toHexString } = require('ara-util/transform')
+const { isJobOwner } = require('./util')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
 const debug = require('debug')('ard:farmer')
@@ -40,7 +40,7 @@ class Farmer extends FarmerBase {
   _info(message) {
     this.emit('info', message)
   }
-
+i
   start() {
     this.swarm._join(this.topic, { ephemeral: true, lookup: false, announce: true })
     this._info(`Seeding ${this.afs.did} content version: ${this.afs.version} etc version: ${this.afs.partitions.etc.version}`)
@@ -107,31 +107,6 @@ class Farmer extends FarmerBase {
     }
 
     connection.pipe(stream).pipe(connection)
-  }
-
-  _replicateContent(partition, stream, callback) {
-    partition.metadata.ready((e) => {
-      if (e) {
-        callback(e)
-        return
-      }
-      partition._ensureContent((err) => {
-        if (err) {
-          callback(err)
-          return
-        }
-        if (stream.destroyed) return
-
-        partition.content.replicate({
-          live: false,
-          download: false,
-          upload: true,
-          stream
-        })
-
-        callback()
-      })
-    })
   }
 
   /**
