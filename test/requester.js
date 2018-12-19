@@ -3,7 +3,6 @@ const {
   messages
 } = require('ara-reward-protocol')
 const { Requester } = require('../src/requester')
-const User = require('../src/user')
 
 const {
   Agreement,
@@ -16,34 +15,19 @@ const sinon = require('sinon')
 const test = require('ava')
 const EventEmitter = require('events')
 const aid = require('ara-identity')
+const {
+  TEST_AFS,
+  TEST_USER_SIGNATURE,
+  TEST_SWARM,
+  TEST_USER
+} = require('./_constants')
 
 const timeout = ms => new Promise(res => setTimeout(res, ms))
 
-const TEST_USER = new User('did', 'pass')
 const TEST_JOB_NONCE = Buffer.from('did', 'hex')
-const TEST_AFS = {
-  discoveryKey: 'key',
-  partitions: {
-    home: {
-      _ensureContent: cb => cb(),
-      content: {
-        on: () => true,
-        replicate: () => true
-      }
-    }
-  }
-}
-
 const TEST_PRICE = Number(expandTokenValue('10'))
 const TEST_MATCHER = new matchers.MaxCostMatcher(TEST_PRICE, 3)
-const TEST_SWARM = {}
 const TEST_QUEUE = { async push() { return true } }
-
-const TEST_REQ_SIGNATURE = new Signature()
-sinon.stub(TEST_REQ_SIGNATURE, 'getData').returns('data')
-sinon.stub(TEST_REQ_SIGNATURE, 'getDid').returns('id0')
-sinon.stub(TEST_USER, 'sign').returns(TEST_REQ_SIGNATURE)
-sinon.stub(TEST_USER, 'verify').returns(true)
 
 test('requester.waitForContent', async (t) => {
   const afs = {
@@ -112,7 +96,7 @@ test('requester.generateAgreement', async (t) => {
     queue: TEST_QUEUE
   })
   const agreement = await requester.generateAgreement(quote)
-  t.true(agreement.getSignature() == TEST_REQ_SIGNATURE && agreement.getQuote() == quote)
+  t.true(agreement.getSignature() == TEST_USER_SIGNATURE && agreement.getQuote() == quote)
 })
 
 test('requester.validateAgreement', async (t) => {
@@ -152,7 +136,7 @@ test('requester.generateReward', async (t) => {
   agreement.setQuote(quote)
 
   const reward = requester.generateReward(agreement, units)
-  t.true(reward.getSignature() == TEST_REQ_SIGNATURE && total == reward.getAmount() && reward.getAgreement() == agreement)
+  t.true(reward.getSignature() == TEST_USER_SIGNATURE && total == reward.getAmount() && reward.getAgreement() == agreement)
 })
 
 test('requester.dataReceived', async (t) => {
