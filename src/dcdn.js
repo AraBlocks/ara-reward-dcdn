@@ -477,10 +477,10 @@ class DCDN extends EventEmitter {
   static async _closeAFS(afs, done) {
     try {
       if (afs && afs.close) await afs.close()
+      done()
     } catch (err) {
-      debug('afs close error:', err)
+      done(err)
     }
-    done()
   }
 }
 

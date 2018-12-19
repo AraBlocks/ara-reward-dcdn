@@ -5,6 +5,16 @@ const User = require('../src/user')
 const util = require('ara-util')
 const test = require('ava')
 const arp = require('ara-reward-protocol')
+const {
+  TEST_AFS,
+  TEST_DISCOVERY_KEY,
+  TEST_PEER_DID,
+  TEST_REWARD,
+  TEST_USER_SIGNATURE,
+  TEST_PEER_SIGNATURE,
+  TEST_SWARM,
+  TEST_USER
+} = require('./_constants')
 
 const {
   Agreement,
@@ -14,35 +24,10 @@ const {
   Signature
 } = arp.messages
 
-const TEST_REQUESTER = 'abcd'
-const TEST_REWARD = 10
-const TEST_DISCOVERY_KEY = 'ab123c'
-const TEST_AFS = {
-  discoveryKey: Buffer.from(TEST_DISCOVERY_KEY, 'hex'),
-  partitions: {
-    home: {
-      content: {
-        on: () => true,
-        replicate: () => true
-      },
-      metadata: {
-        ready: (cb) => { cb() },
-      },
-      _ensureContent: (cb) => { cb() }
-    }
-  },
-}
-const TEST_SWARM = { }
-const TEST_USER = new User('did', 'pass')
-const TEST_SIGNATURE = new Signature()
-
-sinon.stub(TEST_USER, 'sign').returns(TEST_SIGNATURE)
-sinon.stub(TEST_USER, 'verify').returns(true)
-
-sinon.stub(util, 'getAddressFromDID').resolves(TEST_REQUESTER)
+sinon.stub(util, 'getAddressFromDID').resolves(TEST_PEER_DID)
 sinon.stub(library, 'hasPurchased').resolves(true)
 sinon.stub(rewards, 'getBudget').resolves(TEST_REWARD)
-sinon.stub(rewards, 'getJobOwner').resolves(TEST_REQUESTER)
+sinon.stub(rewards, 'getJobOwner').resolves(TEST_PEER_DID)
 
 test('farmer.validateSow.valid', async (t) => {
   const farmer = new Farmer({
@@ -69,7 +54,7 @@ test('farmer.generateQuote', async (t) => {
   sow.setNonce(jobNonce)
 
   const quote = await farmer.generateQuote(sow)
-  t.true(quote.getSignature() == TEST_SIGNATURE && TEST_REWARD == quote.getPerUnitCost() && quote.getSow() == sow)
+  t.true(quote.getSignature() == TEST_USER_SIGNATURE && TEST_REWARD == quote.getPerUnitCost() && quote.getSow() == sow)
 })
 
 test('farmer.signAgreement', async (t) => {
@@ -84,7 +69,7 @@ test('farmer.signAgreement', async (t) => {
   agreement.setNonce(agreementNonce)
 
   const signAgreement = await farmer.signAgreement(agreement)
-  t.true(signAgreement.getSignature() == TEST_SIGNATURE && arp.util.nonceString(signAgreement) == agreementNonce)
+  t.true(signAgreement.getSignature() == TEST_USER_SIGNATURE && arp.util.nonceString(signAgreement) == agreementNonce)
 })
 
 test('farmer.generateReceipt', async (t) => {
@@ -104,7 +89,7 @@ test('farmer.generateReceipt', async (t) => {
   reward.setAgreement(agreement)
 
   const receipt = await farmer.generateReceipt(reward)
-  t.true(receipt.getSignature() == TEST_SIGNATURE && receipt.getReward() == reward)
+  t.true(receipt.getSignature() == TEST_USER_SIGNATURE && receipt.getReward() == reward)
 })
 
 test('farmer.validateReward', async (t) => {
@@ -133,7 +118,7 @@ test('farmer.validateAgreement.valid', async (t) => {
   const quote = new Quote()
   quote.setSow(sow)
   const agreement = new Agreement()
-  agreement.setSignature(TEST_SIGNATURE)
+  agreement.setSignature(TEST_PEER_SIGNATURE)
   agreement.setQuote(quote)
 
   t.true(await farmer.validateAgreement(agreement))
@@ -228,4 +213,25 @@ test('farmer.onHireConfirmed', async (t) => {
 
   t.true(fakeError.notCalled)
   t.true(replicateFake.calledOnce)
+})
+
+test('farmer.onConnection', async (t) => {
+  const farmer = new Farmer({
+    user: TEST_USER,
+    price: TEST_REWARD,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM
+  })
+
+  const fakeError = sinon.fake()
+  const fakePipe = sinon.fake.returns({ pipe: () => true })
+  const connection = {
+    onError: fakeError,
+    pipe: fakePipe
+  }
+
+  await farmer.onConnection(connection, {})
+
+  t.true(fakePipe.called)
+  t.true(fakeError.notCalled)
 })

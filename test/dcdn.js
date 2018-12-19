@@ -5,69 +5,15 @@ const araFS = require('ara-filesystem')
 const hyperswarm = require('../src/hyperswarm')
 const { rewards, registry, storage } = require('ara-contracts')
 const sinon = require('sinon')
-const EventEmitter = require('events')
 const ardUtil = require('../src/util')
 const fs = require('fs')
-
-const TEST_OWNER = '0a98c8305035dcbb1e8fa0826965200269e232e45ac572d26a45db9581986e67'
-const TEST_PASSWORD = 'abcd'
-const TEST_SECRET = Buffer.from('secret')
-const TEST_DID = '1a98c8305035dcbb1e8fa0826965200269e232e45ac572d26a45db9581986e67'
-const TEST_DID_ETC = '2a98c8305035dcbb1e8fa0826965200269e232e45ac572d26a45db9581986e67'
-
-const TEST_USER = {
-  password: TEST_PASSWORD,
-  did: TEST_OWNER,
-  secretKey: TEST_SECRET
-}
-
-const TEST_AFS = {
-  afs: {
-    ddo: {
-      proof: true
-    },
-    on: () => true,
-    version: 1,
-    did: TEST_DID,
-    key: Buffer.from(TEST_DID, 'hex'),
-    discoveryKey: Buffer.from(TEST_DID, 'hex'),
-    replicate: () => true,
-    close: () => true,
-    partitions: {
-      home: {
-        on: () => true,
-        once: () => true,
-        removeListener: () => true,
-        content: {
-          replicate: () => new EventEmitter(),
-          on: () => true,
-          once: () => true,
-          removeListener: () => true,
-          length: 10,
-          downloaded: () => 10,
-        },
-        metadata: {
-          replicate: () => new EventEmitter(),
-        }
-      },
-      etc: {
-        download: (_, cb) => { cb() },
-        replicate: () => new EventEmitter(),
-        key: Buffer.from(TEST_DID_ETC, 'hex'),
-        discoveryKey: Buffer.from(TEST_DID_ETC, 'hex'),
-        version: 1,
-        metadata: new EventEmitter()
-      }
-    }
-  }
-}
-
-const TEST_SWARM = {
-  _join: () => true,
-  leave: () => true,
-  on: () => true,
-  destroy: (cb) => { cb() }
-}
+const extend = require('extend')
+const {
+  TEST_AFS,
+  TEST_USER,
+  TEST_SWARM,
+  TEST_DID
+} = require('./_constants')
 
 sinon.stub(registry, 'proxyExists').resolves('true')
 sinon.stub(aid, 'archive').resolves(true)
@@ -85,7 +31,7 @@ sinon.stub(fs, 'mkdir').callsFake((_, __, cb) => cb(null))
 function createSandbox(opts = {}) {
   const sandbox = sinon.createSandbox()
   sandbox.stub(hyperswarm, 'create').returns(('swarm' in opts) ? opts.swarm : TEST_SWARM)
-  sandbox.stub(araFS, 'create').resolves(('afs' in opts) ? opts.afs : TEST_AFS)
+  sandbox.stub(araFS, 'create').resolves({ afs: ('afs' in opts) ? opts.afs : TEST_AFS })
   sandbox.stub(araFS, 'getPrice').resolves(('price' in opts) ? opts.price : '10')
   sandbox.stub(registry, 'getProxyAddress').resolves(('proxy' in opts) ? opts.proxy : 'abcd')
   sandbox.stub(rewards, 'getBudget').resolves(('budget' in opts) ? opts.budget : 0)
@@ -207,6 +153,45 @@ test.serial('dcdn.unjoin', async (t) => {
   sandbox.restore()
 })
 
+test.serial('dcdn.unjoin.badafs', async (t) => {
+  const emitFake = sinon.fake()
+
+  const afs = extend(true, {}, TEST_AFS, {
+    close: () => {
+      throw new Error()
+    }
+  })
+
+  const sandbox = createSandbox({
+    afs
+  })
+
+  const dcdn = new DCDN({
+    userId: TEST_USER.did,
+    password: TEST_USER.password
+  })
+  dcdn.user = TEST_USER
+  sinon.stub(dcdn, 'emit').callsFake(emitFake)
+
+  await dcdn.join({
+    did: TEST_DID,
+    upload: true,
+    download: false,
+    price: 0,
+    maxPeers: 1
+  })
+
+  try {
+    await dcdn.unjoin({ did: TEST_DID })
+    t.true(emitFake.calledWith('warn'))
+    t.pass()
+  } catch (e) {
+    t.fail()
+  }
+
+  sandbox.restore()
+})
+
 test.serial('dcdn.join.upload', async (t) => {
   const sandbox = createSandbox()
 
@@ -226,11 +211,10 @@ test.serial('dcdn.join.upload', async (t) => {
   t.true(Boolean(dcdn.swarm))
   t.true(TEST_DID in dcdn.topics)
 
-  await dcdn.stop()
-  t.false(Boolean(dcdn.swarm))
+  await dcdn.unjoin({ did: TEST_DID })
   t.false(TEST_DID in dcdn.topics)
 
-  await dcdn.unjoin({ did: TEST_DID })
+  await dcdn.stop()
   t.false(Boolean(dcdn.swarm))
 
   sandbox.restore()
@@ -255,11 +239,10 @@ test.serial('dcdn.join.uploadanddownload', async (t) => {
   t.true(Boolean(dcdn.swarm))
   t.true(TEST_DID in dcdn.topics)
 
-  await dcdn.stop()
-  t.false(Boolean(dcdn.swarm))
+  await dcdn.unjoin({ did: TEST_DID })
   t.false(TEST_DID in dcdn.topics)
 
-  await dcdn.unjoin({ did: TEST_DID })
+  await dcdn.stop()
   t.false(Boolean(dcdn.swarm))
 
   sandbox.restore()
@@ -284,11 +267,10 @@ test.serial('dcdn.join.download', async (t) => {
   t.true(Boolean(dcdn.swarm))
   t.true(TEST_DID in dcdn.topics)
 
-  await dcdn.stop()
-  t.false(Boolean(dcdn.swarm))
+  await dcdn.unjoin({ did: TEST_DID })
   t.false(TEST_DID in dcdn.topics)
 
-  await dcdn.unjoin({ did: TEST_DID })
+  await dcdn.stop()
   t.false(Boolean(dcdn.swarm))
 
   sandbox.restore()
@@ -312,11 +294,10 @@ test.serial('dcdn.join.download.metaOnly', async (t) => {
   t.true(Boolean(dcdn.swarm))
   t.true(TEST_DID in dcdn.topics)
 
-  await dcdn.stop()
-  t.false(Boolean(dcdn.swarm))
+  await dcdn.unjoin({ did: TEST_DID })
   t.false(TEST_DID in dcdn.topics)
 
-  await dcdn.unjoin({ did: TEST_DID })
+  await dcdn.stop()
   t.false(Boolean(dcdn.swarm))
 
   sandbox.restore()
@@ -340,11 +321,10 @@ test.serial('dcdn.join.upload.metaOnly', async (t) => {
   t.true(Boolean(dcdn.swarm))
   t.true(TEST_DID in dcdn.topics)
 
-  await dcdn.stop()
-  t.false(Boolean(dcdn.swarm))
+  await dcdn.unjoin({ did: TEST_DID })
   t.false(TEST_DID in dcdn.topics)
 
-  await dcdn.unjoin({ did: TEST_DID })
+  await dcdn.stop()
   t.false(Boolean(dcdn.swarm))
 
   sandbox.restore()
