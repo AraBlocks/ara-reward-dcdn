@@ -1,4 +1,4 @@
-## [0.12.1](https://github.com/arablocks/ara-reward-dcdn/compare/0.9.0...0.12.1) (2018-12-18)
+# [0.13.0](https://github.com/arablocks/ara-reward-dcdn/compare/0.9.0...0.13.0) (2018-12-19)
 
 
 ### Bug Fixes
@@ -8,7 +8,7 @@
 
 ### Features
 
-* **autoqueue:** resolved value from transaction ([a953a79](https://github.com/arablocks/ara-reward-dcdn/commit/a953a79))
+* **autoqueue:** resolved value from transaction ([88ee3df](https://github.com/arablocks/ara-reward-dcdn/commit/88ee3df))
 * **dcdn:** emit peer-update ([7e1f82b](https://github.com/arablocks/ara-reward-dcdn/commit/7e1f82b))
 * **requester:** resolve peer ([5a58b0a](https://github.com/arablocks/ara-reward-dcdn/commit/5a58b0a))
 
