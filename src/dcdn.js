@@ -26,7 +26,7 @@ const rc = require('./rc')()
  * @fires DCDN#download-complete
  * @fires DCDN#request-complete
  */
-class RewardDCDN extends BaseDCDN {
+class DCDN extends BaseDCDN {
   /**
    * Constructs a new dcdn instance
    * @param {String} opts.userId The user's `did`
@@ -60,52 +60,6 @@ class RewardDCDN extends BaseDCDN {
     await pify(this.jobsInProgress.open)()
   }
 
-  onConnection(connection, details, { topic }) {
-    const peer = details.peer || {}
-
-    const afs = super.getAFS({ discoveryKey: topic })
-
-    const homePartition = afs.partitions.home
-    const etcPartition = afs.partitions.etc
-
-    // Note: hypercore requires extensions array to be sorted
-    // Home partition metadata replication
-    const _stream = homePartition.metadata.replicate({
-      live: !(this.metaOnly),
-      download: false,
-      upload: true,
-      expectedFeeds: (this.metaOnly) ? 3 : 4,
-      extensions: (this.metaOnly) ? null : [ MSG.AGREEMENT, MSG.QUOTE, MSG.RECEIPT, MSG.REWARD, MSG.SOW ]
-    })
-
-    // Etc partition metadata replication
-    etcPartition.replicate({
-      download: false,
-      live: false,
-      upload: true,
-      stream: _stream
-    })
-
-    // Home partition content replication
-    if (!this.metaOnly) {
-      const feed = _stream.feed(homePartition.metadata.key)
-      const requesterConnection = new RequesterConnection(peer, _stream, feed, { timeout: constants.DEFAULT_TIMEOUT })
-      requesterConnection.once('close', () => {
-        debug(`Stopping replication for ${afs.did} with peer ${requesterConnection.peerId}`)
-      })
-
-      if (_stream.remoteId) {
-        this.addRequester(requesterConnection)
-      } else {
-        _stream.once('handshake', () => {
-          this.addRequester(requesterConnection)
-        })
-      }
-    }
-
-    connection.pipe(_stream).pipe(connection)
-  }
-
   /**
    * Start running the DCDN node in the latest configuration
    * @public
@@ -116,7 +70,9 @@ class RewardDCDN extends BaseDCDN {
 
     const self = this
 
-    this.swarm.on('connection', super.onConnection(this.onConnection))
+    this.swarm.on('connection', super.onConnection((socket, details, { topic }) => { 
+      this.services[topic].onConnection(socket, details) 
+    }))
 
     if (!this.user.secretKey) {
       await this.user.loadKey()
@@ -231,7 +187,6 @@ class RewardDCDN extends BaseDCDN {
         queue: this.queue,
         metaOnly
       })
-
       service.once('job-complete', async (job) => {
         await pify(self.jobsInProgress.delete)(job.replace(/^0x/, ''))
       })
@@ -259,7 +214,7 @@ class RewardDCDN extends BaseDCDN {
         afs,
         swarm: this.swarm,
         metaOnly
-      })
+})
     }
 
     const partition = afs.partitions.home
@@ -380,4 +335,4 @@ class RewardDCDN extends BaseDCDN {
   }
 }
 
-module.exports = RewardDCDN
+module.exports = DCDN

@@ -5,9 +5,9 @@ const {
   hypercore: { RequesterConnection, MSG },
   util: { nonceString, bytesToGBs }
 } = require('ara-reward-protocol')
+const { isJobOwner } = require('./util')
 const { library, rewards, token } = require('ara-contracts')
 const { toHexString } = require('ara-util/transform')
-const { isJobOwner } = require('./util')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
 const debug = require('debug')('ard:farmer')
@@ -78,6 +78,7 @@ i
     self._replicateContent(etcPartition, stream, (err) => {
       if (err) {
         debug('error on readying etc partition')
+        connection.onError(err)
       }
     })
 
@@ -86,7 +87,7 @@ i
       homePartition.metadata.ready((err) => {
         if (err) {
           debug('error on readying home partition')
-          connection.destroy()
+          connection.onError(err)
           return
         }
 
@@ -281,31 +282,6 @@ i
       if (err) {
         connection.onError(err)
       }
-    })
-  }
-
-  _replicateContent(partition, stream, callback) {
-    partition.metadata.ready((e) => {
-      if (e) {
-        callback(e)
-        return
-      }
-      partition._ensureContent((err) => {
-        if (err) {
-          callback(err)
-          return
-        }
-        if (stream.destroyed) return
-
-        partition.content.replicate({
-          live: false,
-          download: false,
-          upload: true,
-          stream
-        })
-
-        callback()
-      })
     })
   }
 }
