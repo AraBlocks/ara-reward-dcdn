@@ -283,6 +283,31 @@ i
       }
     })
   }
+
+  _replicateContent(partition, stream, callback) {
+    partition.metadata.ready((e) => {
+      if (e) {
+        callback(e)
+        return
+      }
+      partition._ensureContent((err) => {
+        if (err) {
+          callback(err)
+          return
+        }
+        if (stream.destroyed) return
+
+        partition.content.replicate({
+          live: false,
+          download: false,
+          upload: true,
+          stream
+        })
+
+        callback()
+      })
+    })
+  }
 }
 
 module.exports = { Farmer }

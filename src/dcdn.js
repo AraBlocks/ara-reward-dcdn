@@ -26,7 +26,7 @@ const rc = require('./rc')()
  * @fires DCDN#download-complete
  * @fires DCDN#request-complete
  */
-class RewardDCDN extends DCDN {
+class RewardDCDN extends BaseDCDN {
   /**
    * Constructs a new dcdn instance
    * @param {String} opts.userId The user's `did`
@@ -47,6 +47,8 @@ class RewardDCDN extends DCDN {
     this.user = new User(getIdentifier(opts.userId), opts.password)
     this.jobsInProgress = null
 
+    this.root = resolve(rc.network.dcdn.root, this.user.did)
+    this.config = resolve(rc.network.dcdn.root, this.user.did, constants.DEFAULT_CONFIG_STORE)
     this.jobs = resolve(rc.network.dcdn.root, this.user.did, constants.DEFAULT_JOB_STORE)
   }
 
@@ -58,7 +60,7 @@ class RewardDCDN extends DCDN {
     await pify(this.jobsInProgress.open)()
   }
 
-  async onConnection(connection, details, { topic }) {
+  onConnection(connection, details, { topic }) {
     const peer = details.peer || {}
 
     const afs = super.getAFS({ discoveryKey: topic })
@@ -69,11 +71,11 @@ class RewardDCDN extends DCDN {
     // Note: hypercore requires extensions array to be sorted
     // Home partition metadata replication
     const _stream = homePartition.metadata.replicate({
-      live: !(self.metaOnly),
+      live: !(this.metaOnly),
       download: false,
       upload: true,
-      expectedFeeds: (self.metaOnly) ? 3 : 4,
-      extensions: (self.metaOnly) ? null : [ MSG.AGREEMENT, MSG.QUOTE, MSG.RECEIPT, MSG.REWARD, MSG.SOW ]
+      expectedFeeds: (this.metaOnly) ? 3 : 4,
+      extensions: (this.metaOnly) ? null : [ MSG.AGREEMENT, MSG.QUOTE, MSG.RECEIPT, MSG.REWARD, MSG.SOW ]
     })
 
     // Etc partition metadata replication
@@ -89,14 +91,14 @@ class RewardDCDN extends DCDN {
       const feed = _stream.feed(homePartition.metadata.key)
       const requesterConnection = new RequesterConnection(peer, _stream, feed, { timeout: constants.DEFAULT_TIMEOUT })
       requesterConnection.once('close', () => {
-        debug(`Stopping replication for ${self.afs.did} with peer ${requesterConnection.peerId}`)
+        debug(`Stopping replication for ${afs.did} with peer ${requesterConnection.peerId}`)
       })
 
       if (_stream.remoteId) {
-        self.addRequester(requesterConnection)
+        this.addRequester(requesterConnection)
       } else {
         _stream.once('handshake', () => {
-          self.addRequester(requesterConnection)
+          this.addRequester(requesterConnection)
         })
       }
     }
@@ -120,7 +122,7 @@ class RewardDCDN extends DCDN {
       await this.user.loadKey()
     }
 
-    const archives = super.drives().list()
+    const archives = super.drives.list()
 
     if (0 === archives.length) {
       this._info('no previous config')
@@ -149,6 +151,17 @@ class RewardDCDN extends DCDN {
   }
 
   async _startServices(afs) {
+    const addService = (service) => {
+      if (service) {
+        if (!(afs.did in self.topics)) self.topics[afs.did] = []
+        const topic = service.topic.toString('hex')
+        self.services[topic] = service
+        self.topics[afs.did].push(topic)
+        service.on('info', super._info)
+        service.start()
+      }
+    }
+
     const self = this
     if (!afs.dcdn) throw new Error('afs missing dcdn options')
 
@@ -160,17 +173,6 @@ class RewardDCDN extends DCDN {
     } = afs
 
     addService(await this._createContentService(afs))
-
-    function addService(service) {
-      if (service) {
-        if (!(afs.did in self.topics)) self.topics[afs.did] = []
-        const topic = service.topic.toString('hex')
-        self.services[topic] = service
-        self.topics[afs.did].push(topic)
-        service.on('info', super._info)
-        service.start()
-      }
-    }
   }
 
   async _createContentService(afs) {
@@ -220,7 +222,7 @@ class RewardDCDN extends DCDN {
       await pify(self.jobsInProgress.write)(jobNonce, key)
 
       const matcher = new matchers.MaxCostMatcher(price, maxPeers)
-      addService = new Requester({
+      service = new Requester({
         jobId: jobNonce,
         matcher,
         user: this.user,
@@ -308,7 +310,7 @@ class RewardDCDN extends DCDN {
   async stop() {
     const self = this
 
-    const archives = super.drives().list()
+    const archives = super.drives.list()
     for (const archive of archives) {
       if (!(archive instanceof Error)) {
         // eslint-disable-next-line no-await-in-loop
@@ -378,4 +380,4 @@ class RewardDCDN extends DCDN {
   }
 }
 
-module.exports = DCDN
+module.exports = RewardDCDN
