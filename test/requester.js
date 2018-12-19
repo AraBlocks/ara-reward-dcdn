@@ -22,6 +22,10 @@ const {
   TEST_USER
 } = require('./_constants')
 
+const {
+  generateAgreement
+} = require('./_util')
+
 const timeout = ms => new Promise(res => setTimeout(res, ms))
 
 const TEST_JOB_NONCE = Buffer.from('did', 'hex')
@@ -325,14 +329,26 @@ test('requester.sendRewards.none', async (t) => {
   t.true(4 === closeFake.callCount)
 })
 
-function generateAgreement(did, price) {
-  const signature = new Signature()
-  signature.setDid(did)
-  const quote = new Quote()
-  quote.setSignature(signature)
-  quote.setPerUnitCost(price)
-  const agreement = new Agreement()
-  agreement.setQuote(quote)
+test('requester.onConnection', async (t) => {
+  const requester = new Requester({
+    jobId: TEST_JOB_NONCE,
+    matcher: TEST_MATCHER,
+    user: TEST_USER,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM,
+    queue: TEST_QUEUE
+  })
 
-  return agreement
-}
+  const fakeError = sinon.fake()
+  const fakePipe = sinon.fake.returns({ pipe: () => true })
+  const connection = {
+    onError: fakeError,
+    pipe: fakePipe,
+    once: () => true
+  }
+
+  await requester.onConnection(connection, {})
+
+  t.true(fakePipe.called)
+  t.true(fakeError.notCalled)
+})

@@ -236,7 +236,7 @@ class Farmer extends FarmerBase {
     return agreement
   }
 
-  dataTransmitted(sowId, units) {
+  _dataTransmitted(sowId, units) {
     if (this.deliveryMap.has(sowId)) {
       const total = this.deliveryMap.get(sowId) + units
       this.deliveryMap.set(sowId, total)
@@ -293,7 +293,7 @@ class Farmer extends FarmerBase {
     const partition = this.afs.partitions.home
 
     partition.content.on('upload', (_, data) => {
-      self.dataTransmitted(sowId, data.length)
+      self._dataTransmitted(sowId, data.length)
     })
 
     self._replicateContent(partition, connection.stream, (err) => {

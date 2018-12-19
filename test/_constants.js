@@ -57,6 +57,9 @@ const TEST_AFS = {
         replicate: () => true
       },
       metadata: {
+        on: () => true,
+        once: () => true,
+        removeListener: () => true,
         ready: (cb) => { cb() },
         replicate: () => true
       },

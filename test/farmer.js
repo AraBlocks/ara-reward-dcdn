@@ -5,6 +5,7 @@ const User = require('../src/user')
 const util = require('ara-util')
 const test = require('ava')
 const arp = require('ara-reward-protocol')
+const EventEmitter = require('events')
 const {
   TEST_AFS,
   TEST_DISCOVERY_KEY,
@@ -92,7 +93,7 @@ test('farmer.generateReceipt', async (t) => {
   t.true(receipt.getSignature() == TEST_USER_SIGNATURE && receipt.getReward() == reward)
 })
 
-test('farmer.validateReward', async (t) => {
+test('farmer.validateReward.valid', async (t) => {
   const farmer = new Farmer({
     user: TEST_USER,
     price: TEST_REWARD,
@@ -104,6 +105,17 @@ test('farmer.validateReward', async (t) => {
   reward.setAgreement(agreement)
 
   t.true(await farmer.validateReward(reward))
+})
+
+test('farmer.validateReward.invalid', async (t) => {
+  const farmer = new Farmer({
+    user: TEST_USER,
+    price: TEST_REWARD,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM
+  })
+
+  t.false(await farmer.validateReward({}))
 })
 
 test('farmer.validateAgreement.valid', async (t) => {
@@ -167,14 +179,15 @@ test('farmer.stop', async (t) => {
 
 test('farmer.onHireConfirmed', async (t) => {
   const replicateFake = sinon.fake()
+
+  const emitter = new EventEmitter()
+  emitter.replicate = replicateFake
+
   const afs = {
     discoveryKey: Buffer.from(TEST_DISCOVERY_KEY, 'hex'),
     partitions: {
       home: {
-        content: {
-          on: () => true,
-          replicate: replicateFake
-        },
+        content: emitter,
         metadata: {
           ready: (cb) => { cb() },
         },
@@ -192,8 +205,9 @@ test('farmer.onHireConfirmed', async (t) => {
 
   const signature = new Signature()
   signature.setDid('ab123')
+  const sowId = 'abcd'
   const sow = new SOW()
-  sow.setNonce('abcd')
+  sow.setNonce(sowId)
   sow.setSignature(signature)
   const quote = new Quote()
   quote.setSow(sow)
@@ -210,7 +224,11 @@ test('farmer.onHireConfirmed', async (t) => {
   }
 
   await farmer.onHireConfirmed(agreement, connection)
+  emitter.emit('upload', null, { length: 5 })
+  emitter.emit('upload', null, { length: 5 })
+  emitter.emit('upload', null, { length: 5 })
 
+  t.true(15 === farmer.deliveryMap.get(arp.util.nonceString(sow)))
   t.true(fakeError.notCalled)
   t.true(replicateFake.calledOnce)
 })
