@@ -1,3 +1,12 @@
+## [0.13.2](https://github.com/arablocks/ara-reward-dcdn/compare/0.13.1...0.13.2) (2018-12-20)
+
+
+### Bug Fixes
+
+* **dcdn:** better error handle ([c531ca3](https://github.com/arablocks/ara-reward-dcdn/commit/c531ca3))
+
+
+
 ## [0.13.1](https://github.com/arablocks/ara-reward-dcdn/compare/0.9.0...0.13.1) (2018-12-20)
 
 
