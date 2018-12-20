@@ -35,7 +35,7 @@ class DCDN extends BaseDCDN {
    * @return {Object}
    */
   constructor(opts = {}) {
-    super(Object.assign({ sync: false }, opts))
+    super(opts)
 
     // Map from topic to service
     this.services = {}
@@ -50,6 +50,10 @@ class DCDN extends BaseDCDN {
     this.root = resolve(rc.network.dcdn.root, this.user.did)
     this.config = resolve(rc.network.dcdn.root, this.user.did, constants.DEFAULT_CONFIG_STORE)
     this.jobs = resolve(rc.network.dcdn.root, this.user.did, constants.DEFAULT_JOB_STORE)
+  }
+
+  pipeReplicate(socket, details, { topic }) {
+    this.services[topic].onConnection(socket, details)
   }
 
   async initialize() {
@@ -70,9 +74,7 @@ class DCDN extends BaseDCDN {
 
     const self = this
 
-    this.swarm.on('connection', super.onConnection((socket, details, { topic }) => { 
-      this.services[topic].onConnection(socket, details) 
-    }))
+    this.swarm.on('connection', super.onconnection)
 
     if (!this.user.secretKey) {
       await this.user.loadKey()
@@ -214,7 +216,7 @@ class DCDN extends BaseDCDN {
         afs,
         swarm: this.swarm,
         metaOnly
-})
+      })
     }
 
     const partition = afs.partitions.home
@@ -303,10 +305,10 @@ class DCDN extends BaseDCDN {
       if (afs) {
         await this._startServices(afs)
       } else {
-        super._warn(`Failed during join and starting of ${opts.did} due to not instantiating an AFS`)
+        super._warn(`Failed during join and starting of ${opts.key} due to not instantiating an AFS`)
       }
     } catch (err) {
-      super._warn(`Failed during join and starting of ${opts.did} with error: ${err}`)
+      super._warn(`Failed during join and starting of ${opts.key} with error: ${err}`)
     }
 
     if (this.swarm) {
@@ -329,9 +331,20 @@ class DCDN extends BaseDCDN {
       throw new TypeError('Expecting `opts` to be an object')
     }
 
+<<<<<<< HEAD
     const key = opts.key || getIdentifier(opts.did)
       await this._stopServices(opts.did)
     super.unjoin({ key })
+=======
+    opts.key = opts.key || getIdentifier(opts.did)
+
+    try {
+      await super.unjoin(opts)
+      await this._stopServices(opts.key)
+    } catch (err) {
+     super._warn(`Failed during unjoin of did ${opts.key} with error: ${err}`)
+    }
+>>>>>>> refactor(src/dcdn.js): Integrate agnostic DCDN
   }
 }
 
