@@ -164,7 +164,7 @@ class DCDN extends EventEmitter {
       }
       for (const archive of archives) {
         if (archive instanceof Error) {
-          self.emit('warn', `failed to initialize archive with ${archive.data.did}: ${archive.message}`)
+          self._warn(`failed to initialize archive with ${archive.data.did}: ${archive.message}`)
         } else {
           // eslint-disable-next-line no-await-in-loop
           await self._startServices(archive)
@@ -402,7 +402,7 @@ class DCDN extends EventEmitter {
     const archive = await pify(this[$driveCreator].create)(opts)
     if (this.swarm) {
       if (archive instanceof Error) {
-        this.emit('warn', `Failed to initialize archive with ${archive.data}: ${archive.message}`)
+        this._warn(`failed to initialize archive with ${archive.data.did}: ${archive.message}`)
         return
       }
       await this._startServices(archive)
@@ -434,7 +434,7 @@ class DCDN extends EventEmitter {
         await pify(this[$driveCreator].close)(key)
       }
     } catch (err) {
-      this.emit('warn', `Failed during unjoin of did ${key} with error: ${err}`)
+      this._warn(`Failed during unjoin of did ${key} with error: ${err}`)
     }
   }
 
@@ -470,7 +470,8 @@ class DCDN extends EventEmitter {
 
       done(null, afs)
     } catch (err) {
-      done(err, null)
+      err.data = opts
+      done(null, err)
     }
   }
 
