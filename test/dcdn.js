@@ -220,6 +220,35 @@ test.serial('dcdn.join.upload', async (t) => {
   sandbox.restore()
 })
 
+test.serial('dcdn.join.startandupload', async (t) => {
+  const sandbox = createSandbox()
+
+  const dcdn = new DCDN({
+    userId: TEST_USER.did,
+    password: TEST_USER.password
+  })
+  dcdn.user = TEST_USER
+
+  await dcdn.start()
+  await dcdn.join({
+    did: TEST_DID,
+    upload: true,
+    download: false,
+    price: 0,
+    maxPeers: 1
+  })
+  t.true(Boolean(dcdn.swarm))
+  t.true(TEST_DID in dcdn.topics)
+
+  await dcdn.unjoin({ did: TEST_DID })
+  t.false(TEST_DID in dcdn.topics)
+
+  await dcdn.stop()
+  t.false(Boolean(dcdn.swarm))
+
+  sandbox.restore()
+})
+
 test.serial('dcdn.join.uploadanddownload', async (t) => {
   const sandbox = createSandbox()
 
@@ -340,19 +369,17 @@ test.serial('dcdn.join.noproxy', async (t) => {
     password: TEST_USER.password
   })
   dcdn.user = TEST_USER
+  const warnSpy = sinon.spy(dcdn, '_warn')
 
-  try {
-    await dcdn.join({
-      did: TEST_DID,
-      upload: false,
-      download: true,
-      price: 0,
-      maxPeers: 1
-    })
-    t.fail()
-  } catch (e) {
-    t.pass()
-  }
+  await dcdn.join({
+    did: TEST_DID,
+    upload: false,
+    download: true,
+    price: 0,
+    maxPeers: 1
+  })
+
+  t.true(warnSpy.calledOnce)
 
   sandbox.restore()
 })
@@ -367,19 +394,43 @@ test.serial('dcdn.join.unverified', async (t) => {
     password: TEST_USER.password
   })
   dcdn.user = TEST_USER
+  const warnSpy = sinon.spy(dcdn, '_warn')
 
-  try {
-    await dcdn.join({
-      did: TEST_DID,
-      upload: false,
-      download: true,
-      price: 0,
-      maxPeers: 1
-    })
-    t.fail()
-  } catch (e) {
-    t.pass()
-  }
+  await dcdn.join({
+    did: TEST_DID,
+    upload: false,
+    download: true,
+    price: 0,
+    maxPeers: 1
+  })
+
+  t.true(warnSpy.calledOnce)
+
+  sandbox.restore()
+})
+
+test.serial('dcdn.startandjoin.unverified', async (t) => {
+  const sandbox = createSandbox({
+    verify: false
+  })
+
+  const dcdn = new DCDN({
+    userId: TEST_USER.did,
+    password: TEST_USER.password
+  })
+  dcdn.user = TEST_USER
+  const warnSpy = sinon.spy(dcdn, '_warn')
+
+  await dcdn.start()
+  await dcdn.join({
+    did: TEST_DID,
+    upload: false,
+    download: true,
+    price: 0,
+    maxPeers: 1
+  })
+
+  t.true(warnSpy.calledOnce)
 
   sandbox.restore()
 })
