@@ -275,14 +275,20 @@ class Requester extends RequesterBase {
     try {
       // Validate user
       const data = Buffer.from(this.sow.serializeBinary())
-      if (!this.user.verify(quote, data)) return false
+      if (!this.user.verify(quote, data)) {
+        debug('invalid quote: bad signature')
+        return false
+      }
 
       // Resolve user
       const farmer = quote.getSignature().getDid()
       const ddo = await aid.resolve(farmer)
-      if (!ddo) return false
+      if (!ddo) {
+        debug('invalid quote: failed to resolve peer')
+        return false
+      }
     } catch (err) {
-      debug(err)
+      debug('invalid quote:', err)
       return false
     }
     return true
@@ -316,9 +322,12 @@ class Requester extends RequesterBase {
       // Verify signature
       const nonce = nonceString(agreement)
       const data = this.stateMap.get(nonce)
-      if (!this.user.verify(agreement, data)) return false
+      if (!this.user.verify(agreement, data)) {
+        debug('invalid agreement: unverified signature')
+        return false
+      }
     } catch (err) {
-      debug(err)
+      debug('invalid agreement:', err)
       return false
     }
 

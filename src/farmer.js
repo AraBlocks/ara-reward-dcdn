@@ -142,12 +142,15 @@ class Farmer extends FarmerBase {
    */
   async validateSow(sow) {
     try {
-      const match = this.topic.toString('hex') === sow.getTopic()
-      return match
+      if (this.topic.toString('hex') != sow.getTopic()) {
+        debug('invalid sow: incorrect topic')
+        return false
+      }
     } catch (err) {
-      debug(err)
+      debug('invalid sow:', err)
       return false
     }
+    return true
   }
 
   /**
@@ -214,7 +217,7 @@ class Farmer extends FarmerBase {
         }
       }
     } catch (err) {
-      debug(err)
+      debug('invalid agreement:', err)
       return false
     }
 
@@ -255,11 +258,15 @@ class Farmer extends FarmerBase {
       // TODO: need to compare expected and received reward
       const nonce = nonceString(reward.getAgreement())
       const data = this.stateMap.get(nonce)
-      return this.user.verify(reward, data)
+      if (!this.user.verify(reward, data)) {
+        debug('invalid reward: bad signature')
+        return false
+      }
     } catch (err) {
-      debug(err)
+      debug('invalid reward:', err)
       return false
     }
+    return true
   }
 
   /**

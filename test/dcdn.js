@@ -7,6 +7,7 @@ const { rewards, registry, storage } = require('ara-contracts')
 const sinon = require('sinon')
 const ardUtil = require('../src/util')
 const fs = require('fs')
+const EventEmitter = require('events')
 const extend = require('extend')
 const {
   TEST_AFS,
@@ -62,6 +63,32 @@ test.serial('dcdn.constructor', (t) => {
 
   /* eslint-disable-next-line no-new */
   t.throws(() => { new DCDN() }, Error)
+
+  sandbox.restore()
+})
+
+test.serial('dcdn.emit', async (t) => {
+  const sandbox = createSandbox()
+
+  const dcdn = new DCDN({
+    userId: TEST_USER.did,
+    password: TEST_USER.password
+  })
+
+  // Call debug
+  dcdn._info('message')
+  dcdn._warn('message')
+
+  // Call emit
+  const infoFake = sinon.fake()
+  const warnFake = sinon.fake()
+  dcdn.on('info', infoFake)
+  dcdn.on('warn', warnFake)
+  dcdn._info('message')
+  dcdn._warn('message')
+
+  t.true(infoFake.calledOnce)
+  t.true(warnFake.calledOnce)
 
   sandbox.restore()
 })
@@ -171,7 +198,7 @@ test.serial('dcdn.unjoin.badafs', async (t) => {
     password: TEST_USER.password
   })
   dcdn.user = TEST_USER
-  sinon.stub(dcdn, 'emit').callsFake(emitFake)
+  sinon.stub(dcdn, '_warn').callsFake(emitFake)
 
   await dcdn.join({
     did: TEST_DID,
@@ -183,7 +210,7 @@ test.serial('dcdn.unjoin.badafs', async (t) => {
 
   try {
     await dcdn.unjoin({ did: TEST_DID })
-    t.true(emitFake.calledWith('warn'))
+    t.true(emitFake.calledOnce)
     t.pass()
   } catch (e) {
     t.fail()
@@ -278,6 +305,64 @@ test.serial('dcdn.join.uploadanddownload', async (t) => {
 })
 
 test.serial('dcdn.join.download', async (t) => {
+  const afs = extend(true, {}, TEST_AFS, {
+    partitions: {
+      home: {
+        content: extend(true, TEST_AFS.partitions.home.content, new EventEmitter())
+      }
+    }
+  })
+
+  const sandbox = createSandbox({ afs })
+
+  const emitFake = sinon.fake()
+  const dcdn = new DCDN({
+    userId: TEST_USER.did,
+    password: TEST_USER.password
+  })
+  dcdn.user = TEST_USER
+  sinon.stub(dcdn, 'emit').callsFake(emitFake)
+
+  await dcdn.join({
+    did: TEST_DID,
+    upload: false,
+    download: true,
+    price: 0,
+    maxPeers: 1
+  })
+  t.true(Boolean(dcdn.swarm))
+  t.true(TEST_DID in dcdn.topics)
+
+  // Test download progress
+  afs.partitions.home.content.emit('download', {}, { length: 1 }, {
+    stream: {
+      stream: {
+        peerId: 'abcd'
+      }
+    }
+  })
+  t.true(emitFake.calledWith('download-progress'))
+
+  // Test peer-update
+  afs.partitions.home.content.peers.length = 1
+  afs.partitions.home.content.emit('peer-add')
+  t.true(emitFake.calledWith('peer-update', TEST_DID, 1))
+
+  // Test peer-update
+  afs.partitions.home.content.peers.length = 0
+  afs.partitions.home.content.emit('peer-remove')
+  t.true(emitFake.calledWith('peer-update', TEST_DID, 0))
+
+  await dcdn.unjoin({ did: TEST_DID })
+  t.false(TEST_DID in dcdn.topics)
+
+  await dcdn.stop()
+  t.false(Boolean(dcdn.swarm))
+
+  sandbox.restore()
+})
+
+test.serial('dcdn.join.stopstart', async (t) => {
   const sandbox = createSandbox()
 
   const dcdn = new DCDN({
@@ -296,10 +381,8 @@ test.serial('dcdn.join.download', async (t) => {
   t.true(Boolean(dcdn.swarm))
   t.true(TEST_DID in dcdn.topics)
 
-  await dcdn.unjoin({ did: TEST_DID })
-  t.false(TEST_DID in dcdn.topics)
-
   await dcdn.stop()
+  t.false(TEST_DID in dcdn.topics)
   t.false(Boolean(dcdn.swarm))
 
   sandbox.restore()

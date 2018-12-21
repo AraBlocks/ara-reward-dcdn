@@ -65,7 +65,7 @@ class DCDN extends EventEmitter {
      * @event DCDN#info
      * @param {string} message Helpful information about the state of the DCDN Node
      */
-    this.emit('info', message)
+    return this.listenerCount('info') ? this.emit('info', message) : debug(message)
   }
 
   _warn(message) {
@@ -74,7 +74,7 @@ class DCDN extends EventEmitter {
      * @event DCDN#warn
      * @param {string} message Warning information about the state of the DCDN Node
      */
-    this.emit('warn', message)
+    return this.listenerCount('warn') ? this.emit('warn', message) : debug(message)
   }
 
   _onConnection(connection, details) {
