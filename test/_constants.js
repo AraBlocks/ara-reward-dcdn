@@ -30,6 +30,9 @@ const TEST_AFS = {
         removeListener: () => true,
         length: 10,
         downloaded: () => 10,
+        peers: {
+          length: 0
+        }
       },
       metadata: {
         ready: (cb) => { cb() },
