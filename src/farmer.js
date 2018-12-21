@@ -78,7 +78,6 @@ class Farmer extends FarmerBase {
     self._replicateContent(etcPartition, stream, (err) => {
       if (err) {
         debug('error on readying etc partition')
-        connection.onError(err)
       }
     })
 
@@ -87,7 +86,7 @@ class Farmer extends FarmerBase {
       homePartition.metadata.ready((err) => {
         if (err) {
           debug('error on readying home partition')
-          connection.onError(err)
+          connection.destroy()
           return
         }
 

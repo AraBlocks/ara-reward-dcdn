@@ -105,7 +105,6 @@ class Requester extends RequesterBase {
     this._replicateContent(etcPartition, stream, (err) => {
       if (err) {
         debug('error on readying etc partition')
-        connection.onError(err)
       }
     })
 
@@ -120,7 +119,7 @@ class Requester extends RequesterBase {
       this._replicateContent(homePartition, stream, (err) => {
         if (err) {
           debug('error on readying home partition')
-          connection.onError(err)
+          connection.destroy()
           return
         }
 
