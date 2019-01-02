@@ -35,6 +35,8 @@ class Farmer extends FarmerBase {
     this.deliveryMap = new Map()
     this.stateMap = new Map()
     this.topic = this.afs.discoveryKey
+
+    return this
   }
 
   _info(message) {

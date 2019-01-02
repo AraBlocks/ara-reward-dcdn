@@ -62,7 +62,8 @@ class DCDN extends BaseDCDN {
   }
 
   pipeReplicate(socket, details, { topic }) {
-    this.services[topic].onConnection(socket, details)
+    console.log("BLEP:", topic.toString('hex'), this.services[topic.toString('hex')])
+    this.services[topic.toString('hex').slice(0,64)].onConnection(socket, details)
   }
 
   async initialize() {
@@ -83,8 +84,7 @@ class DCDN extends BaseDCDN {
 
     const self = this
 
-      console.log("ONCON:", super.pipeReplicate, super.onconnection)
-    this.swarm.on('connection', super.onconnection)
+    this.swarm.on('connection', super.onconnection.bind(this))
 
     if (!this.user.secretKey) {
       await this.user.loadKey()
