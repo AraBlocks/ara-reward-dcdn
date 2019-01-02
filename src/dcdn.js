@@ -1,5 +1,6 @@
 /* eslint class-methods-use-this: 1 */
 const { matchers, util: { idify } } = require('ara-reward-protocol')
+const { create: createAFS } = require('ara-filesystem')
 const { token, registry } = require('ara-contracts')
 const { getIdentifier } = require('ara-util')
 const { Requester } = require('./requester.js')
@@ -35,7 +36,15 @@ class DCDN extends BaseDCDN {
    * @return {Object}
    */
   constructor(opts = {}) {
-    super(opts)
+    super(Object.assign({
+      fs: {
+        create: async (opts) => {
+          const { afs } = await createAFS(opts)
+
+          return afs
+        }
+      }
+    }, opts))
 
     // Map from topic to service
     this.services = {}
