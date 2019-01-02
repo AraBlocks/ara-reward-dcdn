@@ -83,6 +83,7 @@ class DCDN extends BaseDCDN {
 
     const self = this
 
+      console.log("ONCON:", super.pipeReplicate, super.onconnection)
     this.swarm.on('connection', super.onconnection)
 
     if (!this.user.secretKey) {
@@ -103,7 +104,7 @@ class DCDN extends BaseDCDN {
 
     for (const archive of archives) {
       if (archive instanceof Error) {
-        super._warn(`failed to initialize archive with ${archive.data.did}: ${archive.message}`)
+        this._warn(`failed to initialize archive with ${archive.data.did}: ${archive.message}`)
       } else {
         // eslint-disable-next-line no-await-in-loop
         await self._startServices(archive)
@@ -314,10 +315,11 @@ class DCDN extends BaseDCDN {
       if (afs) {
         await this._startServices(afs)
       } else {
-        super._warn(`Failed during join and starting of ${opts.key} due to not instantiating an AFS`)
+        this._warn(`Failed during join and starting of ${opts.key} due to not instantiating an AFS`)
       }
     } catch (err) {
-      super._warn(`Failed during join and starting of ${opts.key} with error: ${err}`)
+      console.error(err)
+      this._warn(`Failed during join and starting of ${opts.key} with error: ${err}`)
     }
 
     if (this.swarm) {
@@ -351,7 +353,7 @@ class DCDN extends BaseDCDN {
       await super.unjoin(opts)
       await this._stopServices(opts.key)
     } catch (err) {
-     super._warn(`Failed during unjoin of did ${opts.key} with error: ${err}`)
+     this._warn(`Failed during unjoin of did ${opts.key} with error: ${err}`)
     }
 >>>>>>> refactor(src/dcdn.js): Integrate agnostic DCDN
   }
