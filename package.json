@@ -41,7 +41,6 @@
   },
   "homepage": "https://github.com/arablocks/ara-reward-dcdn#readme",
   "dependencies": {
-    "@hyperswarm/network": "^0.0.4",
     "ara-console": "arablocks/ara-console#semver:0.2.x",
     "ara-contracts": "arablocks/ara-contracts#semver:0.16.x",
     "ara-crypto": "arablocks/ara-crypto#semver:0.8.x",
@@ -62,11 +61,8 @@
     "inquirer": "^6.1.0",
     "ld-cryptosuite-registry": "^0.3.0",
     "mkdirp": "^0.5.1",
-    "multidrive": "arablocks/multidrive",
     "pify": "^3.0.0",
     "pump": "^3.0.0",
-    "toiletdb": "^1.4.1",
-    "utp-native": "^1.7.3",
     "yargs": "^12.0.1"
   },
   "peerDependencies": {},
