@@ -62,8 +62,7 @@ class DCDN extends BaseDCDN {
   }
 
   pipeReplicate(socket, details, { topic }) {
-    console.log("BLEP:", topic.toString('hex'), this.services[topic.toString('hex')])
-    this.services[topic.toString('hex').slice(0,64)].onConnection(socket, details)
+    this.services[topic.toString('hex').slice(0, 64)].onConnection(socket, details)
   }
 
   async initialize() {
@@ -312,6 +311,7 @@ class DCDN extends BaseDCDN {
 
     try {
       const afs = await super.join(opts)
+      afs.proxy = await registry.getProxyAddress(opts.key)
       if (afs) {
         await this._startServices(afs)
       } else {
