@@ -67,7 +67,6 @@ class DCDN extends BaseDCDN {
 
   pipeReplicate(socket, details, { topic }) {
     topic = topic.toString('hex').slice(0, 64)
-    console.log("REWARD PIPE", topic.toString('hex'), this.services)
     if (topic in this.services) {
       this.services[topic].onConnection(socket, details)
     }
@@ -185,8 +184,6 @@ class DCDN extends BaseDCDN {
     }
 
     if (download) {
-      console.log("META:", metaOnly)
-      console.log("IS UPDATE: ", await ardUtil.isUpdateAvailable(afs))
       if (!metaOnly && !(await ardUtil.isUpdateAvailable(afs))) {
         super._info(`No content update available for ${afs.did}`)
         return null
@@ -208,12 +205,10 @@ class DCDN extends BaseDCDN {
         metaOnly
       })
       service.once('job-complete', async (job) => {
-        console.log("JOB COMPLETE")
         await pify(self.jobsInProgress.delete)(job.replace(/^0x/, ''))
       })
 
       service.once('request-complete', async () => {
-        console.log("REQ COMPLETE")
         await self.unjoin(opts)
 
         // If both upload and download are true, then will immediately start seeding

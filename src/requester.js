@@ -141,7 +141,6 @@ class Requester extends RequesterBase {
       })
     }
 
-    console.log("REQUEST PIPE")
     connection.pipe(stream).pipe(connection)
 
     function onEtcMetaSync(removed) {
