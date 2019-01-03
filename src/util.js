@@ -44,12 +44,14 @@ class Countdown {
 
 // TODO: migrate to ara-filesystem to be an interal function of an afs
 async function isUpdateAvailable(afs) {
+  console.log("PROXY:", afs)
   if (!afs.proxy) return false
   let update
   try {
     const localVersion = afs.version || 0
     const updateVersion = localVersion + 1
 
+    console.log("LOCAL:", localVersion)
     // offset to read from bc to see if update is available
     const offset = HEADER_LENGTH + (updateVersion * SIGNATURES_WRITE_LENGTH)
     const buf = await storage.read({
@@ -60,10 +62,12 @@ async function isUpdateAvailable(afs) {
 
     let downloaded = false
     const feed = afs.partitions.home.content
+    console.log("FEED:", feed)
     if (feed && feed.length) {
       downloaded = (feed.downloaded() >= feed.length)
     }
 
+    console.log("BUF:", buf)
     update = !downloaded || (null !== buf)
   } catch (err) {
     throw err

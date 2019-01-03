@@ -39,9 +39,13 @@ class DCDN extends BaseDCDN {
     super(Object.assign({
       fs: {
         create: async (opts) => {
-          const { afs } = await createAFS(opts)
+          try {
+            const { afs } = await createAFS(opts)
 
-          return afs
+            return afs
+          } catch (e) {
+            console.error(e)
+          }
         }
       }
     }, opts))
@@ -62,7 +66,11 @@ class DCDN extends BaseDCDN {
   }
 
   pipeReplicate(socket, details, { topic }) {
-    this.services[topic.toString('hex').slice(0, 64)].onConnection(socket, details)
+    topic = topic.toString('hex').slice(0, 64)
+    console.log("REWARD PIPE", topic.toString('hex'), this.services)
+    if (topic in this.services) {
+      this.services[topic].onConnection(socket, details)
+    }
   }
 
   async initialize() {
@@ -82,8 +90,6 @@ class DCDN extends BaseDCDN {
     await super.start()
 
     const self = this
-
-    this.swarm.on('connection', super.onconnection.bind(this))
 
     if (!this.user.secretKey) {
       await this.user.loadKey()
@@ -112,8 +118,9 @@ class DCDN extends BaseDCDN {
   }
 
   async _getJobInProgress(did) {
-    const jobs = await pify(this.jobsInProgress.read)()
+    const jobs = (await pify(this.jobsInProgress.read)()) || []
 
+    if (!Array.isArray(jobs)) { return null }
     return jobs.filter(j => did === jobs[j])[0]
   }
 
@@ -178,12 +185,14 @@ class DCDN extends BaseDCDN {
     }
 
     if (download) {
+      console.log("META:", metaOnly)
+      console.log("IS UPDATE: ", await ardUtil.isUpdateAvailable(afs))
       if (!metaOnly && !(await ardUtil.isUpdateAvailable(afs))) {
         super._info(`No content update available for ${afs.did}`)
         return null
       }
 
-      let jobNonce = jobId || await this._getJobInProgress(key) || crypto.randomBytes(32)
+      let jobNonce = jobId || (await this._getJobInProgress(key)) || crypto.randomBytes(32)
 
       if ('string' === typeof jobNonce) jobNonce = Buffer.from(jobNonce.replace(/^0x/, ''), 'hex')
       await pify(self.jobsInProgress.write)(jobNonce, key)
@@ -199,10 +208,12 @@ class DCDN extends BaseDCDN {
         metaOnly
       })
       service.once('job-complete', async (job) => {
+        console.log("JOB COMPLETE")
         await pify(self.jobsInProgress.delete)(job.replace(/^0x/, ''))
       })
 
       service.once('request-complete', async () => {
+        console.log("REQ COMPLETE")
         await self.unjoin(opts)
 
         // If both upload and download are true, then will immediately start seeding

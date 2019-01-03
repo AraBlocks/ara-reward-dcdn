@@ -67,7 +67,7 @@ class Requester extends RequesterBase {
           self._info(`Requesting metadata for: ${self.afs.did}`)
           // TODO: when to stop requesting?
         } else {
-          self._info(`Requesting content for: ${self.afs.did}`)
+          // self._info(`Requesting content for: ${self.afs.did}`)
           self._waitForContent()
         }
         self.swarm.join(self.topic, { ephemeral: true, lookup: true, announce: false })
@@ -141,6 +141,7 @@ class Requester extends RequesterBase {
       })
     }
 
+    console.log("REQUEST PIPE")
     connection.pipe(stream).pipe(connection)
 
     function onEtcMetaSync(removed) {
