@@ -35,8 +35,6 @@ class Farmer extends FarmerBase {
     this.deliveryMap = new Map()
     this.stateMap = new Map()
     this.topic = this.afs.discoveryKey
-
-    return this
   }
 
   _info(message) {
@@ -76,6 +74,7 @@ i
       stream
     })
 
+      console.log("REPL ETC")
     // Etc partition content replication
     self._replicateContent(etcPartition, stream, (err) => {
       if (err) {
@@ -84,6 +83,7 @@ i
       }
     })
 
+    console.log("META:", this.metaOnly)
     // Home partition content replication
     if (!this.metaOnly) {
       homePartition.metadata.ready((err) => {
@@ -100,9 +100,11 @@ i
         })
 
         if (stream.remoteId) {
+          console.log("ADD REQ")
           self.addRequester(requesterConnection)
         } else {
           stream.once('handshake', () => {
+            console.log("ADD REQ2")
             self.addRequester(requesterConnection)
           })
         }
@@ -280,6 +282,7 @@ i
       self._dataTransmitted(sowId, data.length)
     })
 
+      console.log("BLEPE")
     self._replicateContent(partition, connection.stream, (err) => {
       if (err) {
         connection.onError(err)

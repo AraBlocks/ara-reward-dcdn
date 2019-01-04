@@ -68,6 +68,7 @@ class DCDN extends BaseDCDN {
   pipeReplicate(socket, details, { topic }) {
     topic = topic.toString('hex').slice(0, 64)
     if (topic in this.services) {
+      console.log("REPL:", topic)
       this.services[topic].onConnection(socket, details)
     }
   }
