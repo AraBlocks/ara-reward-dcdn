@@ -38,7 +38,7 @@ class Farmer extends FarmerBase {
   }
 
   start() {
-    //this.swarm.join(this.topic, { ephemeral: true, lookup: false, announce: true })
+    this.swarm.join(this.topic, { ephemeral: true, lookup: false, announce: true })
     console.log(`Seeding ${this.afs.did} content version: ${this.afs.version} etc version: ${this.afs.partitions.etc.version}`)
   }
 
