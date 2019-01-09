@@ -30,6 +30,10 @@ async function start(argv = {}) {
     await instance.start()
   }
 
+  instance.on('verbose', console.log)
+  instance.on('info', console.log)
+  instance.on('error', console.log)
+
   process.on('SIGINT', async () => {
     debug('process interrupted...')
     await instance.stop()
