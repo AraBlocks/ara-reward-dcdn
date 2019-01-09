@@ -11,7 +11,7 @@ const { toHexString } = require('ara-util/transform')
 const AutoQueue = require('./autoqueue')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
-const debug = require('debug')('ard:requester')
+const debug = require('debug')('ara:ard:requester')
 const aid = require('ara-identity')
 
 /**
