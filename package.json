@@ -42,7 +42,7 @@
   "homepage": "https://github.com/arablocks/ara-reward-dcdn#readme",
   "dependencies": {
     "ara-console": "arablocks/ara-console#semver:0.2.x",
-    "ara-contracts": "arablocks/ara-contracts#semver:0.16.x",
+    "ara-contracts": "arablocks/ara-contracts#semver:0.19.x",
     "ara-crypto": "arablocks/ara-crypto#semver:0.8.x",
     "ara-filesystem": "arablocks/ara-filesystem#semver:0.18.x",
     "ara-identity": "github:arablocks/ara-identity#semver:0.47.x",

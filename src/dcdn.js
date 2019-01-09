@@ -1,6 +1,5 @@
 /* eslint class-methods-use-this: 1 */
 const { matchers, util: { idify } } = require('ara-reward-protocol')
-const { create: createAFS } = require('ara-filesystem')
 const { token, registry } = require('ara-contracts')
 const { getIdentifier } = require('ara-util')
 const { Requester } = require('./requester.js')
@@ -13,11 +12,11 @@ const ardUtil = require('./util')
 const crypto = require('ara-crypto')
 const toilet = require('toiletdb')
 const mkdirp = require('mkdirp')
-const debug = require('debug')('ard')
+const debug = require('debug')('ara:ard:dcdn')
+const araFS = require('ara-filesystem')
 const pify = require('pify')
 const User = require('./user')
 const rc = require('./rc')()
-
 /**
  * @class A rewardable DCDN node on the Ara Network
  * @fires DCDN#info
@@ -40,7 +39,7 @@ class DCDN extends BaseDCDN {
       fs: {
         create: async (opts) => {
           try {
-            const { afs } = await createAFS(opts)
+            const { afs } = await araFS.create(opts)
 
             return afs
           } catch (e) {

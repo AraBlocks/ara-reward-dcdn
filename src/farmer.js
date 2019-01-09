@@ -10,7 +10,7 @@ const { library, rewards, token } = require('ara-contracts')
 const { toHexString } = require('ara-util/transform')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
-const debug = require('debug')('ard:farmer')
+const debug = require('debug')('ara:ard:farmer')
 
 /**
  * @class An Ara-reward-protocol FarmerBase extension for AFS replication
@@ -74,7 +74,6 @@ i
       stream
     })
 
-      console.log("REPL ETC")
     // Etc partition content replication
     self._replicateContent(etcPartition, stream, (err) => {
       if (err) {
@@ -83,7 +82,6 @@ i
       }
     })
 
-    console.log("META:", this.metaOnly)
     // Home partition content replication
     if (!this.metaOnly) {
       homePartition.metadata.ready((err) => {
@@ -100,11 +98,9 @@ i
         })
 
         if (stream.remoteId) {
-          console.log("ADD REQ")
           self.addRequester(requesterConnection)
         } else {
           stream.once('handshake', () => {
-            console.log("ADD REQ2")
             self.addRequester(requesterConnection)
           })
         }
@@ -282,7 +278,6 @@ i
       self._dataTransmitted(sowId, data.length)
     })
 
-      console.log("BLEPE")
     self._replicateContent(partition, connection.stream, (err) => {
       if (err) {
         connection.onError(err)
