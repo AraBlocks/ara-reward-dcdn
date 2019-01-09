@@ -144,7 +144,7 @@ class DCDN extends BaseDCDN {
   async _createContentService(afs) {
     const self = this
 
-    const {
+    let {
       dcdn: {
         upload,
         download,
