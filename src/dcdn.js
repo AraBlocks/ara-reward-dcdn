@@ -327,13 +327,6 @@ class DCDN extends BaseDCDN {
       console.error(err)
       this._warn(`Failed during join and starting of ${opts.key} with error: ${err}`)
     }
-
-    if (this.swarm) {
-      if (archive instanceof Error) {
-        this._warn(`failed to initialize archive with ${archive.data.did}: ${archive.message}`)
-        return
-    }
-
   }
 
   /**
