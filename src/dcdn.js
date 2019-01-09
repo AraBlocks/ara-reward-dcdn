@@ -348,20 +348,9 @@ class DCDN extends BaseDCDN {
       throw new TypeError('Expecting `opts` to be an object')
     }
 
-<<<<<<< HEAD
     const key = opts.key || getIdentifier(opts.did)
       await this._stopServices(opts.did)
     super.unjoin({ key })
-=======
-    opts.key = opts.key || getIdentifier(opts.did)
-
-    try {
-      await super.unjoin(opts)
-      await this._stopServices(opts.key)
-    } catch (err) {
-     this._warn(`Failed during unjoin of did ${opts.key} with error: ${err}`)
-    }
->>>>>>> refactor(src/dcdn.js): Integrate agnostic DCDN
   }
 }
 
