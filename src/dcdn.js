@@ -2,7 +2,7 @@
 const { matchers, util: { idify } } = require('ara-reward-protocol')
 const { token, registry } = require('ara-contracts')
 const { getIdentifier } = require('ara-util')
-const { Requester } = require('./requester.js')
+const { Requester } = require('./requester')
 const { resolve } = require('path')
 const { Farmer } = require('./farmer.js')
 const AutoQueue = require('./autoqueue')
@@ -138,24 +138,11 @@ class DCDN extends BaseDCDN {
     const self = this
     if (!afs.dcdn) throw new Error('afs missing dcdn options')
 
-    const {
-      dcdn: {
-        upload,
-        download
-      }
-    } = afs
-
     addService(await this._createContentService(afs))
   }
 
   async _createContentService(afs) {
     const self = this
-
-    let {
-      dcdn: {
-        price
-      }
-    } = afs
 
     const {
       dcdn: {
@@ -163,9 +150,9 @@ class DCDN extends BaseDCDN {
         download,
         maxPeers = constants.DEFAULT_MAX_PEERS,
         metaOnly,
+        price,
         jobId
-      },
-      dcdn: opts
+      }
     } = afs
 
     let service
@@ -189,7 +176,7 @@ class DCDN extends BaseDCDN {
         return null
       }
 
-      let jobNonce = jobId || (await this._getJobInProgress(key)) || crypto.randomBytes(32)
+      let jobNonce = jobId || await this._getJobInProgress(key) || crypto.randomBytes(32)
 
       if ('string' === typeof jobNonce) jobNonce = Buffer.from(jobNonce.replace(/^0x/, ''), 'hex')
       await pify(self.jobsInProgress.write)(jobNonce, key)
@@ -204,6 +191,7 @@ class DCDN extends BaseDCDN {
         queue: this.queue,
         metaOnly
       })
+
       service.once('job-complete', async (job) => {
         await pify(self.jobsInProgress.delete)(job.replace(/^0x/, ''))
       })
@@ -319,6 +307,7 @@ class DCDN extends BaseDCDN {
       const afs = await super.join(opts)
       afs.proxy = await registry.getProxyAddress(opts.key)
       if (afs) {
+        console.log("START SERVICE")
         await this._startServices(afs)
       } else {
         this._warn(`Failed during join and starting of ${opts.key} due to not instantiating an AFS`)
