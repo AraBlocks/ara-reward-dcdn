@@ -37,13 +37,9 @@ class Farmer extends FarmerBase {
     this.topic = this.afs.discoveryKey
   }
 
-  _info(message) {
-    //this.emit('info', message)
-  }
-i
   start() {
     //this.swarm.join(this.topic, { ephemeral: true, lookup: false, announce: true })
-    this._info(`Seeding ${this.afs.did} content version: ${this.afs.version} etc version: ${this.afs.partitions.etc.version}`)
+    console.log(`Seeding ${this.afs.did} content version: ${this.afs.version} etc version: ${this.afs.partitions.etc.version}`)
   }
 
   stop() {
