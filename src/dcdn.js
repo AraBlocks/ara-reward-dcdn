@@ -116,6 +116,47 @@ class DCDN extends BaseDCDN {
     }
   }
 
+  onconnection(connection, details) {
+    const self = this
+    const peer = details.peer || {}
+    debug('connection open:', idify(peer.host, peer.port), 'topic:', peer.topic)
+    connection.on('error', (err) => {
+      debug('connection error:', idify(peer.host, peer.port), 'err:', err)
+    })
+    connection.once('close', () => {
+      debug('connection close:', idify(peer.host, peer.port), 'topic:', peer.topic)
+    })
+
+    if (peer.topic) {
+      process.nextTick(() => {
+        listenForTopic()
+        connection.write(peer.topic)
+      })
+    } else {
+      listenForTopic((topic) => {
+        connection.write(topic)
+      })
+    }
+
+    function listenForTopic(onTopic) {
+      const timeout = setTimeout(() => {
+        connection.destroy()
+      }, constants.DEFAULT_TIMEOUT)
+
+      connection.once('data', (data) => {
+        clearTimeout(timeout)
+        const topic = data.toString('hex').substring(0, 64)
+
+        if (topic in self.services) {
+          self.services[topic].onConnection(connection, details)
+          if (onTopic) onTopic(Buffer.from(topic, 'hex'))
+        } else {
+          connection.destroy()
+        }
+      })
+    }
+  }
+
   async _getJobInProgress(did) {
     const jobs = (await pify(this.jobsInProgress.read)()) || []
 
