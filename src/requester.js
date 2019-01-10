@@ -11,7 +11,7 @@ const { toHexString } = require('ara-util/transform')
 const AutoQueue = require('./autoqueue')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
-const debug = require('debug')('ara:ard:requester')
+const debug = require('debug')('ard:requester')
 const aid = require('ara-identity')
 
 /**
@@ -67,10 +67,10 @@ class Requester extends RequesterBase {
           self._info(`Requesting metadata for: ${self.afs.did}`)
           // TODO: when to stop requesting?
         } else {
-          // self._info(`Requesting content for: ${self.afs.did}`)
+          self._info(`Requesting content for: ${self.afs.did}`)
           self._waitForContent()
         }
-        self.swarm.join(self.topic, { ephemeral: true, lookup: true, announce: false })
+        self.swarm._join(self.topic, { ephemeral: true, lookup: true, announce: false })
       }
     }).catch((err) => {
       debug(`failed to start broadcast for ${self.afs.did}`, err)
