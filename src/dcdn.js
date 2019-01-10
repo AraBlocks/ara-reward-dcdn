@@ -17,10 +17,11 @@ const crypto = require('ara-crypto')
 const toilet = require('toiletdb')
 const mkdirp = require('mkdirp')
 const araFS = require('ara-filesystem')
-const debug = require('debug')('ard')
+const debug = require('debug')('ara:ard:dcdn')
 const pify = require('pify')
 const User = require('./user')
 const rc = require('./rc')()
+const BaseDCDN = require('ara-network-node-dcdn/dcdn')
 
 const $driveCreator = Symbol('driveCreator')
 
@@ -33,7 +34,7 @@ const $driveCreator = Symbol('driveCreator')
  * @fires DCDN#download-complete
  * @fires DCDN#request-complete
  */
-class DCDN extends EventEmitter {
+class DCDN extends BaseDCDN {
   /**
    * Constructs a new dcdn instance
    * @param {String} opts.userId The user's `did`
@@ -42,7 +43,15 @@ class DCDN extends EventEmitter {
    * @return {Object}
    */
   constructor(opts = {}) {
-    super()
+    super(Object.assign(opts, {
+      fs: {
+        create: async (opts) => {
+          const { afs } = await araFS.create(opts)
+
+          return afs
+        }
+      }
+    }))
 
     // Map from topic to service
     this.services = {}
@@ -51,7 +60,6 @@ class DCDN extends EventEmitter {
     this.topics = {}
 
     this.queue = opts.queue || new AutoQueue()
-    this.swarm = null
     this.user = new User(getIdentifier(opts.userId), opts.password)
     this.jobsInProgress = null
 
@@ -60,62 +68,9 @@ class DCDN extends EventEmitter {
     this.config = resolve(rc.network.dcdn.root, this.user.did, constants.DEFAULT_CONFIG_STORE)
   }
 
-  _info(message) {
-    /**
-     * Informational event
-     * @event DCDN#info
-     * @param {string} message Helpful information about the state of the DCDN Node
-     */
-    return this.listenerCount('info') ? this.emit('info', message) : debug(message)
-  }
-
-  _warn(message) {
-    /**
-     * Warning event
-     * @event DCDN#warn
-     * @param {string} message Warning information about the state of the DCDN Node
-     */
-    return this.listenerCount('warn') ? this.emit('warn', message) : debug(message)
-  }
-
-  _onConnection(connection, details) {
-    const self = this
-    const peer = details.peer || {}
-    debug('connection open:', idify(peer.host, peer.port), 'topic:', peer.topic)
-    connection.on('error', (err) => {
-      debug('connection error:', idify(peer.host, peer.port), 'err:', err)
-    })
-    connection.once('close', () => {
-      debug('connection close:', idify(peer.host, peer.port), 'topic:', peer.topic)
-    })
-
-    if (peer.topic) {
-      process.nextTick(() => {
-        listenForTopic()
-        connection.write(peer.topic)
-      })
-    } else {
-      listenForTopic((topic) => {
-        connection.write(topic)
-      })
-    }
-
-    function listenForTopic(onTopic) {
-      const timeout = setTimeout(() => {
-        connection.destroy()
-      }, constants.DEFAULT_TIMEOUT)
-
-      connection.once('data', (data) => {
-        clearTimeout(timeout)
-        const topic = data.toString('hex').substring(0, 64)
-
-        if (topic in self.services) {
-          self.services[topic].onConnection(connection, details)
-          if (onTopic) onTopic(Buffer.from(topic, 'hex'))
-        } else {
-          connection.destroy()
-        }
-      })
+  pipeReplicate(socket, details, { topic }) {
+    if (topic in this.services) {
+      this.services[topic].onConnection(socket, details)
     }
   }
 
@@ -126,14 +81,6 @@ class DCDN extends EventEmitter {
     // Create jobs
     this.jobsInProgress = toilet(this.jobs)
     await pify(this.jobsInProgress.open)()
-
-    // Create config
-    const store = toilet(this.config)
-    this[$driveCreator] = await pify(multidrive)(
-      store,
-      DCDN._createAFS,
-      DCDN._closeAFS
-    )
   }
 
   /**
@@ -142,34 +89,32 @@ class DCDN extends EventEmitter {
    * @return {null}
    */
   async start() {
-    const self = this
-    if (!this.swarm) {
-      if (!this.user.secretKey) {
-        try {
-          await this.user.loadKey()
-        } catch (err) {
-          throw (err)
-        }
+    await super.start()
+
+    if (!this.user.secretKey) {
+      try {
+        await this.user.loadKey()
+      } catch (err) {
+        throw (err)
       }
+    }
 
-      this.swarm = hyperswarm.create()
-      this.swarm.on('connection', this._onConnection.bind(this))
+    await this._loadDrive()
 
-      if (!this[$driveCreator]) await this._loadDrive()
+    const archives = this.drives.list()
 
-      const archives = this[$driveCreator].list()
-
-      if (0 === archives.length) {
-        this._info('no previous config')
-        return
-      }
-      for (const archive of archives) {
-        if (archive instanceof Error) {
-          self._warn(`failed to initialize archive with ${archive.data.did}: ${archive.message}`)
-        } else {
-          // eslint-disable-next-line no-await-in-loop
-          await self._startServices(archive)
-        }
+    if (0 === archives.length) {
+      this._info('no previous config')
+      return
+    }
+    for (const archive of archives) {
+      if (archive instanceof Error) {
+        this._warn(`failed to initialize archive with ${archive.data.did}: ${archive.message}`)
+      } else {
+        // eslint-disable no-await-in-loop
+        archive.proxy = await registry.getProxyAddress(archive.key.toString('hex'))
+        await this._startServices(archive)
+        // eslint-enable no-await-in-loop
       }
     }
   }
@@ -362,17 +307,17 @@ class DCDN extends EventEmitter {
    * @return {null}
    */
   async stop() {
-    if (this.swarm) {
-      const self = this
+    await super.stop()
 
-      const archives = this[$driveCreator].list()
+    if (this.swarm) {
+      const archives = this.drives.list()
       for (const archive of archives) {
         if (!(archive instanceof Error)) {
           // eslint-disable-next-line no-await-in-loop
-          await self._stopServices(archive)
+          await this._stopServices(archive)
         }
       }
-      await pify(this[$driveCreator].disconnect)()
+      await pify(this.drives.disconnect)()
       await pify(this.swarm.destroy)()
       this.swarm = null
     }
@@ -396,18 +341,16 @@ class DCDN extends EventEmitter {
     if (!opts || 'object' !== typeof opts) {
       throw new TypeError('Expecting `opts` to be an object')
     }
+
+    if (!this.swarm) {
+      return await this.start()
+    }
+
     opts.key = opts.key || getIdentifier(opts.did)
     await this.unjoin(opts)
-    const archive = await pify(this[$driveCreator].create)(opts)
-    if (this.swarm) {
-      if (archive instanceof Error) {
-        this._warn(`failed to initialize archive with ${archive.data.did}: ${archive.message}`)
-        return
-      }
-      await this._startServices(archive)
-    } else {
-      await this.start()
-    }
+    const archive = await super.join(opts)
+    archive.proxy = await registry.getProxyAddress(opts.key)
+    await this._startServices(archive)
   }
 
   /**
@@ -423,63 +366,17 @@ class DCDN extends EventEmitter {
     }
 
     const key = opts.key || getIdentifier(opts.did)
-    if (!this[$driveCreator]) await this._loadDrive()
+    if (!this.drives) await this._loadDrive()
 
     try {
-      const archives = this[$driveCreator].list()
+      const archives = this.drives.list()
       const afs = archives.find(archive => key === archive.did)
       if (afs) {
         await this._stopServices(afs)
-        await pify(this[$driveCreator].close)(key)
+        await super.unjoin({ key })
       }
     } catch (err) {
       this._warn(`Failed during unjoin of did ${key} with error: ${err}`)
-    }
-  }
-
-  static async _createAFS(opts, done) {
-    const { did } = opts
-    try {
-      // TODO: only sync latest
-      const { afs } = await araFS.create({
-        did,
-        partitions: {
-          etc: {
-            sparse: true
-          }
-        }
-      })
-
-      // TODO: factor this into ara-filesystem
-      afs.proxy = await registry.getProxyAddress(did)
-      if (!afs.proxy) {
-        await afs.close()
-        throw new Error(`No proxy found for AFS ${did}`)
-      }
-      if (!(afs.ddo.proof && await ardUtil.verify(afs.ddo))) {
-        await afs.close()
-        throw new Error(`DDO unverified for AFS ${did}`)
-      }
-
-      afs.dcdn = opts
-
-      afs.on('error', () => {
-        // TODO: properly handle afs errors
-      })
-
-      done(null, afs)
-    } catch (err) {
-      err.data = opts
-      done(null, err)
-    }
-  }
-
-  static async _closeAFS(afs, done) {
-    try {
-      if (afs && afs.close) await afs.close()
-      done()
-    } catch (err) {
-      done(err)
     }
   }
 }
