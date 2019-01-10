@@ -13,6 +13,7 @@ const discovery = require('@hyperswarm/discovery')
 const BigNumber = require('bignumber.js')
 const AutoQueue = require('./autoqueue')
 const constants = require('./constants')
+const BaseDCDN = require('ara-network-node-dcdn/dcdn')
 const ardUtil = require('./util')
 const crypto = require('ara-crypto')
 const toilet = require('toiletdb')
@@ -22,9 +23,6 @@ const debug = require('debug')('ara:ard:dcdn')
 const pify = require('pify')
 const User = require('./user')
 const rc = require('./rc')()
-const BaseDCDN = require('ara-network-node-dcdn/dcdn')
-
-const $driveCreator = Symbol('driveCreator')
 
 /**
  * @class A rewardable DCDN node on the Ara Network
@@ -46,8 +44,8 @@ class DCDN extends BaseDCDN {
   constructor(opts = {}) {
     super(Object.assign(opts, {
       fs: {
-        create: async (opts) => {
-          const { afs } = await araFS.create(opts)
+        create: async (params) => {
+          const { afs } = await araFS.create(params)
 
           return afs
         }
@@ -112,10 +110,10 @@ class DCDN extends BaseDCDN {
       if (archive instanceof Error) {
         this._warn(`failed to initialize archive with ${archive.data.did}: ${archive.message}`)
       } else {
-        // eslint-disable no-await-in-loop
+        /* eslint-disable no-await-in-loop */
         archive.proxy = await registry.getProxyAddress(archive.key.toString('hex'))
         await this._startServices(archive)
-        // eslint-enable no-await-in-loop
+        /* eslint-enable no-await-in-loop */
       }
     }
   }
@@ -369,7 +367,7 @@ class DCDN extends BaseDCDN {
    * @param  {string} [opts.price] Price in Ara to distribute AFS
    * @param  {int} [opts.maxPeers] The maximum peers for the AFS
    * @param  {String} [opts.jobId] A job id for the AFS
-   * @return {null}
+   * @return {AFS} Joined AFS
    */
   async join(opts) {
     if (!opts || 'object' !== typeof opts) {
@@ -377,7 +375,7 @@ class DCDN extends BaseDCDN {
     }
 
     if (!this.swarm) {
-      return await this.start()
+      return this.start()
     }
 
     opts.key = opts.key || getIdentifier(opts.did)
@@ -385,6 +383,8 @@ class DCDN extends BaseDCDN {
     const archive = await super.join(opts)
     archive.proxy = await registry.getProxyAddress(opts.key)
     await this._startServices(archive)
+
+    return archive
   }
 
   /**
