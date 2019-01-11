@@ -72,7 +72,7 @@ const TEST_AFS = {
 }
 
 // DCDN Params
-const TEST_REWARD = 10
+const TEST_REWARD = '10.0000000000000001'
 const TEST_SWARM = {
   _join: () => true,
   leave: () => true,

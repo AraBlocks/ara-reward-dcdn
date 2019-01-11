@@ -6,7 +6,7 @@ const {
   util: { nonceString, bytesToGBs }
 } = require('ara-reward-protocol')
 const { isJobOwner } = require('./util')
-const { library, rewards, token } = require('ara-contracts')
+const { library, rewards } = require('ara-contracts')
 const { toHexString } = require('ara-util/transform')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
@@ -21,7 +21,7 @@ class Farmer extends FarmerBase {
    * @param {User} opts.user user object of the farmer
    * @param {AFS} opts.afs Instance of AFS
    * @param {Object} opts.swarm Instance of AFS
-   * @param {int} opts.price Desired price in Ara^-18/upload
+   * @param {string} opts.price Desired price in Ara/upload
    * @param {bool} [opts.metaOnly] Whether to only replicate the metadata
    */
   constructor(opts) {
@@ -31,6 +31,9 @@ class Farmer extends FarmerBase {
     this.price = opts.price
     this.swarm = opts.swarm
     this.metaOnly = opts.metaOnly || false
+
+    this.priceNum = Number.parseFloat(this.price)
+    if (Number.isNaN(this.priceNum)) throw new Error('Price is NaN')
 
     this.deliveryMap = new Map()
     this.stateMap = new Map()
@@ -199,8 +202,8 @@ class Farmer extends FarmerBase {
       if (this.price) {
         // Verify there is adequate budget in the job
         const jobId = toHexString(nonceString(agreement.getQuote().getSow()), { ethify: true })
-        const budget = Number(await rewards.getBudget({ contentDid: this.afs.did, jobId }))
-        if (budget < Number(token.constrainTokenValue(this.price.toString()))) {
+        const budget = Number.parseFloat(await rewards.getBudget({ contentDid: this.afs.did, jobId }))
+        if (budget < this.priceNum) {
           debug('invalid agreement: job under budget')
           return false
         }
