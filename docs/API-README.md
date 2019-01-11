@@ -61,7 +61,7 @@ also start the node and load the previous configuration.
 | opts.upload | <code>boolean</code> | Whether to seed the AFS |
 | opts.download | <code>boolean</code> | Whether to download the AFS |
 | [opts.metaOnly] | <code>boolean</code> | Whether to only replicate the metadata |
-| [opts.price] | <code>float</code> | Price to distribute AFS |
+| [opts.price] | <code>string</code> | Price in Ara to distribute AFS |
 | [opts.maxPeers] | <code>int</code> | The maximum peers for the AFS |
 | [opts.jobId] | <code>String</code> | A job id for the AFS |
 
