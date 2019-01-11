@@ -5,10 +5,11 @@ const {
   hypercore: { FarmerConnection, MSG },
   util: { nonceString }
 } = require('ara-reward-protocol')
-const { token, rewards } = require('ara-contracts')
+const { rewards } = require('ara-contracts')
 const { Countdown, isUpdateAvailable } = require('./util')
 const { toHexString } = require('ara-util/transform')
 const AutoQueue = require('./autoqueue')
+const BigNumber = require('bignumber.js')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
 const debug = require('debug')('ard:requester')
@@ -24,7 +25,6 @@ class Requester extends RequesterBase {
    * @param {User} opts.user A User object of the farmer
    * @param {AFS} opts.afs Instance of AFS
    * @param {Object} opts.swarm Instance of AFS
-   * @param {int} opts.price Desired price in Ara^-18/upload
    * @param {String} opts.jobId Nonce for the Sow
    * @param {AutoQueue} [opts.queue] A transaction queue
    * @param {bool} [opts.metaOnly] Whether to only replicate the metadata
@@ -37,7 +37,7 @@ class Requester extends RequesterBase {
     sow.setNonce(opts.jobId)
     sow.setTopic(opts.afs.discoveryKey.toString('hex'))
     sow.setWorkUnit('AFS')
-    sow.setCurrencyUnit('Ara^-18')
+    sow.setCurrencyUnit('Ara')
     sow.setSignature(signature)
 
     super(sow, opts.matcher)
@@ -236,7 +236,7 @@ class Requester extends RequesterBase {
   // Retrieve or Submit the job to the blockchain
   async _prepareJob() {
     const self = this
-    const budget = Number(token.constrainTokenValue(self.matcher.maxCost.toString()))
+    const budget = Number.parseFloat(self.matcher.maxCost)
 
     debug(`Budgetting ${budget} Ara for AFS ${self.afs.did}`)
     const jobId = toHexString(nonceString(self.sow), { ethify: true })
@@ -392,7 +392,7 @@ class Requester extends RequesterBase {
 
       const units = self.deliveryMap.get(key) / total
       const reward = self.generateReward(agreement, units)
-      const amount = Number(token.constrainTokenValue(reward.getAmount().toString()))
+      const amount = Number.parseFloat(reward.getAmount())
 
       if (amount > 0) {
         debug(`Farmer ${userId} will be rewarded ${amount} Ara.`)
@@ -444,7 +444,7 @@ class Requester extends RequesterBase {
 
   generateReward(agreement, units) {
     const quote = agreement.getQuote()
-    const amount = Math.floor(quote.getPerUnitCost() * units)
+    const amount = BigNumber(quote.getPerUnitCost()).multipliedBy(units).toString()
     const agreementData = Buffer.from(agreement.serializeBinary())
     const signature = this.user.sign(agreementData)
 

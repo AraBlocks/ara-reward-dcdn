@@ -55,7 +55,36 @@ test('farmer.generateQuote', async (t) => {
   sow.setNonce(jobNonce)
 
   const quote = await farmer.generateQuote(sow)
-  t.true(quote.getSignature() == TEST_USER_SIGNATURE && TEST_REWARD == quote.getPerUnitCost() && quote.getSow() == sow)
+  t.true(quote.getSignature() == TEST_USER_SIGNATURE && TEST_REWARD === quote.getPerUnitCost() && quote.getSow() == sow)
+})
+
+test('farmer.generateQuote.bigN', async (t) => {
+  const bigN = '1000000000000000000.000000000000000001'
+  const farmer = new Farmer({
+    user: TEST_USER,
+    price: bigN,
+    afs: TEST_AFS,
+    swarm: TEST_SWARM
+  })
+  const jobNonce = Buffer.from('did', 'hex')
+  const sow = new SOW()
+  sow.setNonce(jobNonce)
+
+  const quote = await farmer.generateQuote(sow)
+  t.true(quote.getSignature() == TEST_USER_SIGNATURE && bigN === quote.getPerUnitCost() && quote.getSow() == sow)
+})
+
+test('farmer.badN', async (t) => {
+  const badN = 'badN'
+  t.throws(() => {
+    /* eslint-disable-next-line no-new */
+    new Farmer({
+      user: TEST_USER,
+      price: badN,
+      afs: TEST_AFS,
+      swarm: TEST_SWARM
+    })
+  })
 })
 
 test('farmer.signAgreement', async (t) => {

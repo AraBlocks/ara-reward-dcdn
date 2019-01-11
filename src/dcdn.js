@@ -1,14 +1,15 @@
 /* eslint class-methods-use-this: 1 */
-const { token, registry } = require('ara-contracts')
 const { matchers, util: { idify } } = require('ara-reward-protocol')
 const { getIdentifier } = require('ara-util')
 const { Requester } = require('./requester.js')
 const { toBuffer } = require('ara-util/transform')
+const { registry } = require('ara-contracts')
 const { resolve } = require('path')
 const { Farmer } = require('./farmer.js')
 const EventEmitter = require('events')
 const hyperswarm = require('./hyperswarm')
 const multidrive = require('multidrive')
+const BigNumber = require('bignumber.js')
 const AutoQueue = require('./autoqueue')
 const constants = require('./constants')
 const ardUtil = require('./util')
@@ -234,13 +235,11 @@ class DCDN extends EventEmitter {
     // Default reward to a percentage of the content's price
     if (null === price || undefined === price) {
       try {
-        price = Number(token.expandTokenValue(await araFS.getPrice({ did: afs.did }))) * constants.DEFAULT_REWARD_PERCENTAGE
+        price = BigNumber(await araFS.getPrice({ did: afs.did })).multipliedBy(constants.DEFAULT_REWARD_PERCENTAGE).toString()
       } catch (err) {
         debug(err)
-        price = 0
+        price = '0'
       }
-    } else {
-      price = Number(token.expandTokenValue(price.toString()))
     }
 
     if (download) {
@@ -388,7 +387,7 @@ class DCDN extends EventEmitter {
    * @param  {boolean} opts.upload Whether to seed the AFS
    * @param  {boolean} opts.download Whether to download the AFS
    * @param  {boolean} [opts.metaOnly] Whether to only replicate the metadata
-   * @param  {float} [opts.price] Price to distribute AFS
+   * @param  {string} [opts.price] Price in Ara to distribute AFS
    * @param  {int} [opts.maxPeers] The maximum peers for the AFS
    * @param  {String} [opts.jobId] A job id for the AFS
    * @return {null}
