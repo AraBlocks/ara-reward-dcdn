@@ -341,7 +341,7 @@ class DCDN extends BaseDCDN {
     }
 
     if (!this.swarm) {
-      return this.start()
+      await this.start()
     }
 
     opts.key = opts.key || getIdentifier(opts.did)
