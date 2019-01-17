@@ -199,7 +199,7 @@ class Farmer extends FarmerBase {
         return false
       }
 
-      if (this.price) {
+      if (this.priceNum) {
         // Verify there is adequate budget in the job
         const jobId = toHexString(nonceString(agreement.getQuote().getSow()), { ethify: true })
         const budget = Number.parseFloat(await rewards.getBudget({ contentDid: this.afs.did, jobId }))
