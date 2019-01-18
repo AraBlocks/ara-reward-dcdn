@@ -48,9 +48,7 @@ Stop running the DCDN node
 <a name="DCDN+join"></a>
 
 ### dcdN.join() ⇒ <code>null</code>
-Joins a hyperswarm for a given AFS and replicates for a reward.
-Adds the options to the node's configuration. **Note**: this will
-also start the node and load the previous configuration.
+Joins a hyperswarm for a given AFS and replicates for a reward.Adds the options to the node's configuration. **Note**: this willalso start the node and load the previous configuration.
 
 **Kind**: instance method of [<code>DCDN</code>](#DCDN)  
 **Access**: public  
@@ -68,8 +66,7 @@ also start the node and load the previous configuration.
 <a name="DCDN+unjoin"></a>
 
 ### dcdN.unjoin() ⇒ <code>null</code>
-Leaves a hyperswarm for a given AFS and removes its options
-from the node's configuration
+Leaves a hyperswarm for a given AFS and removes its optionsfrom the node's configuration
 
 **Kind**: instance method of [<code>DCDN</code>](#DCDN)  
 **Access**: public  
