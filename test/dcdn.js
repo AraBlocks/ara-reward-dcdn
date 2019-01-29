@@ -1,14 +1,17 @@
 const test = require('ava')
+
+const { rewards, registry, storage } = require('ara-contracts')
+const EventEmitter = require('events')
+const hyperswarm = require('../src/hyperswarm')
+const network = require('@hyperswarm/network')
+const ardUtil = require('../src/util')
+const extend = require('extend')
+const araFS = require('ara-filesystem')
+const sinon = require('sinon')
 const DCDN = require('../src/dcdn')
 const aid = require('ara-identity')
-const araFS = require('ara-filesystem')
-const hyperswarm = require('../src/hyperswarm')
-const { rewards, registry, storage } = require('ara-contracts')
-const sinon = require('sinon')
-const ardUtil = require('../src/util')
+const utp = require('utp-native')
 const fs = require('fs')
-const EventEmitter = require('events')
-const extend = require('extend')
 const {
   TEST_AFS,
   TEST_USER,
@@ -155,6 +158,37 @@ test.serial('dcdn.join.invalid', async (t) => {
   } catch (e) {
     t.pass()
   }
+
+  t.false(Boolean(dcdn.swarm))
+
+  sandbox.restore()
+})
+
+test.serial('dcdn.dryRunJoin.invalid', async (t) => {
+  const sandbox = createSandbox()
+
+  const dcdn = new DCDN({
+    userId: TEST_USER.did,
+    password: TEST_USER.password
+  })
+  dcdn.user = TEST_USER
+
+  try {
+    await dcdn.dryRunJoin({
+      did: 'adf123adf123adf123adf123adf123adf123adf123adf123adf123adf123ad23'
+    })
+    t.fail()
+  } catch (e) {
+    t.pass()
+  }
+
+  dcdn.on('peer-add', () => {
+    t.pass()
+  })
+
+  dcdn.on('error', () => {
+    t.fail()
+  })
 
   t.false(Boolean(dcdn.swarm))
 

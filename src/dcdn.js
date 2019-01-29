@@ -397,23 +397,23 @@ class DCDN extends EventEmitter {
     opts.upload = false
     opts.key = getIdentifier(opts.did)
 
+    const tempSock = utp()
+    this.tempSwarm = network({
+      domain: 'ara.local',
+      tempSock
+    })
+
     let archive
     try {
       archive = await pify(this[$driveCreator].create)(opts)
     } catch (error) {
-      debug('Error creating temp archive (to get peer count): ', error)
-      _this.emit('peer-update', key, 0)
+      throw new TypeError(`Error creating temp archive (to get peer count): ${error}`)
     }
 
     const partition = archive.partitions.home
     const feed = partition.content
     const key = archive.did
 
-    const tempSock = utp()
-    this.tempSwarm = network({
-      domain: 'ara.local',
-      tempSock
-    })
     this.tempSwarm._bind()
     this.tempSwarm.join(archive.discoveryKey, {
       ephemeral: true,
