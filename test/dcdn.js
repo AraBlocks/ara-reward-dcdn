@@ -179,6 +179,7 @@ test.serial('dcdn.dryRunJoin.invalid', async (t) => {
     })
     t.fail()
   } catch (e) {
+    console.log('e',e)
     t.pass()
   }
 
