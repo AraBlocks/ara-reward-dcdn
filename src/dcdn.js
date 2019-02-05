@@ -46,6 +46,7 @@ class DCDN extends BaseDCDN {
       fs: {
         create: async (params) => {
           const { afs } = await araFS.create(params)
+          afs.proxy = await registry.getProxyAddress(afs.key.toString('hex'))
 
           return afs
         }
@@ -111,7 +112,6 @@ class DCDN extends BaseDCDN {
         this._warn(`failed to initialize archive with ${archive.data.did}: ${archive.message}`)
       } else {
         /* eslint-disable no-await-in-loop */
-        archive.proxy = await registry.getProxyAddress(archive.key.toString('hex'))
         await this._startServices(archive)
         /* eslint-enable no-await-in-loop */
       }
@@ -381,7 +381,6 @@ class DCDN extends BaseDCDN {
     opts.key = opts.key || getIdentifier(opts.did)
     await this.unjoin(opts)
     const archive = await super.join(opts)
-    archive.proxy = await registry.getProxyAddress(opts.key)
     await this._startServices(archive)
 
     return archive
