@@ -12,7 +12,7 @@ const AutoQueue = require('./autoqueue')
 const BigNumber = require('bignumber.js')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
-const debug = require('debug')('ara:ard:requester')
+const debug = require('debug')('ara:rewards:requester')
 const aid = require('ara-identity')
 
 /**

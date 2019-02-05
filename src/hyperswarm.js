@@ -1,5 +1,5 @@
 const network = require('@hyperswarm/network')
-const debug = require('debug')('ara:ard:hyperswarm')
+const debug = require('debug')('ara:rewards:hyperswarm')
 const utp = require('utp-native')
 
 function create() {

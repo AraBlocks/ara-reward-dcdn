@@ -10,7 +10,7 @@ const { library, rewards } = require('ara-contracts')
 const { toHexString } = require('ara-util/transform')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
-const debug = require('debug')('ara:ard:farmer')
+const debug = require('debug')('ara:rewards:farmer')
 
 /**
  * @class An Ara-reward-protocol FarmerBase extension for AFS replication
