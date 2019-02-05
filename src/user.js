@@ -6,7 +6,7 @@ const crypto = require('ara-crypto')
 const pify = require('pify')
 const rc = require('ara-runtime-configuration')()
 const ss = require('ara-secret-storage')
-const debug = require('debug')('ara:ard:util')
+const debug = require('debug')('ara:rewards:util')
 
 class User {
   constructor(did, password) {
