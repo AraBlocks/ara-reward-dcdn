@@ -42,6 +42,7 @@
   "homepage": "https://github.com/arablocks/ara-reward-dcdn#readme",
   "dependencies": {
     "@hyperswarm/network": "^0.0.4",
+    "@hyperswarm/discovery": "^1.2.0",
     "ara-console": "github:arablocks/ara-console#semver:0.2.x",
     "ara-contracts": "arablocks/ara-contracts#semver:0.21.x",
     "ara-crypto": "github:arablocks/ara-crypto#semver:0.8.x",

@@ -3,14 +3,12 @@ const test = require('ava')
 const { rewards, registry, storage } = require('ara-contracts')
 const EventEmitter = require('events')
 const hyperswarm = require('../src/hyperswarm')
-const network = require('@hyperswarm/network')
 const ardUtil = require('../src/util')
 const extend = require('extend')
 const araFS = require('ara-filesystem')
 const sinon = require('sinon')
 const DCDN = require('../src/dcdn')
 const aid = require('ara-identity')
-const utp = require('utp-native')
 const fs = require('fs')
 const {
   TEST_AFS,
@@ -175,21 +173,12 @@ test.serial('dcdn.dryRunJoin.invalid', async (t) => {
 
   try {
     await dcdn.dryRunJoin({
-      did: 'adf123adf123adf123adf123adf123adf123adf123adf123adf123adf123ad23'
+      did: 'adf123adf123adf123adf123adf123adf123adf123adf123adf123adf123ad235'
     })
     t.fail()
   } catch (e) {
-    console.log('e',e)
     t.pass()
   }
-
-  dcdn.on('peer-add', () => {
-    t.pass()
-  })
-
-  dcdn.on('error', () => {
-    t.fail()
-  })
 
   t.false(Boolean(dcdn.swarm))
 

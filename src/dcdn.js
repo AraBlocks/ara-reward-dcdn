@@ -9,10 +9,10 @@ const { Farmer } = require('./farmer.js')
 const EventEmitter = require('events')
 const hyperswarm = require('./hyperswarm')
 const multidrive = require('multidrive')
+const discovery = require('@hyperswarm/discovery')
 const BigNumber = require('bignumber.js')
 const AutoQueue = require('./autoqueue')
 const constants = require('./constants')
-const network = require('@hyperswarm/network')
 const ardUtil = require('./util')
 const crypto = require('ara-crypto')
 const toilet = require('toiletdb')
@@ -21,7 +21,6 @@ const araFS = require('ara-filesystem')
 const debug = require('debug')('ard')
 const pify = require('pify')
 const User = require('./user')
-const utp = require('utp-native')
 const rc = require('./rc')()
 
 const $driveCreator = Symbol('driveCreator')
@@ -385,57 +384,24 @@ class DCDN extends EventEmitter {
    * @public
    * @param  {String} opts.did The `did` of the AFS
    * @fires  DCDN#peer-update
-   * @return {int}
    */
   async dryRunJoin(opts) {
     if (!opts || 'object' !== typeof opts) {
       throw new TypeError('Expecting `opts` to be an object')
     }
     const _this = this
-
-    opts.download = true
-    opts.upload = false
-    opts.key = getIdentifier(opts.did)
-
-    const tempSock = utp()
-    this.tempSwarm = network({
-      domain: 'ara.local',
-      tempSock
+    const did = getIdentifier(opts.did)
+    const discoveryKey = crypto.discoveryKey(Buffer.from(did))
+    const d = discovery()
+    const topic = d.announce(discoveryKey, {
+      port: 0,
+      lookup: true
     })
 
-    let archive
-    try {
-      archive = await pify(this[$driveCreator].create)(opts)
-    } catch (error) {
-      throw new TypeError(`Error creating temp archive (to get peer count): ${error}`)
-    }
-
-    const partition = archive.partitions.home
-    const feed = partition.content
-    const key = archive.did
-
-    this.tempSwarm._bind()
-    this.tempSwarm.join(archive.discoveryKey, {
-      ephemeral: true,
-      announce: true,
-      lookup: false
-    })
-    this.tempSwarm.on('connection', (socket) => {
-      socket.pipe(stream).pipe(socket)
-    })
-    const stream = feed.replicate({ sparse: true })
-
-    feed.on('peer-add', () => {
-      debug('peer-added. count:', feed.peers.length)
-      _this.emit('peer-update', key, feed.peers.length)
-      _this.tempSwarm = null
-      feed.close()
-    })
-    feed.on('error', (err) => {
-      debug('temp feed error while getting peer count: ', err)
-      _this.emit('peer-update', key, 0)
-      _this.tempSwarm = null
-      feed.close()
+    topic.on('peer', () => {
+      debug('peer found with discoveryKey: %s & did: %s', discoveryKey, did)
+      _this.emit('peer-update', discoveryKey, 1)
+      topic.destroy()
     })
   }
 
