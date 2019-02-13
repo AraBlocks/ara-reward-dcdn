@@ -389,7 +389,7 @@ class DCDN extends EventEmitter {
     if (!opts || 'object' !== typeof opts) {
       throw new TypeError('Expecting `opts` to be an object')
     }
-    const _this = this
+    const self = this
     const did = getIdentifier(opts.did)
     const discoveryKey = crypto.discoveryKey(Buffer.from(did))
     const d = discovery()
@@ -400,7 +400,7 @@ class DCDN extends EventEmitter {
 
     topic.on('peer', () => {
       debug('peer found with discoveryKey: %s & did: %s', discoveryKey, did)
-      _this.emit('peer-update', discoveryKey, 1)
+      self.emit('peer-update', discoveryKey, 1)
       topic.destroy()
     })
   }
