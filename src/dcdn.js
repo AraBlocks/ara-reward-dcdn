@@ -385,7 +385,7 @@ class DCDN extends EventEmitter {
    * @param  {String} opts.did The `did` of the AFS
    * @fires  DCDN#peer-update
    */
-  async dryRunJoin(opts) {
+  dryRunJoin(opts) {
     if (!opts || 'object' !== typeof opts) {
       throw new TypeError('Expecting `opts` to be an object')
     }
@@ -398,9 +398,16 @@ class DCDN extends EventEmitter {
       lookup: true
     })
 
+    const interval = setInterval(() => {
+      clearInterval(interval)
+      topic.destroy()
+      debug('no peer found; destroying topic channel %s', discoveryKey.toString('hex'))
+    }, constants.DEFAULT_TIMEOUT)
+
     topic.on('peer', () => {
-      debug('peer found with discoveryKey: %s & did: %s', discoveryKey, did)
+      debug('peer found with discoveryKey: %s & did: %s', discoveryKey.toString('hex'), did)
       self.emit('peer-update', discoveryKey, 1)
+      clearInterval(interval)
       topic.destroy()
     })
   }
