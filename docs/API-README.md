@@ -10,6 +10,7 @@ A rewardable DCDN node on the Ara Network
     * [new DCDN()](#new_DCDN_new)
     * [.start()](#DCDN+start) ⇒ <code>null</code>
     * [.stop()](#DCDN+stop) ⇒ <code>null</code>
+    * [.dryRunJoin()](#DCDN+dryRunJoin)
     * [.join()](#DCDN+join) ⇒ <code>null</code>
     * [.unjoin()](#DCDN+unjoin) ⇒ <code>null</code>
     * ["info" (message)](#DCDN+event_info)
@@ -45,6 +46,19 @@ Stop running the DCDN node
 
 **Kind**: instance method of [<code>DCDN</code>](#DCDN)  
 **Access**: public  
+<a name="DCDN+dryRunJoin"></a>
+
+### dcdN.dryRunJoin()
+Determines peer count for an AFS _before_ purchase.
+
+**Kind**: instance method of [<code>DCDN</code>](#DCDN)  
+**Emits**: [<code>peer-update</code>](#DCDN+event_peer-update)  
+**Access**: public  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| opts.did | <code>String</code> | The `did` of the AFS |
+
 <a name="DCDN+join"></a>
 
 ### dcdN.join() ⇒ <code>null</code>

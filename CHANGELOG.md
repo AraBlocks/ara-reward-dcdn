@@ -1,3 +1,12 @@
+# [0.17.0](https://github.com/arablocks/ara-reward-dcdn/compare/0.16.0...0.17.0) (2019-02-13)
+
+
+### Features
+
+* **src/dcdn.js:** Add dryRunJoin function to get peer count ([81dbcd7](https://github.com/arablocks/ara-reward-dcdn/commit/81dbcd7))
+
+
+
 # [0.16.0](https://github.com/arablocks/ara-reward-dcdn/compare/0.14.1...0.16.0) (2019-01-25)
 
 
