@@ -1,4 +1,4 @@
-# [0.17.0](https://github.com/arablocks/ara-reward-dcdn/compare/0.16.0...0.17.0) (2019-02-13)
+## [0.17.1](https://github.com/arablocks/ara-reward-dcdn/compare/0.16.0...0.17.1) (2019-02-15)
 
 
 ### Features
