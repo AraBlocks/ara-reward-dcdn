@@ -114,220 +114,6 @@ test.serial('dcdn.start', async (t) => {
   sandbox.restore()
 })
 
-test.serial('dcdn.stop', async (t) => {
-  const sandbox = createSandbox()
-
-  const dcdn = new DCDN({
-    userId: TEST_USER.did,
-    password: TEST_USER.password
-  })
-  dcdn.user = TEST_USER
-
-  t.false(Boolean(dcdn.swarm))
-  await dcdn.stop()
-  t.false(Boolean(dcdn.swarm))
-  await dcdn.start()
-  t.true(Boolean(dcdn.swarm))
-  await dcdn.stop()
-  t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
-})
-
-test.serial('dcdn.join.invalid', async (t) => {
-  const sandbox = createSandbox()
-
-  const dcdn = new DCDN({
-    userId: TEST_USER.did,
-    password: TEST_USER.password
-  })
-  dcdn.user = TEST_USER
-
-  try {
-    await dcdn.join()
-    t.fail()
-  } catch (e) {
-    t.pass()
-  }
-
-  try {
-    await dcdn.join({})
-    t.fail()
-  } catch (e) {
-    t.pass()
-  }
-
-  t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
-})
-
-test.serial('dcdn.dryRunJoin.invalid', async (t) => {
-  const sandbox = createSandbox()
-
-  const dcdn = new DCDN({
-    userId: TEST_USER.did,
-    password: TEST_USER.password
-  })
-  dcdn.user = TEST_USER
-
-  try {
-    await dcdn.dryRunJoin({
-      did: 'adf123adf123adf123adf123adf123adf123adf123adf123adf123adf123ad235'
-    })
-    t.fail()
-  } catch (e) {
-    t.pass()
-  }
-
-  t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
-})
-
-test.serial('dcdn.unjoin', async (t) => {
-  const sandbox = createSandbox()
-
-  const dcdn = new DCDN({
-    userId: TEST_USER.did,
-    password: TEST_USER.password
-  })
-  dcdn.user = TEST_USER
-
-  try {
-    await dcdn.unjoin({ did: TEST_DID })
-    t.pass()
-  } catch (e) {
-    t.fail()
-  }
-
-  sandbox.restore()
-})
-
-test.serial('dcdn.unjoin.badafs', async (t) => {
-  const emitFake = sinon.fake()
-
-  const afs = extend(true, {}, TEST_AFS, {
-    close: () => {
-      throw new Error()
-    }
-  })
-
-  const sandbox = createSandbox({
-    afs
-  })
-
-  const dcdn = new DCDN({
-    userId: TEST_USER.did,
-    password: TEST_USER.password
-  })
-  dcdn.user = TEST_USER
-  sinon.stub(dcdn, '_warn').callsFake(emitFake)
-
-  await dcdn.join({
-    did: TEST_DID,
-    upload: true,
-    download: false,
-    price: 0,
-    maxPeers: 1
-  })
-
-  try {
-    await dcdn.unjoin({ did: TEST_DID })
-    t.true(emitFake.calledOnce)
-    t.pass()
-  } catch (e) {
-    t.fail()
-  }
-
-  sandbox.restore()
-})
-
-test.serial('dcdn.join.upload', async (t) => {
-  const sandbox = createSandbox()
-
-  const dcdn = new DCDN({
-    userId: TEST_USER.did,
-    password: TEST_USER.password
-  })
-  dcdn.user = TEST_USER
-
-  await dcdn.join({
-    did: TEST_DID,
-    upload: true,
-    download: false,
-    price: 0,
-    maxPeers: 1
-  })
-  t.true(Boolean(dcdn.swarm))
-  t.true(TEST_DID in dcdn.topics)
-
-  await dcdn.unjoin({ did: TEST_DID })
-  t.false(TEST_DID in dcdn.topics)
-
-  await dcdn.stop()
-  t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
-})
-
-test.serial('dcdn.join.startandupload', async (t) => {
-  const sandbox = createSandbox()
-
-  const dcdn = new DCDN({
-    userId: TEST_USER.did,
-    password: TEST_USER.password
-  })
-  dcdn.user = TEST_USER
-
-  await dcdn.start()
-  await dcdn.join({
-    did: TEST_DID,
-    upload: true,
-    download: false,
-    price: 0,
-    maxPeers: 1
-  })
-  t.true(Boolean(dcdn.swarm))
-  t.true(TEST_DID in dcdn.topics)
-
-  await dcdn.unjoin({ did: TEST_DID })
-  t.false(TEST_DID in dcdn.topics)
-
-  await dcdn.stop()
-  t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
-})
-
-test.serial('dcdn.join.uploadanddownload', async (t) => {
-  const sandbox = createSandbox()
-
-  const dcdn = new DCDN({
-    userId: TEST_USER.did,
-    password: TEST_USER.password
-  })
-  dcdn.user = TEST_USER
-
-  await dcdn.join({
-    did: TEST_DID,
-    upload: true,
-    download: true,
-    price: 0,
-    maxPeers: 1
-  })
-  t.true(Boolean(dcdn.swarm))
-  t.true(TEST_DID in dcdn.topics)
-
-  await dcdn.unjoin({ did: TEST_DID })
-  t.false(TEST_DID in dcdn.topics)
-
-  await dcdn.stop()
-  t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
-})
-
 test.serial('dcdn.join.download', async (t) => {
   const afs = extend(true, {}, TEST_AFS, {
     partitions: {
@@ -386,31 +172,6 @@ test.serial('dcdn.join.download', async (t) => {
   sandbox.restore()
 })
 
-test.serial('dcdn.join.stopstart', async (t) => {
-  const sandbox = createSandbox()
-
-  const dcdn = new DCDN({
-    userId: TEST_USER.did,
-    password: TEST_USER.password
-  })
-  dcdn.user = TEST_USER
-
-  await dcdn.join({
-    did: TEST_DID,
-    upload: false,
-    download: true,
-    price: 0,
-    maxPeers: 1
-  })
-  t.true(Boolean(dcdn.swarm))
-  t.true(TEST_DID in dcdn.topics)
-
-  await dcdn.stop()
-  t.false(TEST_DID in dcdn.topics)
-  t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
-})
 
 test.serial('dcdn.join.download.metaOnly', async (t) => {
   const sandbox = createSandbox()
@@ -486,7 +247,7 @@ test.serial('dcdn.join.noproxy', async (t) => {
     maxPeers: 1
   })
 
-  t.true(warnSpy.calledOnce)
+  t.true(warnSpy.called)
 
   sandbox.restore()
 })
@@ -511,7 +272,7 @@ test.serial('dcdn.join.unverified', async (t) => {
     maxPeers: 1
   })
 
-  t.true(warnSpy.calledOnce)
+  t.true(warnSpy.called)
 
   sandbox.restore()
 })
@@ -537,7 +298,7 @@ test.serial('dcdn.startandjoin.unverified', async (t) => {
     maxPeers: 1
   })
 
-  t.true(warnSpy.calledOnce)
+  t.true(warnSpy.called)
 
   sandbox.restore()
 })

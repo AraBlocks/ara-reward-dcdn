@@ -46,7 +46,18 @@ class DCDN extends BaseDCDN {
       fs: {
         create: async (params) => {
           const { afs } = await araFS.create(params)
+
           afs.proxy = await registry.getProxyAddress(afs.key.toString('hex'))
+
+          if (!afs.proxy) {
+            await afs.close()
+            throw new Error(`No proxy found for AFS ${afs.did}`)
+            return
+          }
+          if (!(afs.ddo.proof && await ardUtil.verify(afs.ddo))) {
+            await afs.close()
+            throw new Error(`DDO unverified for AFS ${afs.did}`)
+          }
 
           return afs
         }
@@ -92,11 +103,7 @@ class DCDN extends BaseDCDN {
     await super.start()
 
     if (!this.user.secretKey) {
-      try {
-        await this.user.loadKey()
-      } catch (err) {
-        throw (err)
-      }
+      await this.user.loadKey()
     }
 
     await this._loadDrive()
@@ -111,9 +118,8 @@ class DCDN extends BaseDCDN {
       if (archive instanceof Error) {
         this._warn(`failed to initialize archive with ${archive.data.did}: ${archive.message}`)
       } else {
-        /* eslint-disable no-await-in-loop */
+        // eslint-disable-next-line no-await-in-loop
         await this._startServices(archive)
-        /* eslint-enable no-await-in-loop */
       }
     }
   }
@@ -317,7 +323,6 @@ class DCDN extends BaseDCDN {
         }
       }
       await pify(this.drives.disconnect)()
-      await pify(this.swarm.destroy)()
       this.swarm = null
     }
   }
@@ -381,6 +386,12 @@ class DCDN extends BaseDCDN {
     opts.key = opts.key || getIdentifier(opts.did)
     await this.unjoin(opts)
     const archive = await super.join(opts)
+
+    if (!archive) {
+      this._warn(`failed to initialize archive with ${opts.key}`)
+      return null
+    }
+
     await this._startServices(archive)
 
     return archive
