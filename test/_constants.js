@@ -12,13 +12,16 @@ const TEST_AFS = {
   ddo: {
     proof: true
   },
+  once: () => true,
   on: () => true,
   close: () => true,
   version: 1,
   did: TEST_DID,
+  HOME: 'home',
   key: Buffer.from(TEST_DID, 'hex'),
   discoveryKey: Buffer.from(TEST_DISCOVERY_KEY, 'hex'),
   partitions: {
+    resolve: () => ({ content: null }),
     home: {
       on: () => true,
       once: () => true,
