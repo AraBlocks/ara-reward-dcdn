@@ -1,14 +1,11 @@
 /* eslint class-methods-use-this: 1 */
-const { matchers, util: { idify } } = require('ara-reward-protocol')
 const { getIdentifier } = require('ara-util')
 const { Requester } = require('./requester.js')
+const { matchers } = require('ara-reward-protocol')
 const { toBuffer } = require('ara-util/transform')
 const { registry } = require('ara-contracts')
 const { resolve } = require('path')
 const { Farmer } = require('./farmer.js')
-const EventEmitter = require('events')
-const hyperswarm = require('./hyperswarm')
-const multidrive = require('multidrive')
 const discovery = require('@hyperswarm/discovery')
 const BigNumber = require('bignumber.js')
 const AutoQueue = require('./autoqueue')
@@ -52,7 +49,6 @@ class DCDN extends BaseDCDN {
           if (!afs.proxy) {
             await afs.close()
             throw new Error(`No proxy found for AFS ${afs.did}`)
-            return
           }
           if (!(afs.ddo.proof && await ardUtil.verify(afs.ddo))) {
             await afs.close()
