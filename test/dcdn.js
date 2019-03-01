@@ -25,9 +25,9 @@ sinon.stub(fs, 'stat').callsFake((_, cb) => cb(null))
 sinon.stub(fs, 'rename').callsFake((_, __, cb) => cb(null))
 sinon.stub(fs, 'unlink').callsFake((_, cb) => cb(null))
 sinon.stub(fs, 'unlinkSync').callsFake(() => true)
-sinon.stub(fs, 'mkdir').callsFake((a, b, c, cb) => {
-  if (typeof b === 'function') return b(null)
-  else return c(null)
+sinon.stub(fs, 'mkdir').callsFake((_, b, c) => {
+  if ('function' === typeof b) return b(null)
+  return c(null)
 })
 // End toiletdb stubs
 
@@ -46,6 +46,7 @@ function createSandbox(opts = {}) {
 }
 
 const DCDN = require('../src/dcdn')
+
 test.serial('dcdn.constructor', (t) => {
   const sandbox = createSandbox()
 
@@ -173,7 +174,6 @@ test.serial('dcdn.join.download', async (t) => {
 
   sandbox.restore()
 })
-
 
 test.serial('dcdn.join.download.metaOnly', async (t) => {
   const sandbox = createSandbox()
