@@ -1,5 +1,3 @@
-const test = require('ava')
-
 const { rewards, registry, storage } = require('ara-contracts')
 const EventEmitter = require('events')
 const hyperswarm = require('../src/hyperswarm')
@@ -7,7 +5,7 @@ const ardUtil = require('../src/util')
 const extend = require('extend')
 const araFS = require('ara-filesystem')
 const sinon = require('sinon')
-const DCDN = require('../src/dcdn')
+const test = require('ava')
 const aid = require('ara-identity')
 const fs = require('fs')
 const {
@@ -27,7 +25,10 @@ sinon.stub(fs, 'stat').callsFake((_, cb) => cb(null))
 sinon.stub(fs, 'rename').callsFake((_, __, cb) => cb(null))
 sinon.stub(fs, 'unlink').callsFake((_, cb) => cb(null))
 sinon.stub(fs, 'unlinkSync').callsFake(() => true)
-sinon.stub(fs, 'mkdir').callsFake((_, __, cb) => cb(null))
+sinon.stub(fs, 'mkdir').callsFake((a, b, c, cb) => {
+  if (typeof b === 'function') return b(null)
+  else return c(null)
+})
 // End toiletdb stubs
 
 function createSandbox(opts = {}) {
@@ -44,6 +45,7 @@ function createSandbox(opts = {}) {
   return sandbox
 }
 
+const DCDN = require('../src/dcdn')
 test.serial('dcdn.constructor', (t) => {
   const sandbox = createSandbox()
 
