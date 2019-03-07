@@ -1,8 +1,17 @@
-# [0.18.0](https://github.com/arablocks/ara-reward-dcdn/compare/0.16.0...0.18.0) (2019-02-26)
+# [0.19.0](https://github.com/arablocks/ara-reward-dcdn/compare/0.16.0...0.19.0) (2019-03-07)
+
+
+### Bug Fixes
+
+* **package.json:** typo ([50d73d5](https://github.com/arablocks/ara-reward-dcdn/commit/50d73d5))
+* **src/dcdn.js:** Tpyo ([9e42961](https://github.com/arablocks/ara-reward-dcdn/commit/9e42961))
+* Fix tests ([f627710](https://github.com/arablocks/ara-reward-dcdn/commit/f627710))
+* **test/dcdn.js:** Fix tests further ([d123087](https://github.com/arablocks/ara-reward-dcdn/commit/d123087))
 
 
 ### Features
 
+* **src/:** Integrate DCDN ([1e767db](https://github.com/arablocks/ara-reward-dcdn/commit/1e767db))
 * **src/dcdn.js:** Add dryRunJoin function to get peer count ([81dbcd7](https://github.com/arablocks/ara-reward-dcdn/commit/81dbcd7))
 
 

@@ -4,17 +4,15 @@
 A rewardable DCDN node on the Ara Network
 
 **Kind**: global class  
-**Emits**: [<code>info</code>](#DCDN+event_info), [<code>warn</code>](#DCDN+event_warn), [<code>peer-update</code>](#DCDN+event_peer-update), [<code>download-progress</code>](#DCDN+event_download-progress), [<code>download-complete</code>](#DCDN+event_download-complete), [<code>request-complete</code>](#DCDN+event_request-complete)  
+**Emits**: <code>DCDN#event:info</code>, <code>DCDN#event:warn</code>, [<code>peer-update</code>](#DCDN+event_peer-update), [<code>download-progress</code>](#DCDN+event_download-progress), [<code>download-complete</code>](#DCDN+event_download-complete), [<code>request-complete</code>](#DCDN+event_request-complete)  
 
 * [DCDN](#DCDN)
     * [new DCDN()](#new_DCDN_new)
     * [.start()](#DCDN+start) ⇒ <code>null</code>
     * [.stop()](#DCDN+stop) ⇒ <code>null</code>
     * [.dryRunJoin()](#DCDN+dryRunJoin)
-    * [.join()](#DCDN+join) ⇒ <code>null</code>
+    * [.join()](#DCDN+join) ⇒ <code>AFS</code>
     * [.unjoin()](#DCDN+unjoin) ⇒ <code>null</code>
-    * ["info" (message)](#DCDN+event_info)
-    * ["warn" (message)](#DCDN+event_warn)
     * ["download-complete" (did)](#DCDN+event_download-complete)
     * ["request-complete" (did)](#DCDN+event_request-complete)
     * ["download-progress" (did, downloaded, total)](#DCDN+event_download-progress)
@@ -61,12 +59,13 @@ Determines peer count for an AFS _before_ purchase.
 
 <a name="DCDN+join"></a>
 
-### dcdN.join() ⇒ <code>null</code>
+### dcdN.join() ⇒ <code>AFS</code>
 Joins a hyperswarm for a given AFS and replicates for a reward.
 Adds the options to the node's configuration. **Note**: this will
 also start the node and load the previous configuration.
 
 **Kind**: instance method of [<code>DCDN</code>](#DCDN)  
+**Returns**: <code>AFS</code> - Joined AFS  
 **Access**: public  
 
 | Param | Type | Description |
@@ -91,28 +90,6 @@ from the node's configuration
 | Param | Type | Description |
 | --- | --- | --- |
 | opts.did | <code>String</code> | The `did` of the AFS |
-
-<a name="DCDN+event_info"></a>
-
-### "info" (message)
-Informational event
-
-**Kind**: event emitted by [<code>DCDN</code>](#DCDN)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| message | <code>string</code> | Helpful information about the state of the DCDN Node |
-
-<a name="DCDN+event_warn"></a>
-
-### "warn" (message)
-Warning event
-
-**Kind**: event emitted by [<code>DCDN</code>](#DCDN)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| message | <code>string</code> | Warning information about the state of the DCDN Node |
 
 <a name="DCDN+event_download-complete"></a>
 
