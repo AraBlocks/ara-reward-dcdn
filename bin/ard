@@ -2,7 +2,7 @@
 
 const { error } = require('ara-console')
 
-const debug = require('debug')('ara:ard:cli')
+const debug = require('debug')('ara:rewards:cli')
 const spawn = require('cross-spawn')
 const rc = require('ara-runtime-configuration')()
 
