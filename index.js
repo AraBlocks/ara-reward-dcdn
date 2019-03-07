@@ -1,7 +1,7 @@
 const extend = require('extend')
 const DCDN = require('./src/dcdn')
 const rc = require('ara-runtime-configuration')()
-const debug = require('debug')('ara:ard')
+const debug = require('debug')('ara:rewards')
 
 let instance = null
 
