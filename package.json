@@ -48,7 +48,7 @@
     "ara-crypto": "github:arablocks/ara-crypto#semver:0.8.x",
     "ara-contracts": "arablocks/ara-contracts#semver:0.23.x",
     "ara-filesystem": "arablocks/ara-filesystem#semver:0.25.x",
-    "ara-identity": "github:arablocks/ara-identity#semver:0.53.x",
+    "ara-identity": "github:arablocks/ara-identity#semver:0.51.2",
     "ara-reward-protocol": "arablocks/ara-reward-protocol#semver:0.3.x",
     "ara-runtime-configuration": "github:arablocks/ara-runtime-configuration#semver:^1.1.0",
     "ara-secret-storage": "github:arablocks/ara-secret-storage#semver:0.1.x",
