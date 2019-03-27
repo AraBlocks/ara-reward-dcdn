@@ -16,7 +16,7 @@ const crypto = require('ara-crypto')
 const toilet = require('toiletdb')
 const mkdirp = require('mkdirp')
 const araFS = require('ara-filesystem')
-const debug = require('debug')('ara:rewards:dcdn')
+const debug = require('debug')('ara:reward:dcdn')
 const pify = require('pify')
 const User = require('./user')
 const rc = require('./rc')()
@@ -96,28 +96,11 @@ class DCDN extends BaseDCDN {
    * @return {null}
    */
   async start() {
-    await super.start()
-
+    await this._loadDrive()
     if (!this.user.secretKey) {
       await this.user.loadKey()
     }
-
-    await this._loadDrive()
-
-    const archives = this.drives.list()
-
-    if (0 === archives.length) {
-      this._info('no previous config')
-      return
-    }
-    for (const archive of archives) {
-      if (archive instanceof Error) {
-        this._warn(`failed to initialize archive with ${archive.data.did}: ${archive.message}`)
-      } else {
-        // eslint-disable-next-line no-await-in-loop
-        await this._startServices(archive)
-      }
-    }
+    await super.start()
   }
 
   async _getJobInProgress(did) {
@@ -128,7 +111,7 @@ class DCDN extends BaseDCDN {
     return null
   }
 
-  async _startServices(afs) {
+  async prepareDrive(afs) {
     const self = this
     if (!afs.dcdn) throw new Error('afs missing dcdn options')
 
@@ -141,16 +124,16 @@ class DCDN extends BaseDCDN {
 
     if (!upload && !download) throw new Error('upload or download must be true')
 
-    addService(await this._createContentService(afs))
+    await addService(await this._createContentService(afs))
 
-    function addService(service) {
+    async function addService(service) {
       if (service) {
         if (!(afs.did in self.topics)) self.topics[afs.did] = []
         const topic = service.topic.toString('hex')
         self.services[topic] = service
         self.topics[afs.did].push(topic)
         service.on('info', self._info.bind(self))
-        service.start()
+        await service.start()
       }
     }
   }
@@ -356,7 +339,7 @@ class DCDN extends BaseDCDN {
     })
   }
 
-  /**
+    /**
    * Joins a hyperswarm for a given AFS and replicates for a reward.
    * Adds the options to the node's configuration. **Note**: this will
    * also start the node and load the previous configuration.
@@ -375,22 +358,9 @@ class DCDN extends BaseDCDN {
       throw new TypeError('Expecting `opts` to be an object')
     }
 
-    if (!this.swarm) {
-      await this.start()
-    }
-
     opts.key = opts.key || getIdentifier(opts.did)
-    await this.unjoin(opts)
-    const archive = await super.join(opts)
 
-    if (!archive) {
-      this._warn(`failed to initialize archive with ${opts.key}`)
-      return null
-    }
-
-    await this._startServices(archive)
-
-    return archive
+    return super.join(opts)
   }
 
   /**

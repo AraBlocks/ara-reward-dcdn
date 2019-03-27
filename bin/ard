@@ -2,7 +2,7 @@
 
 const { error } = require('ara-console')
 
-const debug = require('debug')('ara:rewards:cli')
+const debug = require('debug')('ara:reward:cli')
 const spawn = require('cross-spawn')
 const rc = require('ara-runtime-configuration')()
 
@@ -95,7 +95,7 @@ function spawnChild(arg, commandName) {
     {
       stdio: 'inherit',
       env: Object.assign({}, process.env, {
-        DEBUG: String(process.env.DEBUG) + (arg.debug ? ',ard*,arp*' : '')
+        DEBUG: String(process.env.DEBUG) + (arg.debug ? ',ara:dcdn*,ara:reward:dcdn*,arp*' : '')
       }),
     }
   )

@@ -12,7 +12,7 @@ const AutoQueue = require('./autoqueue')
 const BigNumber = require('bignumber.js')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
-const debug = require('debug')('ara:rewards:requester')
+const debug = require('debug')('ara:reward:requester')
 const aid = require('ara-identity')
 
 /**
@@ -52,16 +52,17 @@ class Requester extends RequesterBase {
     this.deliveryMap = new Map()
     this.stateMap = new Map()
     this.topic = this.afs.discoveryKey
+    this.jobReady = false
   }
 
   _info(message) {
     this.emit('info', message)
   }
 
-  start() {
+  async start() {
     const self = this
     const transaction = (this.metaOnly) ? () => {} : () => self._prepareJob()
-    this.queue.push(transaction).then(() => {
+    await this.queue.push(transaction).then(() => {
       if (self.swarm) {
         if (self.metaOnly) {
           self._info(`Requesting metadata for: ${self.afs.did}`)
@@ -260,7 +261,11 @@ class Requester extends RequesterBase {
           budget: diff
         }
       })
+      this.jobReady = true
       debug('Job submitted successfully')
+    } 
+    else {
+      this.jobReady = true
     }
   }
 

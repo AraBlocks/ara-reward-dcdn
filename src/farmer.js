@@ -10,7 +10,7 @@ const { library, rewards } = require('ara-contracts')
 const { toHexString } = require('ara-util/transform')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
-const debug = require('debug')('ara:rewards:farmer')
+const debug = require('debug')('ara:reward:farmer')
 
 /**
  * @class An Ara-reward-protocol FarmerBase extension for AFS replication
@@ -44,7 +44,7 @@ class Farmer extends FarmerBase {
     this.emit('info', message)
   }
 
-  start() {
+  async start() {
     this._info(`Seeding ${this.afs.did} content version: ${this.afs.version} etc version: ${this.afs.partitions.etc.version}`)
   }
 
