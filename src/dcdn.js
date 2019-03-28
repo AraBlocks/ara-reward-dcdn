@@ -339,7 +339,7 @@ class DCDN extends BaseDCDN {
     })
   }
 
-    /**
+  /**
    * Joins a hyperswarm for a given AFS and replicates for a reward.
    * Adds the options to the node's configuration. **Note**: this will
    * also start the node and load the previous configuration.

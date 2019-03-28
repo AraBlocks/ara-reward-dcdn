@@ -263,8 +263,7 @@ class Requester extends RequesterBase {
       })
       this.jobReady = true
       debug('Job submitted successfully')
-    } 
-    else {
+    } else {
       this.jobReady = true
     }
   }
