@@ -14,7 +14,6 @@ let instance = null
 
 async function start(argv = {}) {
   if (!instance) instance = new DCDN({ userId: argv.identity, password: argv.password })
-
   const { did } = argv
   if (did) {
     await instance.join({
