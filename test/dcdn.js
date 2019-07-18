@@ -159,29 +159,6 @@ test.serial('dcdn.join.invalid', async (t) => {
   sandbox.restore()
 })
 
-test.serial('dcdn.dryRunJoin.invalid', async (t) => {
-  const sandbox = createSandbox()
-
-  const dcdn = new DCDN({
-    userId: TEST_USER.did,
-    password: TEST_USER.password
-  })
-  dcdn.user = TEST_USER
-
-  try {
-    await dcdn.dryRunJoin({
-      did: 'adf123adf123adf123adf123adf123adf123adf123adf123adf123adf123ad235'
-    })
-    t.fail()
-  } catch (e) {
-    t.pass()
-  }
-
-  t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
-})
-
 test.serial('dcdn.unjoin', async (t) => {
   const sandbox = createSandbox()
 
