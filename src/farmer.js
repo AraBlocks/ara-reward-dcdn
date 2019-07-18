@@ -45,7 +45,7 @@ class Farmer extends FarmerBase {
   }
 
   start() {
-    this.swarm._join(this.topic, { ephemeral: true, lookup: false, announce: true })
+    this.swarm.join(this.topic, { lookup: false, announce: true })
     this._info(`Seeding ${this.afs.did} content version: ${this.afs.version} etc version: ${this.afs.partitions.etc.version}`)
   }
 
@@ -87,6 +87,7 @@ class Farmer extends FarmerBase {
     // Home partition content replication
     if (!this.metaOnly) {
       homePartition.metadata.ready((err) => {
+        console.log('metadata ready')
         if (err) {
           debug('error on readying home partition')
           connection.destroy()
@@ -103,6 +104,7 @@ class Farmer extends FarmerBase {
           self.addRequester(requesterConnection)
         } else {
           stream.once('handshake', () => {
+            console.log('stream on handshake')
             self.addRequester(requesterConnection)
           })
         }
@@ -143,6 +145,7 @@ class Farmer extends FarmerBase {
    * @returns {boolean}
    */
   async validateSow(sow) {
+    console.log('validate Sow')
     try {
       if (this.topic.toString('hex') != sow.getTopic()) {
         debug('invalid sow: incorrect topic')

@@ -1,5 +1,5 @@
 /* eslint class-methods-use-this: 1 */
-const { matchers, util: { idify } } = require('ara-reward-protocol')
+const { matchers, util: { idify }, hypercore: { MSG } } = require('ara-reward-protocol')
 const { getIdentifier } = require('ara-util')
 const { Requester } = require('./requester.js')
 const { toBuffer } = require('ara-util/transform')
@@ -7,9 +7,8 @@ const { registry } = require('ara-contracts')
 const { resolve } = require('path')
 const { Farmer } = require('./farmer.js')
 const EventEmitter = require('events')
-const hyperswarm = require('./hyperswarm')
+const hyperswarm = require('hyperswarm')
 const multidrive = require('multidrive')
-const discovery = require('@hyperswarm/discovery')
 const BigNumber = require('bignumber.js')
 const AutoQueue = require('./autoqueue')
 const constants = require('./constants')
@@ -152,12 +151,9 @@ class DCDN extends EventEmitter {
           throw (err)
         }
       }
-
-      this.swarm = hyperswarm.create()
+      this.swarm = hyperswarm()
       this.swarm.on('connection', this._onConnection.bind(this))
-
       if (!this[$driveCreator]) await this._loadDrive()
-
       const archives = this[$driveCreator].list()
 
       if (0 === archives.length) {
@@ -374,42 +370,8 @@ class DCDN extends EventEmitter {
         }
       }
       await pify(this[$driveCreator].disconnect)()
-      await pify(this.swarm.destroy)()
       this.swarm = null
     }
-  }
-
-  /**
-   * Determines peer count for an AFS _before_ purchase.
-   * @public
-   * @param  {String} opts.did The `did` of the AFS
-   * @fires  DCDN#peer-update
-   */
-  dryRunJoin(opts) {
-    if (!opts || 'object' !== typeof opts) {
-      throw new TypeError('Expecting `opts` to be an object')
-    }
-    const self = this
-    const did = getIdentifier(opts.did)
-    const discoveryKey = crypto.discoveryKey(Buffer.from(did))
-    const d = discovery()
-    const topic = d.announce(discoveryKey, {
-      port: 0,
-      lookup: true
-    })
-
-    const interval = setInterval(() => {
-      clearInterval(interval)
-      topic.destroy()
-      debug('no peer found; destroying topic channel %s', discoveryKey.toString('hex'))
-    }, constants.DEFAULT_TIMEOUT)
-
-    topic.on('peer', () => {
-      debug('peer found with discoveryKey: %s & did: %s', discoveryKey.toString('hex'), did)
-      self.emit('peer-update', discoveryKey, 1)
-      clearInterval(interval)
-      topic.destroy()
-    })
   }
 
   /**
@@ -431,6 +393,7 @@ class DCDN extends EventEmitter {
       throw new TypeError('Expecting `opts` to be an object')
     }
     opts.key = opts.key || getIdentifier(opts.did)
+    opts.extensions = [ MSG.AGREEMENT, MSG.QUOTE, MSG.RECEIPT, MSG.REWARD, MSG.SOW ]
     await this.unjoin(opts)
     const archive = await pify(this[$driveCreator].create)(opts)
     if (this.swarm) {
@@ -481,7 +444,8 @@ class DCDN extends EventEmitter {
           etc: {
             sparse: true
           }
-        }
+        },
+        extensions: [ MSG.AGREEMENT, MSG.QUOTE, MSG.RECEIPT, MSG.REWARD, MSG.SOW ]
       })
 
       // TODO: factor this into ara-filesystem

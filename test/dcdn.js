@@ -2,7 +2,6 @@ const test = require('ava')
 
 const { rewards, registry, storage } = require('ara-contracts')
 const EventEmitter = require('events')
-const hyperswarm = require('../src/hyperswarm')
 const ardUtil = require('../src/util')
 const extend = require('extend')
 const araFS = require('ara-filesystem')
@@ -13,7 +12,6 @@ const fs = require('fs')
 const {
   TEST_AFS,
   TEST_USER,
-  TEST_SWARM,
   TEST_DID
 } = require('./_constants')
 
@@ -32,7 +30,6 @@ sinon.stub(fs, 'mkdir').callsFake((_, __, cb) => cb(null))
 
 function createSandbox(opts = {}) {
   const sandbox = sinon.createSandbox()
-  sandbox.stub(hyperswarm, 'create').returns(('swarm' in opts) ? opts.swarm : TEST_SWARM)
   sandbox.stub(araFS, 'create').resolves({ afs: ('afs' in opts) ? opts.afs : TEST_AFS })
   sandbox.stub(araFS, 'getPrice').resolves(('price' in opts) ? opts.price : '10')
   sandbox.stub(registry, 'getProxyAddress').resolves(('proxy' in opts) ? opts.proxy : 'abcd')
