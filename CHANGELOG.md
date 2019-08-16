@@ -1,3 +1,7 @@
+# [0.19.0](https://github.com/arablocks/ara-reward-dcdn/compare/0.18.0...0.19.0) (2019-08-16)
+
+
+
 # [0.18.0](https://github.com/arablocks/ara-reward-dcdn/compare/0.16.0...0.18.0) (2019-02-26)
 
 
@@ -52,30 +56,30 @@
 * **hyperswarm:** enable multiple topics per peer. Allow for 0x in front of jobId ([18488d3](https://github.com/arablocks/ara-reward-dcdn/commit/18488d3))
 * **metadata:** replicate metadata during download ([a187c33](https://github.com/arablocks/ara-reward-dcdn/commit/a187c33))
 * **package:** lock ara-filesystem due to contract change without minor bump ([79fac7e](https://github.com/arablocks/ara-reward-dcdn/commit/79fac7e))
-* handle invalid agreement. handle no password. handle feed.length == 0 ([37bfc0e](https://github.com/arablocks/ara-reward-dcdn/commit/37bfc0e))
 * **requester:** finalize, rather than destroy feeds ([3f19e33](https://github.com/arablocks/ara-reward-dcdn/commit/3f19e33))
 * **requester:** handle hire but no data received ([fc60389](https://github.com/arablocks/ara-reward-dcdn/commit/fc60389))
 * **requester:** handle receipt timeout ([50777df](https://github.com/arablocks/ara-reward-dcdn/commit/50777df))
 * **requester:** only try to send rewards once ([4bcbc5b](https://github.com/arablocks/ara-reward-dcdn/commit/4bcbc5b))
 * **shipright:** fix for windows ([a796a55](https://github.com/arablocks/ara-reward-dcdn/commit/a796a55))
-* **src/hyperswarm.js:** Check for cb in destroy ([ff24cc1](https://github.com/arablocks/ara-reward-dcdn/commit/ff24cc1))
 * **tests:** removed need for network ([ee37195](https://github.com/arablocks/ara-reward-dcdn/commit/ee37195))
+* handle invalid agreement. handle no password. handle feed.length == 0 ([37bfc0e](https://github.com/arablocks/ara-reward-dcdn/commit/37bfc0e))
+* **src/hyperswarm.js:** Check for cb in destroy ([ff24cc1](https://github.com/arablocks/ara-reward-dcdn/commit/ff24cc1))
 * **util:** safely handle no password ([0515798](https://github.com/arablocks/ara-reward-dcdn/commit/0515798))
 
 
 ### Features
 
-* add signing and verifying utilities ([ee02a74](https://github.com/arablocks/ara-reward-dcdn/commit/ee02a74))
-* **metadata:** signals when metadata sync. Added hyperswarm override for timeout ([7a3e22f](https://github.com/arablocks/ara-reward-dcdn/commit/7a3e22f))
-* add userDid to the directory path ([7b435c5](https://github.com/arablocks/ara-reward-dcdn/commit/7b435c5))
-* contract signature ([10377c9](https://github.com/arablocks/ara-reward-dcdn/commit/10377c9))
 * **autoqueue:** synchronous transactions ([80973c0](https://github.com/arablocks/ara-reward-dcdn/commit/80973c0))
 * **dcdn:** default reward to 10% of price ([5dadb09](https://github.com/arablocks/ara-reward-dcdn/commit/5dadb09))
 * **dcdn:** metadata replication ([053367f](https://github.com/arablocks/ara-reward-dcdn/commit/053367f))
 * **farmer:** check budget ([7b717b3](https://github.com/arablocks/ara-reward-dcdn/commit/7b717b3))
 * **farmer:** validate job owner ([b6f4c0c](https://github.com/arablocks/ara-reward-dcdn/commit/b6f4c0c))
 * **metadata:** debug listeners for metasync ([718acd5](https://github.com/arablocks/ara-reward-dcdn/commit/718acd5))
+* **metadata:** signals when metadata sync. Added hyperswarm override for timeout ([7a3e22f](https://github.com/arablocks/ara-reward-dcdn/commit/7a3e22f))
 * **user:** better logs for missing/incorrect passwords ([98381a6](https://github.com/arablocks/ara-reward-dcdn/commit/98381a6))
+* add signing and verifying utilities ([ee02a74](https://github.com/arablocks/ara-reward-dcdn/commit/ee02a74))
+* add userDid to the directory path ([7b435c5](https://github.com/arablocks/ara-reward-dcdn/commit/7b435c5))
+* contract signature ([10377c9](https://github.com/arablocks/ara-reward-dcdn/commit/10377c9))
 
 
 
