@@ -70,7 +70,7 @@ class Requester extends RequesterBase {
           self._info(`Requesting content for: ${self.afs.did}`)
           self._waitForContent()
         }
-        self.swarm.join(self.topic, { lookup: true, announce: false })
+        self.swarm.join(self.topic, { lookup: true, announce: true })
       }
     }).catch((err) => {
       debug(`failed to start broadcast for ${self.afs.did}`, err)

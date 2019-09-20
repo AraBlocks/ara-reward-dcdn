@@ -45,7 +45,7 @@ class Farmer extends FarmerBase {
   }
 
   start() {
-    this.swarm.join(this.topic, { lookup: false, announce: true })
+    this.swarm.join(this.topic, { lookup: true, announce: true })
     this._info(`Seeding ${this.afs.did} content version: ${this.afs.version} etc version: ${this.afs.partitions.etc.version}`)
   }
 
