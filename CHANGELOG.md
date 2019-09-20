@@ -1,4 +1,9 @@
-# [0.19.0](https://github.com/arablocks/ara-reward-dcdn/compare/0.18.0...0.19.0) (2019-08-16)
+## [0.19.1](https://github.com/arablocks/ara-reward-dcdn/compare/0.18.0...0.19.1) (2019-09-20)
+
+
+### Bug Fixes
+
+* swarm config ([fe53c03](https://github.com/arablocks/ara-reward-dcdn/commit/fe53c03))
 
 
 
