@@ -320,7 +320,7 @@ class DCDN extends EventEmitter {
          * @param {int} downloaded The current number of downloaded blocks
          * @param {int} total The total number of blocks
          */
-        self.emit('download-progress', key, feed.downloaded(), feed.length)
+        self.emit('download-progress', key, feed.downloaded(), feed.length, feed.byteLength)
       })
 
       feed.on('peer-add', () => {
