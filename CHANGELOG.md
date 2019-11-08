@@ -1,9 +1,14 @@
-## [0.19.1](https://github.com/arablocks/ara-reward-dcdn/compare/0.18.0...0.19.1) (2019-09-20)
+## [0.19.2](https://github.com/arablocks/ara-reward-dcdn/compare/0.18.0...0.19.2) (2019-11-08)
 
 
 ### Bug Fixes
 
-* swarm config ([fe53c03](https://github.com/arablocks/ara-reward-dcdn/commit/fe53c03))
+* swarm config ([33c2683](https://github.com/arablocks/ara-reward-dcdn/commit/33c2683))
+
+
+### Features
+
+* add feed byteLength to event ([d6d4116](https://github.com/arablocks/ara-reward-dcdn/commit/d6d4116))
 
 
 
