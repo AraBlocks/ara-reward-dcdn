@@ -58,7 +58,7 @@
     "did-document": "^0.5.7",
     "did-uri": "^0.2.6",
     "extend": "^3.0.2",
-    "hyperswarm": "^2.2.1",
+    "hyperswarm": "^2.3.1",
     "inquirer": "^6.1.0",
     "ld-cryptosuite-registry": "^0.3.0",
     "mkdirp": "^0.5.1",

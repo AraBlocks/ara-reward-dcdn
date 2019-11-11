@@ -151,7 +151,7 @@ class DCDN extends EventEmitter {
           throw (err)
         }
       }
-      this.swarm = hyperswarm()
+      this.swarm = hyperswarm({ multiplex: true })
       this.swarm.on('connection', this._onConnection.bind(this))
       if (!this[$driveCreator]) await this._loadDrive()
       const archives = this[$driveCreator].list()
