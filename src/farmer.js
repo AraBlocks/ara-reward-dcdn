@@ -192,8 +192,8 @@ class Farmer extends FarmerBase {
 
       // Verify the requester has purchased the content (TODO: or has deposited, once k-swarm)
       const hasPurchased = await library.hasPurchased({ contentDid: this.afs.did, purchaserDid: requester })
-      const owner = await ownership.getOwner(this.afs.did)
-      const requesterAddress = await getAddressFromDID(requester)
+      const owner = (await ownership.getOwner(this.afs.did)).toLowerCase()
+      const requesterAddress = (await getAddressFromDID(requester)).toLowerCase()
       if (!hasPurchased && owner !== requesterAddress) {
         debug('invalid agreement: requester hasn\'t purchased')
         return false
