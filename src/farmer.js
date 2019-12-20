@@ -8,6 +8,7 @@ const {
 const { isJobOwner } = require('./util')
 const { library, rewards, owernship } = require('ara-contracts')
 const { toHexString } = require('ara-util/transform')
+const { getAddressFromDID } = require('ara-util')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
 const debug = require('debug')('ard:farmer')
