@@ -6,7 +6,7 @@ const {
   util: { nonceString, bytesToGBs }
 } = require('ara-reward-protocol')
 const { isJobOwner } = require('./util')
-const { library, rewards } = require('ara-contracts')
+const { library, rewards, owernship } = require('ara-contracts')
 const { toHexString } = require('ara-util/transform')
 const constants = require('./constants')
 const crypto = require('ara-crypto')
