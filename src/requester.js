@@ -437,7 +437,7 @@ class Requester extends RequesterBase {
       })
     } catch (err) {
       // TODO Handle failed job
-      debug(`Failed to allocate rewards for job ${jobId}`)
+      debug(`Failed to allocate rewards for job ${jobId}`, err)
     }
   }
 
