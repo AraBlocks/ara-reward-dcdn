@@ -121,7 +121,7 @@ class DCDN extends EventEmitter {
 
   async _loadDrive() {
     // Create root
-    await pify(mkdirp)(this.root)
+    mkdirp.sync(this.root)
 
     // Create jobs
     this.jobsInProgress = toilet(this.jobs)

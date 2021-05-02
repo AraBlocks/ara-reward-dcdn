@@ -1,4 +1,5 @@
 const test = require('ava')
+const sandbox = require("sinon").createSandbox();
 
 const { rewards, registry, storage } = require('ara-contracts')
 const EventEmitter = require('events')
@@ -29,7 +30,6 @@ sinon.stub(fs, 'mkdir').callsFake((_, __, cb) => cb(null))
 // End toiletdb stubs
 
 function createSandbox(opts = {}) {
-  const sandbox = sinon.createSandbox()
   sandbox.stub(araFS, 'create').resolves({ afs: ('afs' in opts) ? opts.afs : TEST_AFS })
   sandbox.stub(araFS, 'getPrice').resolves(('price' in opts) ? opts.price : '10')
   sandbox.stub(registry, 'getProxyAddress').resolves(('proxy' in opts) ? opts.proxy : 'abcd')
@@ -38,11 +38,14 @@ function createSandbox(opts = {}) {
   sandbox.stub(rewards, 'submit').resolves(('submit' in opts) ? opts.submit : {})
   sandbox.stub(rewards, 'allocate').resolves(('allocate' in opts) ? opts.allocate : {})
   sandbox.stub(ardUtil, 'verify').resolves(('verify' in opts) ? opts.verify : true)
-  return sandbox
 }
 
+test.beforeEach(t => {
+  sandbox.restore();
+})
+
 test.serial('dcdn.constructor', (t) => {
-  const sandbox = createSandbox()
+  createSandbox()
 
   /* eslint-disable-next-line no-new */
   t.true(Boolean(new DCDN({
@@ -57,16 +60,14 @@ test.serial('dcdn.constructor', (t) => {
   })))
 
   /* eslint-disable-next-line no-new */
-  t.throws(() => { new DCDN({}) }, Error)
+  t.throws(() => { new DCDN({}) }, { instanceOf: Error })
 
   /* eslint-disable-next-line no-new */
-  t.throws(() => { new DCDN() }, Error)
-
-  sandbox.restore()
+  t.throws(() => { new DCDN() }, { instanceOf: Error })
 })
 
 test.serial('dcdn.emit', async (t) => {
-  const sandbox = createSandbox()
+  createSandbox()
 
   const dcdn = new DCDN({
     userId: TEST_USER.did,
@@ -87,12 +88,10 @@ test.serial('dcdn.emit', async (t) => {
 
   t.true(infoFake.calledOnce)
   t.true(warnFake.calledOnce)
-
-  sandbox.restore()
 })
 
 test.serial('dcdn.start', async (t) => {
-  const sandbox = createSandbox()
+  createSandbox()
 
   const dcdn = new DCDN({
     userId: TEST_USER.did,
@@ -107,12 +106,10 @@ test.serial('dcdn.start', async (t) => {
   t.true(Boolean(dcdn.swarm))
   await dcdn.stop()
   t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
 })
 
 test.serial('dcdn.stop', async (t) => {
-  const sandbox = createSandbox()
+  createSandbox()
 
   const dcdn = new DCDN({
     userId: TEST_USER.did,
@@ -127,12 +124,10 @@ test.serial('dcdn.stop', async (t) => {
   t.true(Boolean(dcdn.swarm))
   await dcdn.stop()
   t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
 })
 
 test.serial('dcdn.join.invalid', async (t) => {
-  const sandbox = createSandbox()
+  createSandbox()
 
   const dcdn = new DCDN({
     userId: TEST_USER.did,
@@ -155,12 +150,10 @@ test.serial('dcdn.join.invalid', async (t) => {
   }
 
   t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
 })
 
 test.serial('dcdn.unjoin', async (t) => {
-  const sandbox = createSandbox()
+  createSandbox()
 
   const dcdn = new DCDN({
     userId: TEST_USER.did,
@@ -174,8 +167,6 @@ test.serial('dcdn.unjoin', async (t) => {
   } catch (e) {
     t.fail()
   }
-
-  sandbox.restore()
 })
 
 test.serial('dcdn.unjoin.badafs', async (t) => {
@@ -187,7 +178,7 @@ test.serial('dcdn.unjoin.badafs', async (t) => {
     }
   })
 
-  const sandbox = createSandbox({
+  createSandbox({
     afs
   })
 
@@ -213,12 +204,10 @@ test.serial('dcdn.unjoin.badafs', async (t) => {
   } catch (e) {
     t.fail()
   }
-
-  sandbox.restore()
 })
 
 test.serial('dcdn.join.upload', async (t) => {
-  const sandbox = createSandbox()
+  createSandbox()
 
   const dcdn = new DCDN({
     userId: TEST_USER.did,
@@ -241,12 +230,10 @@ test.serial('dcdn.join.upload', async (t) => {
 
   await dcdn.stop()
   t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
 })
 
 test.serial('dcdn.join.startandupload', async (t) => {
-  const sandbox = createSandbox()
+  createSandbox()
 
   const dcdn = new DCDN({
     userId: TEST_USER.did,
@@ -270,12 +257,10 @@ test.serial('dcdn.join.startandupload', async (t) => {
 
   await dcdn.stop()
   t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
 })
 
 test.serial('dcdn.join.uploadanddownload', async (t) => {
-  const sandbox = createSandbox()
+  createSandbox()
 
   const dcdn = new DCDN({
     userId: TEST_USER.did,
@@ -298,8 +283,6 @@ test.serial('dcdn.join.uploadanddownload', async (t) => {
 
   await dcdn.stop()
   t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
 })
 
 test.serial('dcdn.join.download', async (t) => {
@@ -311,7 +294,7 @@ test.serial('dcdn.join.download', async (t) => {
     }
   })
 
-  const sandbox = createSandbox({ afs })
+  createSandbox({ afs })
 
   const emitFake = sinon.fake()
   const dcdn = new DCDN({
@@ -356,12 +339,10 @@ test.serial('dcdn.join.download', async (t) => {
 
   await dcdn.stop()
   t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
 })
 
 test.serial('dcdn.join.stopstart', async (t) => {
-  const sandbox = createSandbox()
+  createSandbox()
 
   const dcdn = new DCDN({
     userId: TEST_USER.did,
@@ -382,12 +363,10 @@ test.serial('dcdn.join.stopstart', async (t) => {
   await dcdn.stop()
   t.false(TEST_DID in dcdn.topics)
   t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
 })
 
 test.serial('dcdn.join.download.metaOnly', async (t) => {
-  const sandbox = createSandbox()
+  createSandbox()
 
   const dcdn = new DCDN({
     userId: TEST_USER.did,
@@ -409,12 +388,10 @@ test.serial('dcdn.join.download.metaOnly', async (t) => {
 
   await dcdn.stop()
   t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
 })
 
 test.serial('dcdn.join.upload.metaOnly', async (t) => {
-  const sandbox = createSandbox()
+  createSandbox()
 
   const dcdn = new DCDN({
     userId: TEST_USER.did,
@@ -436,12 +413,10 @@ test.serial('dcdn.join.upload.metaOnly', async (t) => {
 
   await dcdn.stop()
   t.false(Boolean(dcdn.swarm))
-
-  sandbox.restore()
 })
 
 test.serial('dcdn.join.noproxy', async (t) => {
-  const sandbox = createSandbox({
+  createSandbox({
     proxy: null
   })
 
@@ -466,7 +441,7 @@ test.serial('dcdn.join.noproxy', async (t) => {
 })
 
 test.serial('dcdn.join.unverified', async (t) => {
-  const sandbox = createSandbox({
+  createSandbox({
     verify: false
   })
 
@@ -486,12 +461,10 @@ test.serial('dcdn.join.unverified', async (t) => {
   })
 
   t.true(warnSpy.calledOnce)
-
-  sandbox.restore()
 })
 
 test.serial('dcdn.startandjoin.unverified', async (t) => {
-  const sandbox = createSandbox({
+  createSandbox({
     verify: false
   })
 
@@ -512,6 +485,4 @@ test.serial('dcdn.startandjoin.unverified', async (t) => {
   })
 
   t.true(warnSpy.calledOnce)
-
-  sandbox.restore()
 })

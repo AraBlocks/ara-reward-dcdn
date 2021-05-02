@@ -1,4 +1,4 @@
-const { test } = require('ava')
+const test = require('ava')
 const sinon = require('sinon')
 const index = require('../index')
 const dcdn = require('../src/dcdn')

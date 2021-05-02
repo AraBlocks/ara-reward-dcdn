@@ -64,6 +64,7 @@ class User {
     const signedData = Buffer.from(message.getSignature().getData())
     const signedDid = message.getSignature().getDid()
     const publicKey = Buffer.from(signedDid, 'hex')
+
     return crypto.verify(signedData, data, publicKey)
   }
 }

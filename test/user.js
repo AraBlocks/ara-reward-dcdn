@@ -14,7 +14,7 @@ test('util.User.sign', async (t) => {
 })
 
 test('util.User.verify', async (t) => {
-  const data = sinon.stub()
+  const data = Buffer.from("test")
   const signature = {
     getData() { return data },
     getDid() { return 'did' }
