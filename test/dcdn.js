@@ -1,5 +1,5 @@
 const test = require('ava')
-const sandbox = require("sinon").createSandbox();
+const sandbox = require('sinon').createSandbox()
 
 const { rewards, registry, storage } = require('ara-contracts')
 const EventEmitter = require('events')
@@ -40,8 +40,8 @@ function createSandbox(opts = {}) {
   sandbox.stub(ardUtil, 'verify').resolves(('verify' in opts) ? opts.verify : true)
 }
 
-test.beforeEach(t => {
-  sandbox.restore();
+test.beforeEach(() => {
+  sandbox.restore()
 })
 
 test.serial('dcdn.constructor', (t) => {
